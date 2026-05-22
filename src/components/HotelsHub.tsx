@@ -4,22 +4,24 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  Building2, 
-  MapPin, 
-  BedDouble, 
-  TrendingUp, 
-  Star, 
-  Users, 
-  Check, 
-  AlertCircle, 
-  ArrowUpRight, 
-  DollarSign, 
-  Activity, 
-  Sparkles, 
-  Coins, 
-  Sliders, 
-  Shuffle 
+import {
+  Building2,
+  MapPin,
+  BedDouble,
+  TrendingUp,
+  Star,
+  Users,
+  Check,
+  AlertCircle,
+  ArrowUpRight,
+  DollarSign,
+  Activity,
+  Sparkles,
+  Coins,
+  Sliders,
+  Shuffle,
+  Mail,
+  Phone
 } from 'lucide-react';
 
 interface HotelsHubProps {
@@ -42,6 +44,8 @@ interface HotelStats {
   badge: string;
   badgeColor: string;
   accentColor: string;
+  email: string;
+  phone: string;
 }
 
 export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: HotelsHubProps) {
@@ -49,7 +53,7 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
   const [hotels, setHotels] = useState<HotelStats[]>([
     {
       id: 'h-1',
-      name: 'Royal Saly',
+      name: 'Hotel Club Royal Saly',
       location: 'Saly Portudal, Petite-Côte',
       capacity: 120,
       roomsOccupied: 78,
@@ -57,14 +61,16 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
       manager: 'Awa Ndiaye',
       rating: 4.8,
       cleanliness: 4.9,
-      description: 'Hôtel balnéaire haut de gamme proposant bungalows traditionnels, piscines lagon et un centre de bien-être moderne.',
+      description: 'Resort balnéaire premium avec restaurant Le Baouli face à la mer, piscine sunset, accès spa illimité et vue océan garantie sur toutes les suites et Junior Suites Prestige.',
       badge: 'Complexe Balnéaire',
       badgeColor: 'bg-orange-50 text-orange-600 border-orange-100',
-      accentColor: 'from-orange-500 to-amber-500'
+      accentColor: 'from-orange-500 to-amber-500',
+      email: 'reservation@royalsaly.sn',
+      phone: '+221 33 957 10 00'
     },
     {
       id: 'h-2',
-      name: 'Nema Kadior',
+      name: 'Le Nema Cadior',
       location: 'Ziguinchor, Casamance',
       capacity: 72,
       roomsOccupied: 43,
@@ -72,14 +78,16 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
       manager: 'Ibrahima Sagna',
       rating: 4.6,
       cleanliness: 4.7,
-      description: 'Oasis fluviale au cœur de la Casamance, offrant un cadre paisible entouré de jardins tropicaux et de circuits culturels.',
+      description: 'Éco-lodge riverain au cœur de la Casamance avec piscine naturelle, ateliers culinaires (thiéboudiène, yassa) animés par notre chef Ibrahim, et circuits culturels locaux.',
       badge: 'Étape Fleuve',
       badgeColor: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-      accentColor: 'from-emerald-500 to-teal-500'
+      accentColor: 'from-emerald-500 to-teal-500',
+      email: 'contact@nema-cadior.sn',
+      phone: '+221 77 567 89 01'
     },
     {
       id: 'h-3',
-      name: 'Les Pélicans du Saloum',
+      name: 'Le Pélican du Saloum',
       location: 'Toubacouta, Delta du Saloum',
       capacity: 40,
       roomsOccupied: 28,
@@ -87,10 +95,12 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
       manager: 'Marie-Louise Diouf',
       rating: 4.9,
       cleanliness: 4.8,
-      description: 'Éco-lodge d\'exception proposant des bungalows sur pilotis face aux mangroves et des excursions ornithologiques.',
+      description: 'Éco-retraite d\'exception dans le Delta du Saloum avec piscine à débordement au coucher du soleil, bungalows sur pilotis, observation d\'oiseaux et excursions en pirogue guidées.',
       badge: 'Éco-Retraite Prestige',
       badgeColor: 'bg-sky-50 text-sky-600 border-sky-100',
-      accentColor: 'from-sky-500 to-indigo-500'
+      accentColor: 'from-sky-500 to-indigo-500',
+      email: 'contact@pelican-saloum.sn',
+      phone: '+221 77 456 78 90'
     }
   ]);
 
@@ -305,9 +315,21 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
                     <span className="text-[11px] font-medium text-slate-500">{h.location}</span>
                   </div>
 
-                  <p className="text-[11px] text-slate-500 mt-3 leading-snug text-left mb-5">
+                  <p className="text-[11px] text-slate-500 mt-3 leading-snug text-left mb-3">
                     {h.description}
                   </p>
+
+                  {/* Contact info */}
+                  <div className="flex flex-col gap-1 mb-5">
+                    <a href={`mailto:${h.email}`} className="flex items-center gap-1.5 text-[10.5px] text-slate-400 hover:text-orange-600 transition-colors font-medium">
+                      <Mail className="w-3 h-3 shrink-0" />
+                      <span>{h.email}</span>
+                    </a>
+                    <a href={`tel:${h.phone}`} className="flex items-center gap-1.5 text-[10.5px] text-slate-400 hover:text-orange-600 transition-colors font-medium">
+                      <Phone className="w-3 h-3 shrink-0" />
+                      <span>{h.phone}</span>
+                    </a>
+                  </div>
 
                   {/* Core Metrics Progress bars */}
                   <div className="space-y-4 border-t border-slate-50 pt-4.5 mb-5">
@@ -440,7 +462,7 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
               setHotels([
                 {
                   id: 'h-1',
-                  name: 'Royal Saly',
+                  name: 'Hotel Club Royal Saly',
                   location: 'Saly Portudal, Petite-Côte',
                   capacity: 120,
                   roomsOccupied: 78,
@@ -448,14 +470,16 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
                   manager: 'Awa Ndiaye',
                   rating: 4.8,
                   cleanliness: 4.9,
-                  description: 'Hôtel balnéaire haut de gamme proposant bungalows traditionnels, piscines lagon et un centre de bien-être moderne.',
+                  description: 'Resort balnéaire premium avec restaurant Le Baouli face à la mer, piscine sunset, accès spa illimité et vue océan garantie sur toutes les suites et Junior Suites Prestige.',
                   badge: 'Complexe Balnéaire',
                   badgeColor: 'bg-orange-50 text-orange-600 border-orange-100',
-                  accentColor: 'from-orange-500 to-amber-500'
+                  accentColor: 'from-orange-500 to-amber-500',
+                  email: 'reservation@royalsaly.sn',
+                  phone: '+221 33 957 10 00'
                 },
                 {
                   id: 'h-2',
-                  name: 'Nema Kadior',
+                  name: 'Le Nema Cadior',
                   location: 'Ziguinchor, Casamance',
                   capacity: 72,
                   roomsOccupied: 43,
@@ -463,14 +487,16 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
                   manager: 'Ibrahima Sagna',
                   rating: 4.6,
                   cleanliness: 4.7,
-                  description: 'Oasis fluviale au cœur de la Casamance, offrant un cadre paisible entouré de jardins tropicaux et de circuits culturels.',
+                  description: 'Éco-lodge riverain au cœur de la Casamance avec piscine naturelle, ateliers culinaires (thiéboudiène, yassa) animés par notre chef Ibrahim, et circuits culturels locaux.',
                   badge: 'Étape Fleuve',
                   badgeColor: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-                  accentColor: 'from-emerald-500 to-teal-500'
+                  accentColor: 'from-emerald-500 to-teal-500',
+                  email: 'contact@nema-cadior.sn',
+                  phone: '+221 77 567 89 01'
                 },
                 {
                   id: 'h-3',
-                  name: 'Les Pélicans du Saloum',
+                  name: 'Le Pélican du Saloum',
                   location: 'Toubacouta, Delta du Saloum',
                   capacity: 40,
                   roomsOccupied: 28,
@@ -478,10 +504,12 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
                   manager: 'Marie-Louise Diouf',
                   rating: 4.9,
                   cleanliness: 4.8,
-                  description: 'Éco-lodge d\'exception proposant des bungalows sur pilotis face aux mangroves et des excursions ornithologiques.',
+                  description: 'Éco-retraite d\'exception dans le Delta du Saloum avec piscine à débordement au coucher du soleil, bungalows sur pilotis, observation d\'oiseaux et excursions en pirogue guidées.',
                   badge: 'Éco-Retraite Prestige',
                   badgeColor: 'bg-sky-50 text-sky-600 border-sky-100',
-                  accentColor: 'from-sky-500 to-indigo-500'
+                  accentColor: 'from-sky-500 to-indigo-500',
+                  email: 'contact@pelican-saloum.sn',
+                  phone: '+221 77 456 78 90'
                 }
               ]);
               triggerNotification("Données opérationnelles de comparaison remises à zéro.");

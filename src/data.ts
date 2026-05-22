@@ -20,10 +20,10 @@ export function generateRooms(): Room[] {
   const lastNames = ['Diallo', 'Sarr', 'Hoffmann', 'Ndiaye', 'Kamara', 'Dupont', 'Smith', 'Sow', 'Fall', 'Mendy', 'Gaye', 'Cissé', 'Moreau', 'Ba', 'Keita', 'Diop', 'Traoré', 'Gomez', 'Müller', 'Janssen'];
   
   const roomCategories = [
-    { name: 'Chambre Standard', rate: 120 },
-    { name: 'Chambre Supérieure', rate: 165 },
-    { name: 'Chambre Deluxe Océan', rate: 230 },
-    { name: 'Suite Royale Swim-up', rate: 380 }
+    { name: 'Chambre Déco Africaine', rate: 95 },
+    { name: 'Chambre Deluxe', rate: 180 },
+    { name: 'Suite Baobab', rate: 310 },
+    { name: 'Junior Suite Prestige', rate: 420 }
   ];
 
   // Let's generate 4 floors, with 30 rooms per floor (total 120 rooms)
@@ -133,7 +133,7 @@ export const guestReviews: Review[] = [
     author: 'Sophie Lecomte',
     avatarText: 'SL',
     rating: 5,
-    comment: 'Un séjour idyllique de 6 nuits au Royal Saly ! Face à l\'océan, les bungalows sont incroyables. Service chaleureux typiquement sénégalais et restaurant délicieux.',
+    comment: 'Un séjour idyllique de 6 nuits à l\'Hotel Club Royal Saly ! Vue océan depuis notre suite garantie, restaurant Le Baouli face à la mer exceptionnel. Service chaleureux typiquement sénégalais — la vraie Téranga.',
     date: 'Hier',
     source: 'Booking.com'
   },

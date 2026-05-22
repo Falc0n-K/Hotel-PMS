@@ -42,7 +42,7 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<RBACRole>('Propriétaire d\'Hôtel');
   const [activeConsole, setActiveConsole] = useState<string>('dashboard');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [currentHotel, setCurrentHotel] = useState<string>('Royal Saly');
+  const [currentHotel, setCurrentHotel] = useState<string>('Hotel Club Royal Saly');
   
   // Real active local databases
   const [rooms, setRooms] = useState<Room[]>(() => generateRooms());
@@ -58,7 +58,7 @@ export default function App() {
 
   // Live active rooms compute for the selected hotel property
   const hotelRooms = useMemo(() => {
-    if (currentHotel === 'Les Pélicans du Saloum') {
+    if (currentHotel === 'Le Pélican du Saloum') {
       // Intimate eco-lodge: 40 cosy bungalows on 1st/2nd level, custom theme names
       return rooms
         .filter(r => r.floor <= 2 && parseInt(r.number) % 10 <= 8)
@@ -71,7 +71,7 @@ export default function App() {
             : 'Bungalow Jardin'
         }));
     }
-    if (currentHotel === 'Nema Kadior') {
+    if (currentHotel === 'Le Nema Cadior') {
       // Mid-size riverfront: 72 rooms
       return rooms
         .filter(r => r.floor <= 3 && parseInt(r.number) % 10 <= 18)
@@ -95,7 +95,7 @@ export default function App() {
     const notReady = hotelRooms.filter(r => r.status === 'not-ready').length;
     
     // Scale baseline factors dynamically based on hotel tier
-    const multiplier = currentHotel === 'Royal Saly' ? 1.0 : currentHotel === 'Nema Kadior' ? 0.65 : 0.35;
+    const multiplier = currentHotel === 'Hotel Club Royal Saly' ? 1.0 : currentHotel === 'Le Nema Cadior' ? 0.65 : 0.35;
     
     return {
       totalRevenue: Math.round((58240 + deltaEarnings) * multiplier),

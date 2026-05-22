@@ -86,9 +86,9 @@ export default function Sidebar({
               onChange={(e) => onHotelChange(e.target.value)}
               className="w-full bg-slate-50/50 hover:bg-slate-100/60 border border-slate-200/50 text-[#09153D] font-bold text-[11px] py-2 pl-8.5 pr-7.5 rounded-xl appearance-none focus:outline-none focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500 transition-all cursor-pointer"
             >
-              <option value="Royal Saly">🏢 Royal Saly</option>
-              <option value="Nema Kadior">🌴 Nema Kadior</option>
-              <option value="Les Pélicans du Saloum">🦤 Les Pélicans</option>
+              <option value="Hotel Club Royal Saly">🏖️ Hotel Club Royal Saly</option>
+              <option value="Le Nema Cadior">🌴 Le Nema Cadior</option>
+              <option value="Le Pélican du Saloum">🦤 Le Pélican du Saloum</option>
             </select>
             <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-orange-600 pointer-events-none">
               <Building2 className="w-3.5 h-3.5" />
