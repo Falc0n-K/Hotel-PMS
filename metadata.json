@@ -1,0 +1,6 @@
+{
+  "name": "Senegal Hotels PMS",
+  "description": "Système de Gestion Hôtelière (PMS) multi-établissement pour le groupe Senegal Hotels (Royal Saly, Nema Kadior, Les Pélicans du Saloum).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
