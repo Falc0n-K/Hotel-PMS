@@ -16,8 +16,8 @@ interface RoomGridProps {
 export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: RoomGridProps) {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
-  // Group rooms by floor (Floor 4, 3, 2, 1) for hierarchical display
-  const floors = [4, 3, 2, 1];
+  // Derive floors from actual room data, descending order
+  const floors = Array.from(new Set(rooms.map(r => r.floor))).sort((a, b) => b - a);
 
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -73,8 +73,8 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
         </div>
 
         <div className="text-right flex items-baseline gap-2">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">TOTAL ALL ROOMS</span>
-          <span className="text-3xl font-extrabold text-[#09153D] tracking-tight font-mono">120</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">TOTAL CHAMBRES</span>
+          <span className="text-3xl font-extrabold text-[#09153D] tracking-tight font-mono">{rooms.length}</span>
         </div>
       </div>
 
@@ -109,7 +109,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                         } ${isSelected ? 'ring-4 ring-orange-500/30 scale-110 z-10' : ''}`}
                         title={`Chambre ${room.number} - ${getStatusName(room.status)} ${room.guestName ? '(' + room.guestName + ')' : ''}`}
                       >
-                        {room.number.slice(1)} {/* display room index 01-30 */}
+                        {room.number.slice(-2)}
                         
                         {/* Selected accent ring indicator */}
                         {isSelected && (
@@ -154,7 +154,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
               {/* Price details */}
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-400 font-medium">Tarif journalier :</span>
-                <span className="font-extrabold text-slate-900 font-mono">${selectedRoom.nightlyRate}/nuit</span>
+                <span className="font-extrabold text-slate-900 font-mono">{selectedRoom.nightlyRate.toLocaleString('fr-FR')} FCFA/nuit</span>
               </div>
 
               {/* Guest metadata if Occupied / Reserved */}
@@ -173,14 +173,19 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                   )}
 
                   {selectedRoom.checkInDate && (
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1 pt-1 border-t border-slate-50">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-emerald-500" />
-                        Arrivée: {selectedRoom.checkInDate.split('-')[2]} mai
-                      </span>
-                      <span>
-                        Départ: {selectedRoom.checkOutDate?.split('-')[2]} mai
-                      </span>
+                    <div className="space-y-1 mt-1 pt-1 border-t border-slate-50">
+                      <div className="flex items-center justify-between text-[10px] text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-emerald-500" />
+                          Arrivée: {selectedRoom.checkInDate}
+                        </span>
+                        <span>Départ: {selectedRoom.checkOutDate ?? '—'}</span>
+                      </div>
+                      {selectedRoom.occupants !== undefined && (
+                        <div className="text-[10px] text-slate-400">
+                          {selectedRoom.occupants} occupant{selectedRoom.occupants > 1 ? 's' : ''}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

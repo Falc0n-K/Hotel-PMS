@@ -20,10 +20,10 @@ export function generateRooms(): Room[] {
   const lastNames = ['Diallo', 'Sarr', 'Hoffmann', 'Ndiaye', 'Kamara', 'Dupont', 'Smith', 'Sow', 'Fall', 'Mendy', 'Gaye', 'Cissé', 'Moreau', 'Ba', 'Keita', 'Diop', 'Traoré', 'Gomez', 'Müller', 'Janssen'];
   
   const roomCategories = [
-    { name: 'Chambre Standard', rate: 120 },
-    { name: 'Chambre Supérieure', rate: 165 },
-    { name: 'Chambre Deluxe Océan', rate: 230 },
-    { name: 'Suite Royale Swim-up', rate: 380 }
+    { name: 'Chambre Standard', rate: 54000 },
+    { name: 'Chambre Supérieure', rate: 74250 },
+    { name: 'Chambre Deluxe Océan', rate: 103500 },
+    { name: 'Suite Royale Swim-up', rate: 171000 }
   ];
 
   // Let's generate 4 floors, with 30 rooms per floor (total 120 rooms)
@@ -77,14 +77,14 @@ export function generateRooms(): Room[] {
       if (status === 'occupied') {
         guestName = firstNames[(floor * r) % firstNames.length] + ' ' + lastNames[(floor + r) % lastNames.length];
         occupants = ((floor + r) % 2) + 1;
-        checkInDate = `2026-05-${14 + ((floor * r) % 6)}`;
-        checkOutDate = `2026-05-${22 + ((floor + r) % 5)}`;
+        checkInDate = `2026-07-${String(14 + ((floor * r) % 6)).padStart(2, '0')}`;
+        checkOutDate = `2026-07-${String(22 + ((floor + r) % 5)).padStart(2, '0')}`;
         phone = `+221 77 ${100 + floor * 10 + r} ${40 + floor + r} 99`;
       } else if (status === 'reserved') {
         guestName = firstNames[(floor + r + 3) % firstNames.length] + ' ' + lastNames[(floor * r + 2) % lastNames.length];
         occupants = ((floor * r) % 3) + 1;
-        checkInDate = `2026-05-${22 + ((floor + r) % 4)}`;
-        checkOutDate = `2026-05-${26 + ((floor * r) % 5)}`;
+        checkInDate = `2026-07-${String(22 + ((floor + r) % 4)).padStart(2, '0')}`;
+        checkOutDate = `2026-07-${String(26 + ((floor * r) % 5)).padStart(2, '0')}`;
         phone = `+33 6 ${40 + floor * r} 90 ${11 + floor + r}`;
       }
 
@@ -224,11 +224,11 @@ export const revenueGraphData = [
 
 // Daily occupancy logs
 export const occupancyTrendData = [
-  { day: '12 Juin', occupied: 68, available: 52 },
-  { day: '13 Juin', occupied: 72, available: 48 },
-  { day: '14 Juin', occupied: 85, available: 35 },
-  { day: '15 Juin', occupied: 94, available: 26 },
-  { day: '16 Juin', occupied: 88, available: 32 },
-  { day: '17 Juin', occupied: 76, available: 44 },
-  { day: '18 Juin', occupied: 68, available: 52 } // matching current occupied state (68)
+  { day: '14 Juil', occupied: 68, available: 52 },
+  { day: '15 Juil', occupied: 72, available: 48 },
+  { day: '16 Juil', occupied: 85, available: 35 },
+  { day: '17 Juil', occupied: 94, available: 26 },
+  { day: '18 Juil', occupied: 88, available: 32 },
+  { day: '19 Juil', occupied: 76, available: 44 },
+  { day: '20 Juil', occupied: 68, available: 52 }
 ];

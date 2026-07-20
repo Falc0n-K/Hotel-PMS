@@ -131,14 +131,7 @@ export default function RoomInventory({
     triggerToast("Chambre mise à jour avec succès.");
   };
 
-  // Quick helper to convert currency
-  const formatValue = (val: number) => {
-    // Rooms are simulated in either FCFA or EUR (which was baseline / 1000 approximately)
-    if (val < 1000) {
-      return `${Math.round(val * 450).toLocaleString('fr-FR')} FCFA`;
-    }
-    return `${val.toLocaleString('fr-FR')} FCFA`;
-  };
+  const formatValue = (val: number) => `${val.toLocaleString('fr-FR')} FCFA`;
 
   // Filter actual rooms logic
   const filteredRooms = useMemo(() => {
@@ -446,7 +439,7 @@ export default function RoomInventory({
 
                       {/* Nightly price rates edit inline */}
                       <td className="p-4 text-right font-black font-mono text-[#09153D]">
-                        {isEditing ? (
+                        {isEditing && currentRole !== 'Responsable Ménage' ? (
                           <div className="flex items-center justify-end gap-1">
                             <span className="text-[10px] text-slate-400">FCFA</span>
                             <input

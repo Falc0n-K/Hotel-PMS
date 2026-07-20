@@ -153,14 +153,23 @@ export default function BookingsDesk({
   const [statusFilter, setStatusFilter] = useState('Tous');
   const [showAddFormModal, setShowAddFormModal] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
 
   // New Booking form dynamic states
   const [formGuestName, setFormGuestName] = useState('');
   const [formGuestEmail, setFormGuestEmail] = useState('');
   const [formGuestPhone, setFormGuestPhone] = useState('');
   const [formRoomNo, setFormRoomNo] = useState('');
-  const [formCheckIn, setFormCheckIn] = useState('2026-05-22');
-  const [formCheckOut, setFormCheckOut] = useState('2026-05-25');
+  const [formGuestCount, setFormGuestCount] = useState<number>(2);
+  const [formCheckIn, setFormCheckIn] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [formCheckOut, setFormCheckOut] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toISOString().split('T')[0];
+  });
   const [formBreakfast, setFormBreakfast] = useState(true);
   const [formPaymentStatus, setFormPaymentStatus] = useState<'Payé' | 'Acompte' | 'Non Payé'>('Non Payé');
   const [formNotes, setFormNotes] = useState('');
@@ -170,16 +179,15 @@ export default function BookingsDesk({
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Compute stay length
+  // Compute stay length — negative if checkout ≤ checkin (invalid)
   const formNightsCount = useMemo(() => {
     try {
       const start = new Date(formCheckIn);
       const end = new Date(formCheckOut);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return isNaN(diffDays) ? 1 : diffDays;
+      const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      return isNaN(diffDays) ? 0 : diffDays;
     } catch {
-      return 1;
+      return 0;
     }
   }, [formCheckIn, formCheckOut]);
 
@@ -191,11 +199,11 @@ export default function BookingsDesk({
 
   // Compute price inline
   const computedTotalAmount = useMemo(() => {
-    if (!selectedRoomDetails) return 0;
+    if (!selectedRoomDetails || formNightsCount <= 0) return 0;
     const roomCost = selectedRoomDetails.nightlyRate * formNightsCount;
-    const breakfastCost = formBreakfast ? (8500 * formNightsCount * 2) : 0; // 8500 per person, assume double
+    const breakfastCost = formBreakfast ? (8500 * formNightsCount * formGuestCount) : 0;
     return roomCost + breakfastCost;
-  }, [selectedRoomDetails, formNightsCount, formBreakfast]);
+  }, [selectedRoomDetails, formNightsCount, formBreakfast, formGuestCount]);
 
   // List of active reservations belonging strictly to the selected hotel property
   const hotelReservations = useMemo(() => {
@@ -222,18 +230,22 @@ export default function BookingsDesk({
       triggerToast("Veuillez renseigner le nom du client principal et le numéro de chambre.");
       return;
     }
+    if (formNightsCount <= 0) {
+      triggerToast("La date de départ doit être postérieure à la date d'arrivée.");
+      return;
+    }
 
     const matchedRoom = rooms.find(r => r.number === formRoomNo);
     if (!matchedRoom) return;
 
     const reservationPrefix = currentHotel === 'Royal Saly' ? 'RS' : currentHotel === 'Nema Kadior' ? 'NK' : 'PS';
-    const uniqueResId = `RES-${reservationPrefix}-${100 + Math.floor(Math.random() * 900)}`;
+    const uniqueResId = `RES-${reservationPrefix}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 
     const newResItem: ReservationItem = {
       id: uniqueResId,
       guestName: formGuestName,
-      guestEmail: formGuestEmail || 'clients@senegalhotels.sn',
-      guestPhone: formGuestPhone || '+221 33 000 00 00',
+      guestEmail: formGuestEmail || '',
+      guestPhone: formGuestPhone || '',
       roomNo: formRoomNo,
       roomType: matchedRoom.category,
       checkIn: formCheckIn,
@@ -241,7 +253,7 @@ export default function BookingsDesk({
       durationNights: formNightsCount,
       breakfastIncluded: formBreakfast,
       totalAmount: computedTotalAmount,
-      status: 'Confirmé', // default state
+      status: 'Confirmé',
       paymentStatus: formPaymentStatus,
       hotelName: currentHotel,
       notes: formNotes
@@ -261,11 +273,11 @@ export default function BookingsDesk({
     );
 
     setShowAddFormModal(false);
-    // Reset inputs
     setFormGuestName('');
     setFormGuestEmail('');
     setFormGuestPhone('');
     setFormNotes('');
+    setFormGuestCount(2);
     triggerToast(`Réservation ${uniqueResId} enregistrée en Chambre ${formRoomNo} !`);
   };
 
@@ -276,12 +288,10 @@ export default function BookingsDesk({
       return;
     }
 
-    // Check if the chamber is already clean and ready
+    // Check if the chamber is clean and ready — warn via toast instead of blocking confirm()
     const targetedRoom = rooms.find(r => r.number === roomNo);
     if (targetedRoom && targetedRoom.status === 'not-ready') {
-      if (!confirm(`Attention : La chambre ${roomNo} est actuellement classée sale / en ménage. Voulez-vous forcer l'enregistrement du client ?`)) {
-        return;
-      }
+      triggerToast(`Attention : La chambre ${roomNo} est en cours de ménage. Check-in forcé enregistré — prévenez le ménage.`);
     }
 
     setReservations(prev => prev.map(res => {
@@ -327,17 +337,17 @@ export default function BookingsDesk({
     triggerToast(`Départ enregistré. Chambre ${roomNo} libérée pour ménage.`);
   };
 
-  // Cancel reservation
+  // Cancel reservation — uses inline confirmation state instead of browser confirm()
   const handleCancelBooking = (resId: string, roomNo: string, guestName: string, originalStatus: string) => {
     if (currentRole === 'Responsable Ménage' || currentRole === 'Directeur Financier') {
       triggerToast("Niveau d'administration insuffisant pour annuler.");
       return;
     }
+    setCancelConfirmId(resId);
+  };
 
-    if (!confirm(`Confirmez-vous l'annulation complète de la réservation de ${guestName} ?`)) {
-      return;
-    }
-
+  const handleCancelConfirmed = (resId: string, roomNo: string, guestName: string, originalStatus: string) => {
+    setCancelConfirmId(null);
     setReservations(prev => prev.map(res => {
       if (res.id === resId) {
         return { ...res, status: 'Annulé' };
@@ -345,7 +355,6 @@ export default function BookingsDesk({
       return res;
     }));
 
-    // Release room if it was reserved/occupied under this guest's name
     if (originalStatus === 'Confirmé' || originalStatus === 'Arrivé') {
       onUpdateRoomStatusAndGuest(roomNo, 'available', undefined);
     }
@@ -665,13 +674,30 @@ export default function BookingsDesk({
                           )}
 
                           {res.status !== 'Annulé' && res.status !== 'Terminé' && (
-                            <button
-                              onClick={() => handleCancelBooking(res.id, res.roomNo, res.guestName, res.status)}
-                              className="bg-slate-100 hover:bg-red-50 border border-slate-200 text-slate-500 hover:text-red-600 p-2 rounded-xl transition-all cursor-pointer"
-                              title="Annuler le dossier"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            cancelConfirmId === res.id ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleCancelConfirmed(res.id, res.roomNo, res.guestName, res.status)}
+                                  className="bg-red-500 hover:bg-red-600 text-white font-extrabold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                                >
+                                  Confirmer
+                                </button>
+                                <button
+                                  onClick={() => setCancelConfirmId(null)}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                                >
+                                  Non
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleCancelBooking(res.id, res.roomNo, res.guestName, res.status)}
+                                className="bg-slate-100 hover:bg-red-50 border border-slate-200 text-slate-500 hover:text-red-600 p-2 rounded-xl transition-all cursor-pointer"
+                                title="Annuler le dossier"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )
                           )}
 
                           {(res.status === 'Annulé' || res.status === 'Terminé') && (
@@ -821,9 +847,38 @@ export default function BookingsDesk({
 
               </div>
 
+              {/* Number of guests */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                  Nombre de Voyageurs :
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormGuestCount(Math.max(1, formGuestCount - 1))}
+                    className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center cursor-pointer"
+                  >−</button>
+                  <span className="flex-1 text-center font-black text-[#09153D] text-lg font-mono">{formGuestCount}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormGuestCount(Math.min(10, formGuestCount + 1))}
+                    className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm flex items-center justify-center cursor-pointer"
+                  >+</button>
+                  <span className="text-[10px] text-slate-400 font-medium">pers.</span>
+                </div>
+              </div>
+
+              {/* Date validation warning */}
+              {formNightsCount <= 0 && formCheckIn && formCheckOut && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-[10px] font-bold text-red-600">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>La date de départ doit être postérieure à la date d'arrivée ({Math.abs(formNightsCount)} jour(s) d'écart négatif).</span>
+                </div>
+              )}
+
               {/* Breakfast & Payment Status & Notes */}
               <div className="grid grid-cols-2 gap-4">
-                
+
                 {/* Breakfast checkbox package */}
                 <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100/80 flex items-center justify-between select-none">
                   <div className="flex items-center gap-2">
@@ -832,7 +887,7 @@ export default function BookingsDesk({
                     </div>
                     <div className="text-left">
                       <span className="text-[10.5px] font-extrabold text-slate-700 block">Petit déjeuner</span>
-                      <span className="text-[9.5px] text-slate-400 block">+17.000 F CFA / nuit</span>
+                      <span className="text-[9.5px] text-slate-400 block">+8.500 F CFA / pers. / nuit</span>
                     </div>
                   </div>
                   <input
@@ -875,20 +930,25 @@ export default function BookingsDesk({
               </div>
 
               {/* Calculated Invoice Summary Info */}
-              {selectedRoomDetails && (
-                <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center justify-between text-left">
-                  <div className="space-y-0.5">
-                    <span className="block text-[9px] font-extrabold text-orange-850 uppercase tracking-wide">
-                      Simulation Facturation ({formNightsCount} N°):
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-600">
-                      Tarif chambre: {formatValue(selectedRoomDetails.nightlyRate)} / nuit
-                    </span>
+              {selectedRoomDetails && formNightsCount > 0 && (
+                <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 text-left space-y-1">
+                  <span className="block text-[9px] font-extrabold text-orange-800 uppercase tracking-wide">
+                    Simulation Facturation ({formNightsCount} nuit{formNightsCount > 1 ? 's' : ''} · {formGuestCount} pers.) :
+                  </span>
+                  <div className="flex justify-between text-[10px] text-slate-600">
+                    <span>Chambre ({selectedRoomDetails.nightlyRate.toLocaleString('fr-FR')} FCFA × {formNightsCount})</span>
+                    <span className="font-bold">{(selectedRoomDetails.nightlyRate * formNightsCount).toLocaleString('fr-FR')} FCFA</span>
                   </div>
-                  <div className="text-right">
-                    <span className="block text-[9px] font-medium text-slate-450">Somme Quotidienne</span>
-                    <span className="text-lg font-black text-orange-950 font-mono">
-                      {computedTotalAmount.toLocaleString('fr-FR')} F
+                  {formBreakfast && (
+                    <div className="flex justify-between text-[10px] text-slate-600">
+                      <span>Petit-déjeuner (8 500 × {formGuestCount} pers. × {formNightsCount})</span>
+                      <span className="font-bold">{(8500 * formGuestCount * formNightsCount).toLocaleString('fr-FR')} FCFA</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-1 border-t border-orange-200">
+                    <span className="text-[10px] font-extrabold text-orange-900">TOTAL SÉJOUR</span>
+                    <span className="text-sm font-black text-orange-950 font-mono">
+                      {computedTotalAmount.toLocaleString('fr-FR')} FCFA
                     </span>
                   </div>
                 </div>

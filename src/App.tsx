@@ -98,49 +98,45 @@ export default function App() {
     const multiplier = currentHotel === 'Royal Saly' ? 1.0 : currentHotel === 'Nema Kadior' ? 0.65 : 0.35;
     
     return {
-      totalRevenue: Math.round((58240 + deltaEarnings) * multiplier),
+      totalRevenue: Math.round((26208000 + deltaEarnings) * multiplier),
       newReservations: Math.round((106 + reserved) * multiplier),
       checkedIn: occupied,
-      checkedOut: notReady + 2,
+      checkedOut: notReady,
     };
   }, [hotelRooms, deltaEarnings, currentHotel]);
 
   // Handle room status updates from Inspector quick-actions
   const handleUpdateRoomStatus = (roomId: string, newStatus: RoomStatus) => {
-    setRooms(prevRooms =>
-      prevRooms.map(room => {
+    setRooms(prevRooms => {
+      const updatedRooms = prevRooms.map(room => {
         if (room.id === roomId) {
-          const oldStatus = room.status;
-          
-          // Increment simulated earnings when checking guests in
-          if (oldStatus !== 'occupied' && newStatus === 'occupied') {
-            setDeltaEarnings(prev => prev + room.nightlyRate);
-            
-            // Push dynamic notification Alert
-            const newNotif: PMSNotification = {
-              id: `notif-${Date.now()}`,
-              title: 'Arrivée validée en temps réel',
-              message: `Arrivée du client enregistrée aujourd'hui en chambre ${room.number} (${room.category}).`,
-              time: 'À l\'instant',
-              type: 'réservation',
-              read: false
-            };
-            setNotifications(prev => [newNotif, ...prev]);
-          }
-
-          // Return room with updated values
           return {
             ...room,
             status: newStatus,
-            // Clear details if marked not-ready or available
             guestName: newStatus === 'available' || newStatus === 'not-ready' ? undefined : room.guestName,
             phone: newStatus === 'available' || newStatus === 'not-ready' ? undefined : room.phone,
             checkInDate: newStatus === 'available' || newStatus === 'not-ready' ? undefined : room.checkInDate,
           };
         }
         return room;
-      })
-    );
+      });
+      return updatedRooms;
+    });
+
+    // Separate state updates outside the setRooms updater to avoid React 19 double-invoke issues
+    const targetRoom = rooms.find(r => r.id === roomId);
+    if (targetRoom && targetRoom.status !== 'occupied' && newStatus === 'occupied') {
+      setDeltaEarnings(prev => prev + targetRoom.nightlyRate);
+      const newNotif: PMSNotification = {
+        id: `notif-${Date.now()}`,
+        title: 'Arrivée validée en temps réel',
+        message: `Arrivée du client enregistrée aujourd'hui en chambre ${targetRoom.number} (${targetRoom.category}).`,
+        time: 'À l\'instant',
+        type: 'réservation',
+        read: false
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+    }
   };
 
   const handleUpdateRoomStatusAndGuest = (
@@ -150,13 +146,13 @@ export default function App() {
     checkIn?: string,
     checkOut?: string
   ) => {
+    const targetRoom = rooms.find(r => r.number === roomNumber);
+    if (targetRoom && targetRoom.status !== 'occupied' && status === 'occupied') {
+      setDeltaEarnings(prev => prev + targetRoom.nightlyRate);
+    }
     setRooms(prevRooms =>
       prevRooms.map(room => {
         if (room.number === roomNumber) {
-          const oldStatus = room.status;
-          if (oldStatus !== 'occupied' && status === 'occupied') {
-            setDeltaEarnings(prev => prev + room.nightlyRate);
-          }
           return {
             ...room,
             status,
@@ -262,6 +258,8 @@ export default function App() {
           notifications={notifications}
           onMarkNotificationRead={handleMarkNotificationRead}
           onClearNotification={handleClearNotification}
+          activeConsole={activeConsole}
+          onConsoleSelect={setActiveConsole}
         />
 
         {/* 4. SCROLLABLE SCREEN CONTENTS */}
@@ -348,7 +346,7 @@ export default function App() {
               {/* Room Availability interactive board row */}
               <RoomGrid
                 rooms={hotelRooms}
-                onUpdateRoomStatus={currentRole === 'Directeur Financier' ? () => alert("Simulation PMS : L'édition d'inventaire est bloquée sous le rôle de Directeur Financier.") : handleUpdateRoomStatus}
+                onUpdateRoomStatus={currentRole === 'Directeur Financier' ? () => setSimulationAlert("L'édition d'inventaire est bloquée pour le rôle Directeur Financier.") : handleUpdateRoomStatus}
                 searchQuery={searchQuery}
               />
 
@@ -477,7 +475,7 @@ export default function App() {
                   Retour au Tableau de Bord
                 </button>
                 <button
-                  onClick={() => alert('Simulateur PMS : Rapport d\'état synthétisé envoyé au propriétaire.')}
+                  onClick={() => setSimulationAlert("Rapport d'audit PMS généré et transmis au propriétaire.")}
                   className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 font-bold py-2.5 px-5 rounded-xl text-xs transition-colors cursor-pointer"
                 >
                   Télécharger le rapport d'audit
@@ -494,9 +492,9 @@ export default function App() {
           <div className="flex gap-4">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-              <span>Serveur Multi-hôtels en ligne (Port 3000)</span>
+              <span>Système PMS multi-hôtels actif</span>
             </span>
-            <span>Version 4.2.0-orange</span>
+            <span>Version 4.2.0</span>
           </div>
         </footer>
 

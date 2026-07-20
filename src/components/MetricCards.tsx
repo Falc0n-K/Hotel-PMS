@@ -24,17 +24,15 @@ export default function MetricCards({ stats }: MetricCardsProps) {
   };
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat('fr-FR', {
       maximumFractionDigits: 0
-    }).format(val);
+    }).format(val) + ' FCFA';
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8 w-full">
       {/* CARD 1: TOTAL EARNINGS */}
-      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all duration-350 relative overflow-hidden group">
+      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-600"></div>
         <div className="flex items-center justify-between mb-4">
           <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
@@ -59,7 +57,7 @@ export default function MetricCards({ stats }: MetricCardsProps) {
       </div>
 
       {/* CARD 2: NEW RESERVATIONS */}
-      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all duration-355 relative overflow-hidden group">
+      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
             NOUVELLES RÉSERVATIONS
@@ -87,7 +85,7 @@ export default function MetricCards({ stats }: MetricCardsProps) {
       </div>
 
       {/* CARD 3: GUESTS CHECKED IN */}
-      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all duration-360 relative overflow-hidden group">
+      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
             CLIENTS ARRIVÉS
@@ -115,7 +113,7 @@ export default function MetricCards({ stats }: MetricCardsProps) {
       </div>
 
       {/* CARD 4: GUESTS CHECKED OUT */}
-      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all duration-365 relative overflow-hidden group">
+      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
             CLIENTS PARTIS

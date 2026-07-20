@@ -13,17 +13,39 @@ interface HeaderProps {
   notifications: PMSNotification[];
   onMarkNotificationRead: (id: string) => void;
   onClearNotification: (id: string) => void;
+  activeConsole: string;
+  onConsoleSelect: (console: string) => void;
 }
+
+const CONSOLE_TITLES: Record<string, string> = {
+  'dashboard': 'Tableau de Bord',
+  'hotels-hub': 'Hub Multi-Hôtels',
+  'rooms-inventory': 'Inventaire des Chambres',
+  'bookings-desk': 'Guichet Réservations',
+  'guests-crm': 'CRM Clients',
+  'payments-finance': 'Paiements & Finance',
+  'event-venues': 'Lieux d\'Événements',
+  'experiences-market': 'Marché Expériences',
+  'marketing-packages': 'Forfaits Marketing',
+  'guest-feedbacks': 'Retours Clients',
+  'deep-analytics': 'Deep Analytics',
+  'staff-directory': 'Annuaire Staff',
+  'messages-inbox': 'Messagerie',
+  'global-settings': 'Paramètres Globaux'
+};
 
 export default function Header({
   searchQuery,
   onSearchChange,
   notifications,
   onMarkNotificationRead,
-  onClearNotification
+  onClearNotification,
+  activeConsole,
+  onConsoleSelect
 }: HeaderProps) {
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
+  const pageTitle = CONSOLE_TITLES[activeConsole] || 'Console PMS';
 
   return (
     <header className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-8 sticky top-0 z-10 w-full">
@@ -31,7 +53,7 @@ export default function Header({
       <div>
         <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
           <Hotel className="w-5 h-5 text-orange-600 sm:hidden" />
-          <span>Tableau de Bord</span>
+          <span>{pageTitle}</span>
         </h2>
         <p className="text-xs text-slate-500 font-medium">
           Ravi de vous revoir, <span className="text-slate-700 font-semibold">Mamadou Diallo !</span>
@@ -60,11 +82,12 @@ export default function Header({
           )}
         </div>
 
-        {/* Discussion / Chat bubble with simulated feedback */}
+        {/* Messagerie shortcut */}
         <button
-          onClick={() => alert('Simulateur PMS: Le centre d\'assistance et de discussion unifiée est opérationnel.')}
+          onClick={() => onConsoleSelect('messages-inbox')}
           className="relative w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 flex items-center justify-center text-slate-600 transition-colors cursor-pointer group"
           title="Messagerie Interne"
+          aria-label="Ouvrir la messagerie"
         >
           <MessageSquare className="w-4.5 h-4.5 group-hover:scale-105 transition-transform" />
           <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
@@ -74,9 +97,10 @@ export default function Header({
         <div className="relative">
           <button
             onClick={() => setShowNotifPanel(!showNotifPanel)}
+            aria-label={`Notifications (${unreadCount} non lues)`}
             className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-colors cursor-pointer group ${
-              showNotifPanel 
-                ? 'bg-orange-50 border-orange-200 text-orange-600' 
+              showNotifPanel
+                ? 'bg-orange-50 border-orange-200 text-orange-600'
                 : 'bg-slate-50 hover:bg-slate-100 border-slate-100 text-slate-600'
             }`}
           >
@@ -93,7 +117,7 @@ export default function Header({
             <div className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
               <div className="flex items-center justify-between px-4 py-2 border-b border-slate-50">
                 <span className="text-xs font-bold text-slate-800">Notifications PMS ({unreadCount} non lues)</span>
-                <button 
+                <button
                   onClick={() => setShowNotifPanel(false)}
                   className="text-[10px] text-slate-400 hover:text-slate-600"
                 >
@@ -108,8 +132,8 @@ export default function Header({
                   </div>
                 ) : (
                   notifications.map((n) => (
-                    <div 
-                      key={n.id} 
+                    <div
+                      key={n.id}
                       className={`p-3.5 flex items-start gap-3 transition-colors ${
                         n.read ? 'bg-white' : 'bg-orange-50/30'
                       }`}
@@ -119,20 +143,18 @@ export default function Header({
                         n.type === 'paiement' ? 'bg-emerald-500' :
                         n.type === 'réservation' ? 'bg-orange-500' : 'bg-blue-400'
                       }`} />
-                      
+
                       <div className="flex-grow min-w-0">
                         <div className="flex items-center justify-between">
                           <p className={`text-xs ${n.read ? 'font-medium text-slate-700' : 'font-bold text-slate-900'}`}>{n.title}</p>
                           <span className="text-[9px] text-slate-400 font-mono shrink-0">{n.time}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-1 font-medium">{n.message}</p>
-                        
+
                         <div className="flex items-center gap-3 mt-2">
                           {!n.read && (
                             <button
-                              onClick={() => {
-                                onMarkNotificationRead(n.id);
-                              }}
+                              onClick={() => onMarkNotificationRead(n.id)}
                               className="text-[10px] text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1 cursor-pointer"
                             >
                               <Check className="w-3 h-3" />
