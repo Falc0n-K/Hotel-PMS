@@ -227,6 +227,7 @@ export default function ExperiencesMarket({
 
   // Print voucher popup state
   const [viewTicketVoucher, setViewTicketVoucher] = useState<ExperienceBooking | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -261,11 +262,8 @@ export default function ExperiencesMarket({
       return;
     }
 
-    if (!confirm(`Souhaitez-vous vraiment annuler et archiver définitivement le ticket d'excursion ${id} de ${name} ?`)) {
-      return;
-    }
-
     setBookings(prev => prev.filter(b => b.id !== id));
+    setDeleteConfirmId(null);
     triggerToast("Réservation d'activité radiée.");
   };
 
@@ -725,13 +723,30 @@ export default function ExperiencesMarket({
                             )}
 
                             {(currentRole === "Propriétaire d'Hôtel" || currentRole === 'Directeur Financier') && (
-                              <button
-                                onClick={() => handleDeleteBooking(b.id, b.guestName)}
-                                className="p-1 text-red-500 hover:bg-red-50 rounded"
-                                title="Supprimer définitivement"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              deleteConfirmId === b.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleDeleteBooking(b.id, b.guestName)}
+                                    className="text-[10px] font-bold bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg cursor-pointer"
+                                  >
+                                    Confirmer
+                                  </button>
+                                  <button
+                                    onClick={() => setDeleteConfirmId(null)}
+                                    className="text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg cursor-pointer"
+                                  >
+                                    Non
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setDeleteConfirmId(b.id)}
+                                  className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                  title="Supprimer définitivement"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )
                             )}
                           </div>
                         </td>

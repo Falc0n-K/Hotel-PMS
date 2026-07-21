@@ -178,6 +178,7 @@ export default function EventVenues({
   const [typeFilter, setTypeFilter] = useState<string>('Tous');
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>("VNU-BAY");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // New Space Form State
   const [showAddSpaceModal, setShowAddSpaceModal] = useState(false);
@@ -352,14 +353,15 @@ export default function EventVenues({
   // Master delete venue Space
   const handleDeleteVenue = (venueId: string, label: string) => {
     if (currentRole !== "Propriétaire d'Hôtel") {
-      triggerToast("Accès refusé. Seuls le Propriétaire de l’hôtel peut déclasser un espace événementiel du catalogue.");
+      triggerToast("Accès refusé. Seuls le Propriétaire de l'hôtel peut déclasser un espace événementiel du catalogue.");
       return;
     }
 
-    if (!confirm(`Sérieux ? Voulez-vous radier définitivement l'espace "${label}" des registres ? Toutes les réservations associées seront ré-affectées.`)) {
-      return;
-    }
+    setDeleteConfirmId(venueId);
+  };
 
+  const handleDeleteVenueConfirmed = (venueId: string, label: string) => {
+    setDeleteConfirmId(null);
     setVenues(prev => prev.filter(v => v.id !== venueId));
     setBookings(prev => prev.filter(b => b.venueId !== venueId));
     if (selectedVenueId === venueId) setSelectedVenueId(null);
@@ -602,13 +604,30 @@ export default function EventVenues({
                 </div>
 
                 {currentRole === "Propriétaire d'Hôtel" && (
-                  <button
-                    onClick={() => handleDeleteVenue(selectedVenue.id, selectedVenue.name)}
-                    className="text-red-500 hover:text-red-700 p-1.5 bg-red-50 rounded-lg shrink-0"
-                    title="Radié cet espace"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  deleteConfirmId === selectedVenue.id ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDeleteVenueConfirmed(selectedVenue.id, selectedVenue.name)}
+                        className="bg-red-500 hover:bg-red-600 text-white font-extrabold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                      >
+                        Confirmer
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmId(null)}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                      >
+                        Non
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleDeleteVenue(selectedVenue.id, selectedVenue.name)}
+                      className="text-red-500 hover:text-red-700 p-1.5 bg-red-50 rounded-lg shrink-0 cursor-pointer"
+                      title="Supprimer cet espace"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )
                 )}
               </div>
 

@@ -171,6 +171,7 @@ export default function PaymentsFinance({
   const [typeFilter, setTypeFilter] = useState<'Tous' | 'Entrée' | 'Sortie'>('Tous');
   const [methodFilter, setMethodFilter] = useState<string>('Tous');
   const [toast, setToast] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Modals state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -315,11 +316,8 @@ export default function PaymentsFinance({
       return;
     }
 
-    if (!confirm(`Souhaitez-vous éliminer de manière permanente l'écriture de caisse ${txId} ? Cettte opération générera un écart de bilan.`)) {
-      return;
-    }
-
     setTransactions(prev => prev.filter(t => t.id !== txId));
+    setDeleteConfirmId(null);
     triggerToast(`Transaction éditée et supprimée du bilan PMS.`);
   };
 
@@ -739,13 +737,30 @@ export default function PaymentsFinance({
 
                         {/* Owner only master delete */}
                         {currentRole === "Propriétaire d'Hôtel" && (
-                          <button
-                            onClick={() => handleDeleteTransaction(tx.id)}
-                            className="bg-red-50 hover:bg-red-100/80 border border-red-100 text-red-500 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Retirer cette écriture comptable"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                          deleteConfirmId === tx.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleDeleteTransaction(tx.id)}
+                                className="text-[10px] font-bold bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg cursor-pointer"
+                              >
+                                Confirmer
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmId(null)}
+                                className="text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg cursor-pointer"
+                              >
+                                Non
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setDeleteConfirmId(tx.id)}
+                              className="bg-red-50 hover:bg-red-100/80 border border-red-100 text-red-500 p-1.5 rounded-lg transition-colors cursor-pointer"
+                              title="Retirer cette écriture comptable"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )
                         )}
                       </div>
                     </td>

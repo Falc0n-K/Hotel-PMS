@@ -155,6 +155,7 @@ export default function GuestFeedbacks({
   const [sourceFilter, setSourceFilter] = useState<string>('Tous');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Ready To Use Hospitality Templates (Téranga Replies)
   const TérangaTemplates = [
@@ -282,11 +283,8 @@ export default function GuestFeedbacks({
       return;
     }
 
-    if (!confirm(`Confirmez-vous le retrait définitif de l'avis de ${author} ?`)) {
-      return;
-    }
-
     setFeedbacks(prev => prev.filter(fb => fb.id !== id));
+    setDeleteConfirmId(null);
     triggerToast("Avis effacé avec succès.");
   };
 
@@ -632,13 +630,30 @@ export default function GuestFeedbacks({
                 {/* Admin controls row (Propriétaire Only) */}
                 {currentRole === 'Propriétaire d\'Hôtel' && (
                   <div className="absolute top-4 right-4 sm:static sm:flex sm:justify-end sm:pt-2">
-                    <button
-                      onClick={() => handleDeleteFeedback(fb.id, fb.author)}
-                      className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 cursor-pointer"
-                      title="Archiver cet avis"
-                    >
-                      <Trash2 className="w-4.5 h-4.5" />
-                    </button>
+                    {deleteConfirmId === fb.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleDeleteFeedback(fb.id, fb.author)}
+                          className="text-[10px] font-bold bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg cursor-pointer"
+                        >
+                          Confirmer
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg cursor-pointer"
+                        >
+                          Non
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirmId(fb.id)}
+                        className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 cursor-pointer"
+                        title="Archiver cet avis"
+                      >
+                        <Trash2 className="w-4.5 h-4.5" />
+                      </button>
+                    )}
                   </div>
                 )}
 

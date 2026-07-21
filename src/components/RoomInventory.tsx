@@ -68,6 +68,7 @@ export default function RoomInventory({
   const [editedStatus, setEditedStatus] = useState<RoomStatus>('available');
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -117,6 +118,11 @@ export default function RoomInventory({
   const handleSaveInlineEdit = (roomId: string) => {
     if (currentRole === 'Responsable Ménage' && editedStatus !== 'available' && editedStatus !== 'not-ready') {
       triggerToast("Accès restreint : Le Responsable Ménage peut uniquement changer le statut Ménage ('Disponible' ou 'En Nettoyage').");
+      return;
+    }
+
+    if (editedRate <= 0) {
+      triggerToast("Tarif invalide : Le tarif journalier doit être supérieur à 0 FCFA.");
       return;
     }
 
@@ -506,18 +512,34 @@ export default function RoomInventory({
 
                               {/* Delete unit (Propriétaire Only) */}
                               {currentRole === "Propriétaire d'Hôtel" && (
-                                <button
-                                  onClick={() => {
-                                    if (confirm(`Êtes-vous certain de vouloir supprimer la chambre ${room.number} de l'inventaire ?`)) {
-                                      onDeleteRoom(room.id);
-                                      triggerToast(`Chambre ${room.number} supprimée.`);
-                                    }
-                                  }}
-                                  className="bg-red-50 hover:bg-red-105 border border-red-100 text-red-500 hover:text-red-650 p-1.5 rounded-lg transition-all cursor-pointer"
-                                  title="Retirer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                deleteConfirmId === room.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => {
+                                        setDeleteConfirmId(null);
+                                        onDeleteRoom(room.id);
+                                        triggerToast(`Chambre ${room.number} supprimée.`);
+                                      }}
+                                      className="bg-red-500 hover:bg-red-600 text-white font-extrabold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                                    >
+                                      Confirmer
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirmId(null)}
+                                      className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                                    >
+                                      Non
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeleteConfirmId(room.id)}
+                                    className="bg-red-50 hover:bg-red-100 border border-red-100 text-red-500 hover:text-red-700 p-1.5 rounded-lg transition-all cursor-pointer"
+                                    title="Retirer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )
                               )}
                             </>
                           )}

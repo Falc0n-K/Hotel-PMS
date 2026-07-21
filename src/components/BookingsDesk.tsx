@@ -460,7 +460,7 @@ export default function BookingsDesk({
             </span>
           </div>
           <h4 className="text-2xl font-black text-[#09153D] font-mono mt-1.5">{bookingsAnalytics.currentInStay} Voyageurs</h4>
-          <p className="text-[9.5px] text-slate-400 font-medium mt-1">Séjours actifs encours de services</p>
+          <p className="text-[9.5px] text-slate-400 font-medium mt-1">Séjours actifs en cours de séjour</p>
         </div>
 
         {/* Metric Card 4: Global volume */}
@@ -537,7 +537,7 @@ export default function BookingsDesk({
                 <th className="p-4 text-center">CHAMBRE N°</th>
                 <th className="p-4 text-left">DURÉE / NUITÉES</th>
                 <th className="p-4 text-left">DATES RETENUES</th>
-                <th className="p-4 text-center">KATERING PB</th>
+                <th className="p-4 text-center">PETIT-DÉJEUNER</th>
                 <th className="p-4 text-right">MONTANT TOTAL</th>
                 <th className="p-4 text-center">STATUT</th>
                 <th className="p-4 text-center">ACTIONS DESK</th>
@@ -809,9 +809,9 @@ export default function BookingsDesk({
                     required
                   >
                     <option value="">Sélectionner</option>
-                    {rooms.map(r => (
+                    {rooms.filter(r => r.status === 'available').map(r => (
                       <option key={r.id} value={r.number}>
-                        N° {r.number} ({r.status === 'available' ? 'Libre' : r.status === 'not-ready' ? 'Sale' : 'Occupé'}) - {r.category}
+                        N° {r.number} — {r.category}
                       </option>
                     ))}
                   </select>

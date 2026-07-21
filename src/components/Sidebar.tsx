@@ -88,7 +88,7 @@ export default function Sidebar({
             >
               <option value="Royal Saly">🏢 Royal Saly</option>
               <option value="Nema Kadior">🌴 Nema Kadior</option>
-              <option value="Les Pélicans du Saloum">🦤 Les Pélicans</option>
+              <option value="Les Pélicans du Saloum">🦩 Les Pélicans</option>
             </select>
             <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-orange-600 pointer-events-none">
               <Building2 className="w-3.5 h-3.5" />

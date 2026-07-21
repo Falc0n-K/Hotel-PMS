@@ -143,6 +143,7 @@ export default function GuestsCRM({
   const [searchQuery, setSearchQuery] = useState('');
   const [tierFilter, setTierFilter] = useState('Tous');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
@@ -245,14 +246,15 @@ export default function GuestsCRM({
   // Delete guest profile
   const handleDeleteProfile = (profileId: string, name: string) => {
     if (currentRole !== "Propriétaire d'Hôtel") {
-      triggerToast('Accès restreint : Seul le Propriétaire d’Hôtel peut désactiver ou supprimer un profil CRM.');
+      triggerToast("Accès restreint : Seul le Propriétaire d'Hôtel peut désactiver ou supprimer un profil CRM.");
       return;
     }
 
-    if (!confirm(`Voulez-vous supprimer définitivement la fiche client de ${name} du CRM Sénégal Hotels ?`)) {
-      return;
-    }
+    setDeleteConfirmId(profileId);
+  };
 
+  const handleDeleteProfileConfirmed = (profileId: string, name: string) => {
+    setDeleteConfirmId(null);
     setProfiles(prev => prev.filter(p => p.id !== profileId));
     if (selectedProfileId === profileId) setSelectedProfileId(null);
     triggerToast(`Fiche client de ${name} retirée.`);
@@ -532,13 +534,30 @@ export default function GuestsCRM({
                   </span>
                   
                   {currentRole === "Propriétaire d'Hôtel" && (
-                    <button
-                      onClick={() => handleDeleteProfile(selectedGuestProfile.id, selectedGuestProfile.fullName)}
-                      className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded-lg hover:scale-102 transition-transform cursor-pointer"
-                      title="Supprimer la fiche client"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    deleteConfirmId === selectedGuestProfile.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleDeleteProfileConfirmed(selectedGuestProfile.id, selectedGuestProfile.fullName)}
+                          className="bg-red-500 hover:bg-red-600 text-white font-extrabold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                        >
+                          Confirmer
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                        >
+                          Non
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleDeleteProfile(selectedGuestProfile.id, selectedGuestProfile.fullName)}
+                        className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded-lg hover:scale-102 transition-transform cursor-pointer"
+                        title="Supprimer la fiche client"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )
                   )}
                 </div>
 

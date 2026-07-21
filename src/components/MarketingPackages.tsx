@@ -200,6 +200,7 @@ export default function MarketingPackages({
   const [catFilter, setCatFilter] = useState<string>('Tous');
   const [selectedPkgId, setSelectedPkgId] = useState<string | null>("PKG-ROM-01");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Modal visibility flags
   const [showAddPkgModal, setShowAddPkgModal] = useState(false);
@@ -365,10 +366,11 @@ export default function MarketingPackages({
       return;
     }
 
-    if (!confirm(`Sûr ? Voulez-vous radier définitivement le forfait "${name}" des registres ?`)) {
-      return;
-    }
+    setDeleteConfirmId(id);
+  };
 
+  const handleDeletePackageConfirmed = (id: string) => {
+    setDeleteConfirmId(null);
     setPackages(prev => prev.filter(p => p.id !== id));
     if (selectedPkgId === id) setSelectedPkgId(null);
     triggerToast("Forfait marketing supprimé du PMS.");
@@ -706,13 +708,30 @@ export default function MarketingPackages({
                 </div>
 
                 {currentRole === 'Propriétaire d\'Hôtel' && (
-                  <button
-                    onClick={() => handleDeletePackage(selectedPackage.id, selectedPackage.name)}
-                    className="text-red-500 hover:text-red-700 p-1.5 bg-red-50 rounded-lg shrink-0 cursor-pointer"
-                    title="Radier le forfait"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  deleteConfirmId === selectedPackage.id ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDeletePackageConfirmed(selectedPackage.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white font-extrabold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                      >
+                        Confirmer
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmId(null)}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                      >
+                        Non
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleDeletePackage(selectedPackage.id, selectedPackage.name)}
+                      className="text-red-500 hover:text-red-700 p-1.5 bg-red-50 rounded-lg shrink-0 cursor-pointer"
+                      title="Supprimer le forfait"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )
                 )}
               </div>
 
@@ -755,7 +774,7 @@ export default function MarketingPackages({
 
                   {/* Attachment selector */}
                   <button
-                    onClick={() => alert(`PMS Offres : Forfait '${selectedPackage.name}' rattaché avec succès au modèle d'e-mailing principal de promotion.`)}
+                    onClick={() => triggerToast(`Forfait "${selectedPackage.name}" rattaché au modèle d'e-mailing principal.`)}
                     className="px-3.5 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl font-extrabold text-slate-700 text-xs cursor-pointer transition-colors"
                     title="Associer au template newsletter"
                   >

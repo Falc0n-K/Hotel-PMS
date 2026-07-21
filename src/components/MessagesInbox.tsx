@@ -263,6 +263,7 @@ export default function MessagesInbox({
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
 
   // Suggested fast answers / hospitality phrases
   const fastAnswers = [
@@ -379,10 +380,11 @@ export default function MessagesInbox({
       return;
     }
 
-    if (!confirm(`Confirmez-vous la fermeture et l'archivage définitif du fil de discussion de ${title} ?`)) {
-      return;
-    }
+    setArchiveConfirmId(threadId);
+  };
 
+  const handleDeleteThreadConfirmed = (threadId: string) => {
+    setArchiveConfirmId(null);
     setThreads(prev => prev.filter(t => t.id !== threadId));
     if (activeThreadId === threadId) {
       const remaining = threads.filter(t => t.id !== threadId && t.hotel === currentHotel);
@@ -607,13 +609,30 @@ export default function MessagesInbox({
 
                 {/* Right administrative panel option */}
                 {currentRole === 'Propriétaire d\'Hôtel' && (
-                  <button
-                    onClick={() => handleDeleteThread(activeThread.id, activeThread.title)}
-                    className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50 cursor-pointer"
-                    title="Archiver ou clore la session"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  archiveConfirmId === activeThread.id ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDeleteThreadConfirmed(activeThread.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white font-extrabold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                      >
+                        Confirmer
+                      </button>
+                      <button
+                        onClick={() => setArchiveConfirmId(null)}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[9px] px-2 py-1.5 rounded-lg cursor-pointer"
+                      >
+                        Non
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleDeleteThread(activeThread.id, activeThread.title)}
+                      className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50 cursor-pointer"
+                      title="Archiver ou clore la session"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )
                 )}
 
               </div>

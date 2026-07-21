@@ -178,6 +178,7 @@ export default function StaffDirectory({
   const [hotelFilterValue, setHotelFilterValue] = useState<string>('current'); // 'current' or 'all'
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null);
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -267,11 +268,8 @@ export default function StaffDirectory({
       return;
     }
 
-    if (!confirm(`Souhaitez-vous retirer définitivement la fiche de ${name} du répertoire actif ?`)) {
-      return;
-    }
-
     setStaff(prev => prev.filter(m => m.id !== id));
+    setRemoveConfirmId(null);
     triggerToast(`Fiche de ${name} supprimée.`);
   };
 
@@ -589,13 +587,30 @@ export default function StaffDirectory({
 
                   {/* Owner level delete */}
                   {currentRole === 'Propriétaire d\'Hôtel' && (
-                    <button
-                      onClick={() => handleRemoveStaff(member.id, member.name)}
-                      className="text-red-500 hover:text-red-700 p-2 rounded-xl hover:bg-red-50 cursor-pointer"
-                      title="Supprimer la fiche"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    removeConfirmId === member.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleRemoveStaff(member.id, member.name)}
+                          className="text-[10px] font-bold bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg cursor-pointer"
+                        >
+                          Confirmer
+                        </button>
+                        <button
+                          onClick={() => setRemoveConfirmId(null)}
+                          className="text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg cursor-pointer"
+                        >
+                          Non
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setRemoveConfirmId(member.id)}
+                        className="text-red-500 hover:text-red-700 p-2 rounded-xl hover:bg-red-50 cursor-pointer"
+                        title="Supprimer la fiche"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )
                   )}
 
                 </div>

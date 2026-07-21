@@ -104,17 +104,7 @@ export function generateRooms(): Room[] {
     }
   }
 
-  // Shuffle pseudo-randomly but deterministically to mix the states across the grid
-  const seedShuffle = (arr: Room[]) => {
-    let m = arr.length, t, i;
-    // To keep it clean, let's group rooms by number and then assign a determinist layout shuffle
-    // Let's swap some elements to make it look scattered, but keep them sorted or semi-sorted
-    // Let's actually sort them by room number so they display linearly in order 101...430 on the grid.
-    // The grid will show scattered colors elegantly.
-    return arr;
-  };
-
-  return seedShuffle(rooms);
+  return rooms;
 }
 
 // Booking sources
