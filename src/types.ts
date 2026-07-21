@@ -50,6 +50,7 @@ export interface PMSNotification {
   title: string;
   message: string;
   time: string;
+  createdAt: number;
   type: 'réservation' | 'paiement' | 'alerte' | 'info';
   read: boolean;
 }

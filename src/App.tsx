@@ -26,6 +26,7 @@ import StaffDirectory from './components/StaffDirectory';
 import MessagesInbox from './components/MessagesInbox';
 import GlobalSettings from './components/GlobalSettings';
 import { LockScreen } from './components/Modals';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Initial state data
 import {
@@ -131,7 +132,8 @@ export default function App() {
         id: `notif-${Date.now()}`,
         title: 'Arrivée validée en temps réel',
         message: `Arrivée du client enregistrée aujourd'hui en chambre ${targetRoom.number} (${targetRoom.category}).`,
-        time: 'À l\'instant',
+        time: '',
+        createdAt: Date.now(),
         type: 'réservation',
         read: false
       };
@@ -175,7 +177,8 @@ export default function App() {
       id: `notif-${Date.now()}`,
       title,
       message,
-      time: 'À l\'instant',
+      time: '',
+      createdAt: Date.now(),
       type,
       read: false
     };
@@ -297,6 +300,7 @@ export default function App() {
           )}
 
           {/* CONDITIONAL RENDER BY ACTIVE CONSOLE VIEW */}
+          <ErrorBoundary consoleName={activeConsole}>
           {activeConsole === 'dashboard' ? (
             <div className="fade-in-up">
               
@@ -483,6 +487,7 @@ export default function App() {
               </div>
             </div>
           )}
+          </ErrorBoundary>
 
         </div>
 

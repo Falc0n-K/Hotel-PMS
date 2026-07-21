@@ -3,9 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Bell, MessageSquare, Check, Trash2, Hotel } from 'lucide-react';
 import { PMSNotification } from '../types';
+
+function relativeTime(ts: number): string {
+  const diff = Math.max(0, Date.now() - ts);
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return 'À l\'instant';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `Il y a ${min} min`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `Il y a ${hr}h`;
+  const d = Math.floor(hr / 24);
+  return `Il y a ${d}j`;
+}
 
 interface HeaderProps {
   searchQuery: string;
@@ -44,7 +56,15 @@ export default function Header({
   onConsoleSelect
 }: HeaderProps) {
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [, setTick] = useState(0);
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Refresh relative timestamps every 60 s while panel is open
+  useEffect(() => {
+    if (!showNotifPanel) return;
+    const id = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, [showNotifPanel]);
   const pageTitle = CONSOLE_TITLES[activeConsole] || 'Console PMS';
 
   return (
@@ -147,7 +167,7 @@ export default function Header({
                       <div className="flex-grow min-w-0">
                         <div className="flex items-center justify-between">
                           <p className={`text-xs ${n.read ? 'font-medium text-slate-700' : 'font-bold text-slate-900'}`}>{n.title}</p>
-                          <span className="text-[9px] text-slate-400 font-mono shrink-0">{n.time}</span>
+                          <span className="text-[9px] text-slate-400 font-mono shrink-0">{relativeTime(n.createdAt)}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-1 font-medium">{n.message}</p>
 

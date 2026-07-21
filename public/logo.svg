@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" fill="none">
+  <rect width="240" height="80" rx="12" fill="#09153D"/>
+  <text x="20" y="38" font-family="Georgia, serif" font-size="18" font-weight="700" fill="#F97316" letter-spacing="1">SÉNÉGAL</text>
+  <text x="20" y="62" font-family="Georgia, serif" font-size="18" font-weight="700" fill="white" letter-spacing="1">HÔTELS</text>
+  <rect x="190" y="14" width="36" height="52" rx="4" fill="none" stroke="#F97316" stroke-width="2"/>
+  <rect x="198" y="22" width="8" height="8" rx="1" fill="#F97316"/>
+  <rect x="210" y="22" width="8" height="8" rx="1" fill="#F97316"/>
+  <rect x="198" y="34" width="8" height="8" rx="1" fill="white"/>
+  <rect x="210" y="34" width="8" height="8" rx="1" fill="white"/>
+  <rect x="202" y="46" width="12" height="18" rx="2" fill="#F97316"/>
+</svg>

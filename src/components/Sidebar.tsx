@@ -55,24 +55,11 @@ export default function Sidebar({
       {/* Brand Header */}
       <div className="p-6 border-b border-slate-50 flex flex-col gap-3.5">
         <div className="flex flex-col items-center justify-center py-2 w-full select-none">
-          <img 
-            src="https://lh3.googleusercontent.com/d/1P7FzKFgoqw2lC_WL9iiFy35LH3DCgzlj" 
-            alt="Sénégal Hôtels" 
+          <img
+            src="/logo.svg"
+            alt="Sénégal Hôtels"
             className="w-full max-w-[200px] h-20 object-contain filter drop-shadow-md"
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              const target = e.currentTarget;
-              target.style.display = 'none';
-              const fallback = target.nextElementSibling;
-              if (fallback) {
-                fallback.classList.remove('hidden');
-                fallback.classList.add('flex');
-              }
-            }}
           />
-          <div className="hidden bg-orange-600 font-extrabold text-white text-md px-5 py-2.5 rounded-xl shadow-md shadow-orange-500/10 shrink-0">
-            SÉNÉGAL HÔTELS
-          </div>
         </div>
 
         {/* Dynamic establishment active select switcher */}

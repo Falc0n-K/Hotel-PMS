@@ -166,21 +166,25 @@ export const initialTasks: Task[] = [
   { id: 'task-6', text: 'Contrôler la conformité des stocks du bar de plage', completed: false, priority: 'moyenne', category: 'Restauration' }
 ];
 
+const _now = Date.now();
+
 // Default notification board alerts
 export const initialNotifications: PMSNotification[] = [
   {
     id: 'notif-1',
     title: 'Nouvelle réservation reçue',
     message: 'Chambre Deluxe 305 réservée pour 4 nuits par David Fall via Booking.com',
-    time: 'Il y a 3 min',
+    time: '',
+    createdAt: _now - 3 * 60 * 1000,
     type: 'réservation',
     read: false
   },
   {
     id: 'notif-2',
     title: 'Paiement effectué avec succès',
-    message: 'Encaissement de $780 pour la chambre 204 (Adama Sarr)',
-    time: 'Il y a 15 min',
+    message: 'Encaissement de 57 720 FCFA pour la chambre 204 (Adama Sarr)',
+    time: '',
+    createdAt: _now - 15 * 60 * 1000,
     type: 'paiement',
     read: false
   },
@@ -188,7 +192,8 @@ export const initialNotifications: PMSNotification[] = [
     id: 'notif-3',
     title: 'Alerte Ménage requise',
     message: 'La chambre 115 est signalée prête pour inspection',
-    time: 'Il y a 45 min',
+    time: '',
+    createdAt: _now - 45 * 60 * 1000,
     type: 'info',
     read: true
   },
@@ -196,7 +201,8 @@ export const initialNotifications: PMSNotification[] = [
     id: 'notif-4',
     title: 'Alerte : Libération en retard',
     message: 'La chambre 412 (Yuki Suzuki) n\'a pas encore libéré sa chambre',
-    time: 'Il y a 1 heure',
+    time: '',
+    createdAt: _now - 60 * 60 * 1000,
     type: 'alerte',
     read: true
   }
