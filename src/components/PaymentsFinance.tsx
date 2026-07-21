@@ -1088,7 +1088,7 @@ export default function PaymentsFinance({
                 </div>
                 <h4 className="font-extrabold text-[#09153D] text-sm mt-2">SÉNÉGAL HOTELS GROUP</h4>
                 <p className="text-[9.5px] text-slate-400 font-bold uppercase tracking-widest">{currentHotel}</p>
-                <p className="text-[8.5px] text-slate-400">Saly Portudal / Ziguinchor, Sénégal</p>
+                <p className="text-[10px] text-slate-400">Saly Portudal / Ziguinchor, Sénégal</p>
               </div>
 
               {/* Details of the voucher */}

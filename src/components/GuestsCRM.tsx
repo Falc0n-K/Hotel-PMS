@@ -459,7 +459,7 @@ export default function GuestsCRM({
                           {prof.id}
                         </span>
                         
-                        <span className={`inline-flex items-center gap-1 text-[8.5px] px-2 py-0.5 rounded font-extrabold uppercase ${
+                        <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-extrabold uppercase ${
                           prof.loyaltyTier === 'Diamant' ? 'bg-[#09153D] text-[#FFA500]' :
                           prof.loyaltyTier === 'Or' ? 'bg-amber-100 text-amber-700' :
                           prof.loyaltyTier === 'Argent' ? 'bg-slate-100 text-slate-650' :
@@ -591,7 +591,7 @@ export default function GuestsCRM({
                         <button
                           key={tier}
                           onClick={() => handleUpgradeTier(selectedGuestProfile.id, tier)}
-                          className={`text-[8.5px] font-extrabold px-2 py-0.8 rounded ${
+                          className={`text-[10px] font-extrabold px-2 py-0.8 rounded ${
                             selectedGuestProfile.loyaltyTier === tier 
                               ? 'bg-orange-600 text-white font-black shadow-sm' 
                               : 'bg-white text-slate-450 border border-slate-200/50 hover:bg-slate-100'

@@ -680,7 +680,7 @@ export default function EventVenues({
                     <button
                       key={lay}
                       onClick={() => handleUpdateLayout(selectedVenue.id, lay)}
-                      className={`text-[8.5px] font-bold py-1.5 rounded transition-all cursor-pointer truncate ${
+                      className={`text-[10px] font-bold py-1.5 rounded transition-all cursor-pointer truncate ${
                         selectedVenue.activeSetup === lay 
                           ? 'bg-[#09153D] text-orange-400 font-extrabold' 
                           : 'bg-white text-slate-500 border border-slate-200/50 hover:bg-slate-100'
@@ -714,7 +714,7 @@ export default function EventVenues({
                             {bk.id}
                           </span>
 
-                          <span className={`text-[8.5px] px-2 py-0.5 rounded font-extrabold uppercase ${
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-extrabold uppercase ${
                             bk.paymentStatus === 'Payé Intégral' ? 'bg-emerald-50 text-emerald-600' :
                             bk.paymentStatus === 'Acompte Payé' ? 'bg-sky-50 text-sky-600' :
                             'bg-yellow-50 text-yellow-600'

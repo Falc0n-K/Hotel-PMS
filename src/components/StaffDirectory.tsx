@@ -514,7 +514,7 @@ export default function StaffDirectory({
                     <div className="flex flex-wrap items-center gap-1.5 pt-0.5 select-none text-[9.5px]">
                       <span className="text-slate-400 font-bold">Affectation hôtelière :</span>
                       {member.hotels.map((h, hIdx) => (
-                        <span key={hIdx} className="bg-orange-50 border border-orange-100 text-orange-700 font-black px-1.5 py-0.5 rounded text-[8.5px]">
+                        <span key={hIdx} className="bg-orange-50 border border-orange-100 text-orange-700 font-black px-1.5 py-0.5 rounded text-[10px]">
                           🏢 {h}
                         </span>
                       ))}

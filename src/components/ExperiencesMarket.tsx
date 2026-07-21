@@ -547,7 +547,7 @@ export default function ExperiencesMarket({
                     
                     {/* Badge priority tag */}
                     <div className="flex items-center justify-between">
-                      <span className={`text-[8.5px] font-black uppercase px-2.5 py-0.5 rounded ${
+                      <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded ${
                         ex.category === 'Safari & Nature' ? 'bg-emerald-50 text-emerald-600' :
                         ex.category === 'Aventure & Sport' ? 'bg-orange-50 text-orange-600' :
                         ex.category === 'Culture & Gastronomie' ? 'bg-sky-50 text-sky-600' :
@@ -596,7 +596,7 @@ export default function ExperiencesMarket({
                         <span className="text-sm font-black text-[#09153D] font-mono block">
                           {ex.pricePerPerson.toLocaleString('fr-FR')} F
                         </span>
-                        <span className="text-[8.5px] text-slate-400 font-bold uppercase block">par personne</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">par personne</span>
                       </div>
 
                     </div>
@@ -682,17 +682,17 @@ export default function ExperiencesMarket({
                         <td className="py-3 text-center">
                           <div className="flex items-center justify-center">
                             {b.status === 'Confirmé' ? (
-                              <span className="bg-emerald-50 text-emerald-600 text-[8.5px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-0.5">
+                              <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-0.5">
                                 <CheckCircle2 className="w-2.5 h-2.5" />
                                 Confirmé
                               </span>
                             ) : b.status === 'En attente' ? (
-                              <span className="bg-orange-50 text-orange-600 text-[8.5px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-0.5">
+                              <span className="bg-orange-50 text-orange-600 text-[10px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-0.5">
                                 <Activity className="w-2.5 h-2.5 animate-pulse" />
                                 En Attente
                               </span>
                             ) : (
-                              <span className="bg-rose-50 text-rose-600 text-[8.5px] font-black uppercase px-2 py-0.5 rounded">
+                              <span className="bg-rose-50 text-rose-600 text-[10px] font-black uppercase px-2 py-0.5 rounded">
                                 Annulé
                               </span>
                             )}
@@ -782,12 +782,12 @@ export default function ExperiencesMarket({
 
                 <div className="grid grid-cols-2 gap-3 text-left pt-2">
                   <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                    <span className="text-[8.5px] font-extrabold text-slate-400 uppercase tracking-wider block">DURÉE</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">DURÉE</span>
                     <span className="text-xs font-black text-[#09153D]">{selectedExperience.duration}</span>
                   </div>
 
                   <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                    <span className="text-[8.5px] font-extrabold text-slate-400 uppercase tracking-wider block">CAPACITÉ</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">CAPACITÉ</span>
                     <span className="text-xs font-black text-[#09153D]">Max {selectedExperience.spotsMax} PAX</span>
                   </div>
                 </div>
@@ -801,7 +801,7 @@ export default function ExperiencesMarket({
                   </div>
 
                   <div className="bg-white px-3.5 py-2.5 rounded-lg border border-orange-100/50 text-right">
-                    <span className="text-[8px] text-emerald-600 font-extrabold block">COMMISSION</span>
+                    <span className="text-[10px] text-emerald-600 font-extrabold block">COMMISSION</span>
                     <span className="text-[11px] font-mono font-black text-emerald-600">
                       {(selectedExperience.pricePerPerson * 0.15).toLocaleString('fr-FR')} F
                     </span>
@@ -880,7 +880,7 @@ export default function ExperiencesMarket({
               
               {/* Target activity information view */}
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-150 space-y-1">
-                <span className="text-[8.5px] font-bold text-slate-400 uppercase">Activité ciblée :</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Activité ciblée :</span>
                 <p className="text-xs font-extrabold text-[#09153D]">{selectedExperience.title}</p>
                 <p className="text-[10.5px] font-semibold text-orange-650">{selectedExperience.pricePerPerson.toLocaleString('fr-FR')} F / personne</p>
               </div>
@@ -1088,7 +1088,7 @@ export default function ExperiencesMarket({
               <div className="grid grid-cols-3 gap-3">
                 
                 <div className="space-y-1.5">
-                  <label className="block text-[8.5px] font-extrabold text-slate-400 uppercase tracking-widest">
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
                     P.U Public (F) :
                   </label>
                   <input
@@ -1103,7 +1103,7 @@ export default function ExperiencesMarket({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-[8.5px] font-extrabold text-slate-400 uppercase tracking-widest">
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
                     Durée Estimée :
                   </label>
                   <input
@@ -1117,7 +1117,7 @@ export default function ExperiencesMarket({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-[8.5px] font-extrabold text-slate-400 uppercase tracking-widest">
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
                     Max PAX :
                   </label>
                   <input
@@ -1231,7 +1231,7 @@ export default function ExperiencesMarket({
 
                 {viewTicketVoucher.optionsSelected.length > 0 && (
                   <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-150">
-                    <span className="text-[8.5px] font-extrabold text-slate-400 uppercase tracking-widest block">Suppléments requis :</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Suppléments requis :</span>
                     <ul className="list-disc pl-3 text-[10px] text-slate-500 font-semibold space-y-0.5 mt-1">
                       {viewTicketVoucher.optionsSelected.map((op, i) => (
                         <li key={i}>{op}</li>

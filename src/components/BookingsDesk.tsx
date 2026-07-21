@@ -620,7 +620,7 @@ export default function BookingsDesk({
                           <span className="font-black font-mono text-sm block text-[#09153D]">
                             {res.totalAmount.toLocaleString('fr-FR')} FCFA
                           </span>
-                          <span className={`text-[8.5px] font-extrabold border px-1.5 py-0.5 rounded mt-1 inline-block ${
+                          <span className={`text-[10px] font-extrabold border px-1.5 py-0.5 rounded mt-1 inline-block ${
                             res.paymentStatus === 'Payé' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                             res.paymentStatus === 'Acompte' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                             'bg-red-50 text-red-600 border-red-100'

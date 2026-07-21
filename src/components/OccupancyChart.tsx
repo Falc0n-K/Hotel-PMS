@@ -103,7 +103,7 @@ export default function OccupancyChart() {
               <span className="text-[9.5px] font-bold text-slate-400 mt-2 font-mono">
                 {item.day.split(' ')[0]} {/* display number day or short day */}
               </span>
-              <span className="text-[8px] text-slate-300 font-semibold font-sans lowercase">
+              <span className="text-[10px] text-slate-300 font-semibold font-sans lowercase">
                 {item.day.split(' ')[1]}
               </span>
 

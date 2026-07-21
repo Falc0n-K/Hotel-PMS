@@ -795,7 +795,7 @@ export default function GuestFeedbacks({
 
               {/* Template selector triggers */}
               <div className="space-y-2">
-                <label className="block text-[8.5px] font-black text-slate-300 uppercase tracking-widest leading-none">
+                <label className="block text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">
                   Modèles de Courtoisie Téranga :
                 </label>
                 

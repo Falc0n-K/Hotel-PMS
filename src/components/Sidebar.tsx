@@ -64,7 +64,7 @@ export default function Sidebar({
 
         {/* Dynamic establishment active select switcher */}
         <div className="relative mt-0.5">
-          <label className="block text-[8.5px] font-extrabold text-[#09153D]/60 uppercase tracking-widest mb-1.5">
+          <label className="block text-[10px] font-extrabold text-[#09153D]/60 uppercase tracking-widest mb-1.5">
             Établissement Actif :
           </label>
           <div className="relative">

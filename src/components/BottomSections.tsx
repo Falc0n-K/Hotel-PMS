@@ -274,7 +274,7 @@ export default function BottomSections({
                     {/* Absolute center rating labels */}
                     <div className="absolute bottom-0 text-center flex flex-col items-center">
                       <span className="text-lg font-black font-mono text-[#09153D] tracking-tighter">4.7/5.0</span>
-                      <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">1 248 GUESTS</span>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">1 248 GUESTS</span>
                     </div>
                   </div>
 
@@ -461,7 +461,7 @@ export default function BottomSections({
                   onChange={(e) => setNewTaskCategory(e.target.value)}
                   className="w-24 bg-white border border-slate-200 rounded p-1 text-[11px]"
                 />
-                <button type="submit" className="bg-orange-600 text-white p-1 rounded hover:bg-orange-700">
+                <button type="submit" className="bg-orange-600 text-white p-1 rounded hover:bg-orange-700" aria-label="Valider la tâche">
                   <Check className="w-3.5 h-3.5" />
                 </button>
               </div>

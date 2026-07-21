@@ -337,13 +337,13 @@ export default function HotelsHub({ currentHotel, onHotelChange, currentRole }: 
                     {/* Operational numbers summary row */}
                     <div className="grid grid-cols-2 gap-4 bg-slate-50/70 p-3.5 rounded-2xl border border-slate-100/50">
                       <div>
-                        <span className="block text-[8.5px] font-extrabold text-slate-400 tracking-wider uppercase">Prix Moyen ADR</span>
+                        <span className="block text-[10px] font-extrabold text-slate-400 tracking-wider uppercase">Prix Moyen ADR</span>
                         <span className="text-sm font-black text-[#09153D] font-mono mt-0.5 block">
                           {h.adr.toLocaleString('fr-FR')} <span className="text-[9px] font-medium text-slate-405">FCFA</span>
                         </span>
                       </div>
                       <div>
-                        <span className="block text-[8.5px] font-extrabold text-slate-400 tracking-wider uppercase">RevPar</span>
+                        <span className="block text-[10px] font-extrabold text-slate-400 tracking-wider uppercase">RevPar</span>
                         <span className="text-sm font-black text-[#09153D] font-mono mt-0.5 block">
                           {currentRevPAR.toLocaleString('fr-FR')} <span className="text-[9px] font-medium text-slate-405">FCFA</span>
                         </span>

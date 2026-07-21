@@ -130,6 +130,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
             <button
               onClick={() => setSelectedRoomId(null)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+              aria-label="Fermer l'inspecteur"
             >
               <X className="w-4.5 h-4.5" />
             </button>

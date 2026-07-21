@@ -547,7 +547,7 @@ export default function MarketingPackages({
                   
                   {/* Category badging */}
                   <div className="flex items-center justify-between">
-                    <span className={`text-[8.5px] font-black uppercase px-2.5 py-0.5 rounded ${
+                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded ${
                       pkg.category === 'Romance' ? 'bg-rose-50 text-rose-600' :
                       pkg.category === 'Affaires' ? 'bg-slate-100 text-[#09153D]' :
                       pkg.category === 'Famille' ? 'bg-sky-50 text-sky-600' :
@@ -587,7 +587,7 @@ export default function MarketingPackages({
                       <span className="text-sm font-black text-orange-600 font-mono block mt-1">
                         {computedNightlyDiscount.toLocaleString('fr-FR')} F
                       </span>
-                      <span className="text-[8.5px] text-slate-400 font-bold uppercase block">par Nuitée</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">par Nuitée</span>
                     </div>
                   </div>
 
@@ -656,7 +656,7 @@ export default function MarketingPackages({
                           style={{ height: `${convBarPct}%` }}
                           title={`Conv Rate: ${c.conversionRate}%`}
                         >
-                          <span className="hidden group-hover:block absolute -top-6 bg-slate-900 text-white text-[8px] px-1 rounded font-mono font-bold z-15 whitespace-nowrap">
+                          <span className="hidden group-hover:block absolute -top-6 bg-slate-900 text-white text-[10px] px-1 rounded font-mono font-bold z-15 whitespace-nowrap">
                             {c.conversionRate}%
                           </span>
                         </div>
@@ -667,7 +667,7 @@ export default function MarketingPackages({
                           style={{ height: `${roiBarPct}%` }}
                           title={`ROI Multiplier: ${c.roiMultiplier}x`}
                         >
-                          <span className="hidden group-hover:block absolute -top-6 bg-slate-900 text-white text-[8px] px-1 rounded font-mono font-bold z-15 whitespace-nowrap">
+                          <span className="hidden group-hover:block absolute -top-6 bg-slate-900 text-white text-[10px] px-1 rounded font-mono font-bold z-15 whitespace-nowrap">
                             {c.roiMultiplier}x
                           </span>
                         </div>
@@ -678,7 +678,7 @@ export default function MarketingPackages({
                       <span className="text-[9.5px] font-extrabold text-slate-700 truncate max-w-[120px] pt-1">
                         {c.title}
                       </span>
-                      <span className="text-[8px] text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[10px] text-slate-400 uppercase tracking-widest leading-none">
                         {c.channel}
                       </span>
                     </div>
@@ -820,7 +820,7 @@ export default function MarketingPackages({
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5">
                       <h4 className="font-extrabold text-[#09153D]">{l.name}</h4>
-                      <span className="bg-white border text-[8.5px] font-mono text-slate-400 px-1 rounded">{l.id}</span>
+                      <span className="bg-white border text-[10px] font-mono text-slate-400 px-1 rounded">{l.id}</span>
                     </div>
 
                     <p className="text-[10.5px] text-slate-400 font-medium font-mono">{l.email}</p>
