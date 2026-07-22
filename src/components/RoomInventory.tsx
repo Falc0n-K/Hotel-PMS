@@ -131,14 +131,7 @@ export default function RoomInventory({
     triggerToast("Chambre mise à jour avec succès.");
   };
 
-  // Quick helper to convert currency
-  const formatValue = (val: number) => {
-    // Rooms are simulated in either FCFA or EUR (which was baseline / 1000 approximately)
-    if (val < 1000) {
-      return `${Math.round(val * 450).toLocaleString('fr-FR')} FCFA`;
-    }
-    return `${val.toLocaleString('fr-FR')} FCFA`;
-  };
+  const formatValue = (val: number) => `${val.toLocaleString('fr-FR')} FCFA`;
 
   // Filter actual rooms logic
   const filteredRooms = useMemo(() => {
@@ -162,12 +155,12 @@ export default function RoomInventory({
     const available = filteredRooms.filter(r => r.status === 'available').length;
     const reserved = filteredRooms.filter(r => r.status === 'reserved').length;
     const dirty = filteredRooms.filter(r => r.status === 'not-ready').length;
-    
-    // Average cost
+    const maintenance = filteredRooms.filter(r => r.status === 'maintenance').length;
+
     const totalRate = filteredRooms.reduce((acc, curr) => acc + curr.nightlyRate, 0);
     const avgRate = total > 0 ? Math.round(totalRate / total) : 0;
 
-    return { total, occupied, available, reserved, dirty, avgRate };
+    return { total, occupied, available, reserved, dirty, maintenance, avgRate };
   }, [filteredRooms]);
 
   return (
@@ -208,7 +201,7 @@ export default function RoomInventory({
       </div>
 
       {/* INVENTORY QUICK STATS CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4 w-full">
         {/* Total stats */}
         <div className="bg-white p-4.5 rounded-[20px] border border-slate-100 shadow-sm text-left">
           <span className="text-[9px] font-extrabold text-[#09153D]/50 uppercase tracking-widest block">Capacité Totalisée</span>
@@ -242,6 +235,13 @@ export default function RoomInventory({
           <span className="text-[9px] font-extrabold text-orange-655/80 uppercase tracking-widest block">En Ménage</span>
           <span className="text-2xl font-black text-orange-500 font-mono block mt-1">{inventoryStats.dirty}</span>
           <span className="text-[9.5px] text-slate-404 font-bold text-orange-650">À inspecter d'urgence</span>
+        </div>
+
+        {/* Maintenance stat */}
+        <div className="bg-white p-4.5 rounded-[20px] border border-red-100 shadow-sm text-left">
+          <span className="text-[9px] font-extrabold text-red-600/80 uppercase tracking-widest block">Maintenance</span>
+          <span className="text-2xl font-black text-red-600 font-mono block mt-1">{inventoryStats.maintenance}</span>
+          <span className="text-[9.5px] text-red-500 font-bold block">Stop Service actif</span>
         </div>
 
         {/* Average cost stat */}
@@ -318,6 +318,7 @@ export default function RoomInventory({
               <option value="occupied">Occupé (En séjour)</option>
               <option value="reserved">Réservé (Confirmé)</option>
               <option value="not-ready">En Nettoyage (Sale)</option>
+              <option value="maintenance">Maintenance (Stop Service)</option>
             </select>
           </div>
 
@@ -399,24 +400,28 @@ export default function RoomInventory({
                             <option value="occupied">Occupé</option>
                             <option value="reserved">Réservé</option>
                             <option value="not-ready">Sale / En Ménage</option>
+                            <option value="maintenance">Maintenance (Stop Service)</option>
                           </select>
                         ) : (
                           <span className={`inline-flex items-center gap-1.5 text-[10px] font-extrabold px-3 py-1 rounded-full ${
                             room.status === 'available' ? 'bg-emerald-50 text-emerald-600' :
                             room.status === 'occupied' ? 'bg-blue-50 text-blue-600' :
                             room.status === 'reserved' ? 'bg-sky-50 text-sky-600' :
+                            room.status === 'maintenance' ? 'bg-red-50 text-red-600' :
                             'bg-orange-50 text-orange-600'
                           }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${
                               room.status === 'available' ? 'bg-emerald-500' :
                               room.status === 'occupied' ? 'bg-blue-500' :
                               room.status === 'reserved' ? 'bg-sky-500' :
+                              room.status === 'maintenance' ? 'bg-red-500' :
                               'bg-orange-500'
                             }`} />
                             {room.status === 'available' ? 'DISPONIBLE' :
                              room.status === 'occupied' ? 'OCCUPÉ' :
                              room.status === 'reserved' ? 'RÉSERVÉ' :
-                             'EN NÉTTOYAGE'}
+                             room.status === 'maintenance' ? '🔧 MAINTENANCE' :
+                             'EN NETTOYAGE'}
                           </span>
                         )}
                       </td>
@@ -509,6 +514,33 @@ export default function RoomInventory({
                                 >
                                   <CheckSquare className="w-3.5 h-3.5" />
                                 </button>
+                              )}
+
+                              {/* Stop Service / Maintenance toggle */}
+                              {currentRole !== 'Responsable Ménage' && currentRole !== 'Directeur Financier' && (
+                                room.status === 'maintenance' ? (
+                                  <button
+                                    onClick={() => {
+                                      onUpdateRoomStatus(room.id, 'available');
+                                      triggerToast(`Chambre ${room.number} : maintenance levée, chambre disponible.`);
+                                    }}
+                                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 p-1.5 rounded-lg border border-emerald-100 transition-colors cursor-pointer"
+                                    title="Lever la maintenance"
+                                  >
+                                    <span className="text-[11px]">✓</span>
+                                  </button>
+                                ) : room.status !== 'occupied' && (
+                                  <button
+                                    onClick={() => {
+                                      onUpdateRoomStatus(room.id, 'maintenance');
+                                      triggerToast(`Chambre ${room.number} mise en maintenance (Stop Service).`);
+                                    }}
+                                    className="bg-red-50 hover:bg-red-100 text-red-500 p-1.5 rounded-lg border border-red-100 transition-colors cursor-pointer"
+                                    title="Stop Service / Maintenance"
+                                  >
+                                    <span className="text-[11px]">🔧</span>
+                                  </button>
+                                )
                               )}
 
                               {/* Delete unit (Propriétaire Only) */}

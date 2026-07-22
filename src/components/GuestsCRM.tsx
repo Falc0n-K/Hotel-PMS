@@ -181,7 +181,7 @@ export default function GuestsCRM({
       return;
     }
 
-    const newId = `GST-00${profiles.length + 1}`;
+    const newId = `GST-${String(profiles.length + 1).padStart(3, '0')}`;
     const newProfile: GuestProfile = {
       id: newId,
       fullName: newFullName,

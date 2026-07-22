@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, ChevronDown, CheckCircle2, DollarSign } from 'lucide-react';
+import { Calendar, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { revenueGraphData } from '../data';
 
 export default function RevenueChart() {
@@ -74,11 +74,7 @@ export default function RevenueChart() {
   const areaPath = linePath ? `${linePath} L ${pts[pts.length - 1].x} ${height - paddingY} L ${pts[0].x} ${height - paddingY} Z` : '';
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(val);
+    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(val)} FCFA`;
   };
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -137,7 +133,7 @@ export default function RevenueChart() {
       {/* Target and Total */}
       <div className="flex items-baseline gap-2 mb-4">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Revenu Total</span>
-        <span className="text-2xl font-extrabold text-[#09153D] tracking-tight font-mono">$315,060</span>
+        <span className="text-2xl font-extrabold text-[#09153D] tracking-tight font-mono">315 060 FCFA</span>
         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 pl-1.5 border-l border-slate-200">
           <CheckCircle2 className="w-3 h-3 text-emerald-500" />
           Objectif de juin atteint

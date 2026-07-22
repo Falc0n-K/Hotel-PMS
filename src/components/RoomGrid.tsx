@@ -43,6 +43,8 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
         return 'bg-amber-400 border-amber-500 hover:bg-amber-300';
       case 'not-ready':
         return 'bg-slate-300 border-slate-400 hover:bg-slate-200';
+      case 'maintenance':
+        return 'bg-red-600 border-red-700 hover:bg-red-500';
       default:
         return 'bg-slate-200';
     }
@@ -54,6 +56,8 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
       case 'available': return 'Disponible';
       case 'reserved': return 'Réservée';
       case 'not-ready': return 'Non Prête (Ménage)';
+      case 'maintenance': return 'Maintenance (Stop)';
+      default: return status;
     }
   };
 
@@ -62,6 +66,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
   const countAvailable = rooms.filter(r => r.status === 'available').length;
   const countReserved = rooms.filter(r => r.status === 'reserved').length;
   const countNotReady = rooms.filter(r => r.status === 'not-ready').length;
+  const countMaintenance = rooms.filter(r => r.status === 'maintenance').length;
 
   return (
     <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-shadow mb-8 w-full flex flex-col justify-between">
@@ -74,7 +79,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
 
         <div className="text-right flex items-baseline gap-2">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">TOTAL ALL ROOMS</span>
-          <span className="text-3xl font-extrabold text-[#09153D] tracking-tight font-mono">120</span>
+          <span className="text-3xl font-extrabold text-[#09153D] tracking-tight font-mono">{rooms.length}</span>
         </div>
       </div>
 
@@ -154,7 +159,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
               {/* Price details */}
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-400 font-medium">Tarif journalier :</span>
-                <span className="font-extrabold text-slate-900 font-mono">${selectedRoom.nightlyRate}/nuit</span>
+                <span className="font-extrabold text-slate-900 font-mono">{selectedRoom.nightlyRate.toLocaleString('fr-FR')} FCFA/nuit</span>
               </div>
 
               {/* Guest metadata if Occupied / Reserved */}
@@ -176,10 +181,10 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                     <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1 pt-1 border-t border-slate-50">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-emerald-500" />
-                        Arrivée: {selectedRoom.checkInDate.split('-')[2]} mai
+                        Arrivée: {new Date(selectedRoom.checkInDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
                       </span>
                       <span>
-                        Départ: {selectedRoom.checkOutDate?.split('-')[2]} mai
+                        Départ: {selectedRoom.checkOutDate ? new Date(selectedRoom.checkOutDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—'}
                       </span>
                     </div>
                   )}
@@ -245,7 +250,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
               )}
 
               <div className="flex gap-2">
-                {selectedRoom.status !== 'not-ready' && (
+                {selectedRoom.status !== 'not-ready' && selectedRoom.status !== 'maintenance' && selectedRoom.status !== 'occupied' && (
                   <button
                     onClick={() => onUpdateRoomStatus(selectedRoom.id, 'not-ready')}
                     className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
@@ -263,6 +268,24 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                   </button>
                 )}
               </div>
+
+              {selectedRoom.status !== 'maintenance' ? (
+                <button
+                  onClick={() => onUpdateRoomStatus(selectedRoom.id, 'maintenance')}
+                  className="w-full bg-red-50 hover:bg-red-100 border border-red-200/50 text-red-600 py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>🔧</span>
+                  <span>Mettre en Maintenance (Stop Service)</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => onUpdateRoomStatus(selectedRoom.id, 'available')}
+                  className="w-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/50 text-emerald-700 py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Lever la Maintenance — Chambre Disponible</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -301,6 +324,16 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
             <span className="text-slate-500 font-medium">Non Prêtes</span>
           </div>
         </div>
+
+        {countMaintenance > 0 && (
+          <div className="flex items-center gap-2.5">
+            <span className="w-3.5 h-3.5 rounded bg-red-600 shadow-sm" />
+            <div>
+              <span className="font-extrabold text-slate-900 font-mono">{countMaintenance}</span>{' '}
+              <span className="text-slate-500 font-medium">Maintenance</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

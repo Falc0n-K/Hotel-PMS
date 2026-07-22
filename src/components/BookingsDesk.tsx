@@ -159,8 +159,8 @@ export default function BookingsDesk({
   const [formGuestEmail, setFormGuestEmail] = useState('');
   const [formGuestPhone, setFormGuestPhone] = useState('');
   const [formRoomNo, setFormRoomNo] = useState('');
-  const [formCheckIn, setFormCheckIn] = useState('2026-05-22');
-  const [formCheckOut, setFormCheckOut] = useState('2026-05-25');
+  const [formCheckIn, setFormCheckIn] = useState('2026-07-22');
+  const [formCheckOut, setFormCheckOut] = useState('2026-07-25');
   const [formBreakfast, setFormBreakfast] = useState(true);
   const [formPaymentStatus, setFormPaymentStatus] = useState<'Payé' | 'Acompte' | 'Non Payé'>('Non Payé');
   const [formNotes, setFormNotes] = useState('');
@@ -170,16 +170,15 @@ export default function BookingsDesk({
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Compute stay length
+  // Compute stay length — only positive if checkOut is after checkIn
   const formNightsCount = useMemo(() => {
     try {
       const start = new Date(formCheckIn);
       const end = new Date(formCheckOut);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return isNaN(diffDays) ? 1 : diffDays;
+      const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays > 0 ? diffDays : 0;
     } catch {
-      return 1;
+      return 0;
     }
   }, [formCheckIn, formCheckOut]);
 
@@ -220,6 +219,10 @@ export default function BookingsDesk({
     e.preventDefault();
     if (!formGuestName.trim() || !formRoomNo) {
       triggerToast("Veuillez renseigner le nom du client principal et le numéro de chambre.");
+      return;
+    }
+    if (formNightsCount <= 0) {
+      triggerToast("La date de départ doit être postérieure à la date d'arrivée.");
       return;
     }
 
@@ -832,7 +835,7 @@ export default function BookingsDesk({
                     </div>
                     <div className="text-left">
                       <span className="text-[10.5px] font-extrabold text-slate-700 block">Petit déjeuner</span>
-                      <span className="text-[9.5px] text-slate-400 block">+17.000 F CFA / nuit</span>
+                      <span className="text-[9.5px] text-slate-400 block">+17 000 FCFA / nuit (2 pers.)</span>
                     </div>
                   </div>
                   <input

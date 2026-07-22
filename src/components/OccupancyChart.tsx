@@ -3,17 +3,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CalendarRange, ChevronDown } from 'lucide-react';
 import { occupancyTrendData } from '../data';
+import { Room } from '../types';
 
-export default function OccupancyChart() {
+interface OccupancyChartProps {
+  rooms?: Room[];
+}
+
+export default function OccupancyChart({ rooms }: OccupancyChartProps) {
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
   const [timeframe, setTimeframe] = useState('7 Derniers Jours');
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
 
-  const data = occupancyTrendData;
-  const totalCapacity = 120; // 120 rooms total capacity
+  const totalCapacity = rooms ? rooms.length || 120 : 120;
+
+  const data = useMemo(() => {
+    if (!rooms || rooms.length === 0) return occupancyTrendData;
+    const occupied = rooms.filter(r => r.status === 'occupied').length;
+    const available = rooms.filter(r => r.status === 'available').length;
+    const todayLabel = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
+    return [
+      ...occupancyTrendData.slice(0, 6),
+      { day: todayLabel, occupied, available }
+    ];
+  }, [rooms]);
 
   return (
     <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex-1 flex flex-col min-w-[320px] md:min-w-[400px]">
