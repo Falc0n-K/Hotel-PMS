@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { LayoutDashboard, Building2, BedDouble, CalendarDays, Users, Wallet, MapPin, Compass, Megaphone, LogOut, ShieldCheck, ChevronRight, MessageSquare, TrendingUp, Contact, MessageCircle, Settings } from 'lucide-react';
+import { LayoutDashboard, Building2, BedDouble, CalendarDays, Users, Wallet, MapPin, Compass, Megaphone, LogOut, ShieldCheck, ChevronRight, MessageSquare, TrendingUp, Contact, MessageCircle, Settings, MonitorCheck } from 'lucide-react';
 import { RBACRole, ROLE_CONSOLES_MAPPING } from '../types';
 
 interface SidebarProps {
@@ -27,6 +27,7 @@ export default function Sidebar({
 }: SidebarProps) {
   
   const consoles = [
+    { id: 'reception-desk', label: 'Console Réception', icon: MonitorCheck },
     { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
     { id: 'hotels-hub', label: 'Hub Hôtels', icon: Building2 },
     { id: 'rooms-inventory', label: 'Inventaire-Chambres', icon: BedDouble },

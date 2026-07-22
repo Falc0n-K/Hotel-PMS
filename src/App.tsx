@@ -26,6 +26,7 @@ import StaffDirectory from './components/StaffDirectory';
 import MessagesInbox from './components/MessagesInbox';
 import GlobalSettings from './components/GlobalSettings';
 import { LockScreen } from './components/Modals';
+import ReceptionistDashboard from './components/ReceptionistDashboard';
 
 // Initial state data
 import {
@@ -129,13 +130,13 @@ export default function App() {
           }
 
           // Return room with updated values
+          const clearGuest = newStatus === 'available' || newStatus === 'not-ready';
           return {
             ...room,
             status: newStatus,
-            // Clear details if marked not-ready or available
-            guestName: newStatus === 'available' || newStatus === 'not-ready' ? undefined : room.guestName,
-            phone: newStatus === 'available' || newStatus === 'not-ready' ? undefined : room.phone,
-            checkInDate: newStatus === 'available' || newStatus === 'not-ready' ? undefined : room.checkInDate,
+            guestName: clearGuest ? undefined : room.guestName,
+            phone: clearGuest ? undefined : room.phone,
+            checkInDate: clearGuest ? undefined : room.checkInDate,
           };
         }
         return room;
@@ -228,7 +229,7 @@ export default function App() {
     setCurrentRole(role);
     const allowed = ROLE_CONSOLES_MAPPING[role] || [];
     if (!allowed.includes(activeConsole)) {
-      setActiveConsole('dashboard');
+      setActiveConsole(role === 'Réceptionniste (Front Desk)' ? 'reception-desk' : 'dashboard');
     }
     setSimulationAlert(`Habilitation RBAC modifiée : Affichage ajusté pour le rôle "${role}".`);
     setTimeout(() => setSimulationAlert(null), 4000);
@@ -299,7 +300,16 @@ export default function App() {
           )}
 
           {/* CONDITIONAL RENDER BY ACTIVE CONSOLE VIEW */}
-          {activeConsole === 'dashboard' ? (
+          {activeConsole === 'reception-desk' ? (
+            <ReceptionistDashboard
+              rooms={hotelRooms}
+              currentHotel={currentHotel}
+              currentRole={currentRole}
+              onUpdateRoomStatus={handleUpdateRoomStatus}
+              onAddNotification={handleAddNotification}
+              onNavigate={setActiveConsole}
+            />
+          ) : activeConsole === 'dashboard' ? (
             <div className="fade-in-up">
               
               {/* Core stat cards (KPI widgets) - Hides revenue if currentRole is housekeeping */}
@@ -342,7 +352,7 @@ export default function App() {
                   </div>
                 )}
                 
-                <OccupancyChart />
+                <OccupancyChart rooms={hotelRooms} />
               </div>
 
               {/* Room Availability interactive board row */}
