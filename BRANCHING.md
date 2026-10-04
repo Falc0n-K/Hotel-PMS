@@ -36,26 +36,22 @@ hotfix/*  ───────────────────────�
 6. Une migration SQL n'est appliquée en production qu'après merge dans `main`
    (voir « Migrations » plus bas).
 
-## Branches de fonctionnalités prévues (feuille de route de l'audit)
+## Branches de fonctionnalités prévues (suite de la feuille de route)
 
 | Branche | Périmètre |
 |---|---|
-| `feature/room-rack` | Calendrier de réservation (chambres × dates) |
-| `feature/folio-facturation` | Folio, avoirs, export facture PDF |
-| `feature/caisse` | Clôture de caisse, rapprochement Wave / Orange Money |
-| `feature/housekeeping` | Assignation des tâches, inspection, vue mobile |
-| `feature/maintenance` | Ordres de travail, chambres hors service datées |
-| `feature/night-audit` | Audit de nuit, no-show automatique |
-| `feature/tarifs` | Plans tarifaires, saisons, restrictions |
-| `feature/crm` | Fiches clients reliées à la base, fiche de police |
-| `feature/paiements-en-ligne` | PayDunya, Stripe |
-| `feature/channel-manager` | Cloudbeds / OTA |
+| `feature/channel-manager` | Cloudbeds / OTA (après obtention de l'accès partenaire) |
+| `feature/booking-engine` | Moteur de réservation public (avec captcha et limitation de débit) |
+| `feature/api-publique` | API et webhooks pour partenaires |
+| `feature/i18n-ecrans` | Traduction anglaise des écrans métier |
+| `feature/staging` | Projet Supabase de préproduction pour les previews |
 
 ### Fichiers partagés (ne pas modifier depuis une feature sans coordination)
 
-- `src/App.tsx` — routage des écrans et transitions de statut
-- `src/lib/pmsData.ts` — accès aux données et actions serveur
-- `src/lib/auth.tsx`, `src/lib/roles.ts` — session et rôles
+- `src/App.tsx` : routage des écrans et transitions de statut
+- `src/lib/pmsData.ts` : accès aux données et actions serveur
+- `src/lib/auth.tsx`, `src/lib/roles.ts`, `src/lib/nav.ts` : session, rôles, menu
+- `src/components/ui.tsx` : composants d'interface communs
 - `supabase/migrations/*` — une migration par PR, jamais de modification d'une migration déjà appliquée
 
 ## Vercel
@@ -75,8 +71,8 @@ variables : [docs/vercel-setup.md](docs/vercel-setup.md).
 1. Écrire la migration dans `supabase/migrations/AAAAMMJJHHMMSS_description.sql`.
 2. La vérifier en local : `npm run test:db` (ajouter un test dans `supabase/tests/` si elle
    touche aux droits ou aux règles métier).
-3. Après merge dans `main`, l'appliquer sur le projet Supabase « Hotel PMS »
-   (`supabase db push` ou éditeur SQL), puis contrôler les « Advisors » du projet.
+3. Après merge dans `main`, le workflow « Déploiement Supabase » l'applique (après votre
+   approbation dans l'environnement GitHub `production`) ; contrôler ensuite les « Advisors ».
 
 ## Processus de release
 

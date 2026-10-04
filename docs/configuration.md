@@ -17,7 +17,7 @@ Choix des prestataires retenus dans le code (modifiables) :
 | E-mail transactionnel et e-mails d'authentification | Resend |
 | SMS et WhatsApp | Twilio |
 | Suivi d'erreurs | Sentry |
-| Channel manager | Cloudbeds (API partenaire, accès à demander) |
+| Channel manager | Cloudbeds : **pas encore intégré** (accès partenaire API à obtenir d'abord) |
 
 Tout est facultatif sauf la section « Obligatoire » : une intégration sans ses
 clés reste simplement désactivée dans l'interface.
@@ -78,8 +78,9 @@ dépôt personnel.
 ### Environnement GitHub « production »
 
 Settings → Environments → New environment `production` → Required reviewers : vous.
-Le workflow de déploiement de la base y est rattaché : aucune migration ne part en
-production sans votre approbation.
+Le workflow `.github/workflows/deploy-supabase.yml` y est rattaché : après chaque merge
+dans `main` touchant `supabase/`, il applique les migrations (`supabase db push`) et
+redéploie les Edge Functions, mais seulement après votre approbation.
 
 ### Protection des branches
 
@@ -114,7 +115,7 @@ automatiquement : ne pas les créer.
 | `TWILIO_AUTH_TOKEN` | idem | idem |
 | `TWILIO_SMS_FROM` | numéro ou Sender ID Twilio | SMS |
 | `TWILIO_WHATSAPP_FROM` | ex. `whatsapp:+14155238886` (sandbox) puis votre numéro validé | WhatsApp |
-| `CLOUDBEDS_CLIENT_ID` | Cloudbeds → programme partenaire API | Channel manager |
+| `CLOUDBEDS_CLIENT_ID` | Cloudbeds → programme partenaire API | Plus tard : intégration non développée |
 | `CLOUDBEDS_CLIENT_SECRET` | idem | idem |
 
 ### 3.2 URL à déclarer chez les prestataires
@@ -124,7 +125,6 @@ automatiquement : ne pas les créer.
 | Stripe | Webhook endpoint (événements `checkout.session.completed`, `charge.refunded`) | `https://gqbztdprvqwewivzebsa.supabase.co/functions/v1/stripe-webhook` |
 | PayDunya | URL de notification (IPN) | `https://gqbztdprvqwewivzebsa.supabase.co/functions/v1/paydunya-ipn` |
 | Twilio | Aucune (envoi seulement) | |
-| Cloudbeds | Redirect URI OAuth | `https://gqbztdprvqwewivzebsa.supabase.co/functions/v1/cloudbeds-oauth` |
 
 ### 3.3 Coffre (Vault) pour les tâches planifiées
 
@@ -171,8 +171,13 @@ Authentication → Emails → SMTP Settings (sinon Supabase limite à quelques e
 - Database → Extensions : `pg_cron` et `pg_net` (activés par la migration, à vérifier).
 - Database → Backups : vérifier la rétention du plan ; Point-in-Time Recovery conseillé
   avant le premier hôtel réel. Faire un essai de restauration sur un projet jetable.
-- Migration en attente : `supabase/migrations/20261004000300_separer_policies_ecriture.sql`
-  (à coller dans le SQL Editor si la CI de déploiement n'est pas encore en place).
+- Migration en attente : `supabase/migrations/20261004040000_separer_policies_ecriture.sql`
+  (appliquée automatiquement par le workflow de déploiement, ou à coller dans le SQL Editor).
+- Données de recette : exécuter une fois `scripts/cleanup-e2e.sql` (compte de test désactivé,
+  établissement « Hôtel Test E2E » à supprimer).
+- Avis Supabase « Extension in Public » sur `pg_net` : l'extension était déjà installée dans
+  `public` ; la déplacer impose de la recréer (`drop extension pg_net; create extension pg_net
+  with schema extensions;`) puis de recréer la tâche `pms-send-notifications`.
 
 ### 3.6 Préproduction (recommandé avant le premier hôtel réel)
 

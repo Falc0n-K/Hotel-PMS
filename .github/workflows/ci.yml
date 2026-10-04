@@ -45,6 +45,22 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
 
+  fonctions:
+    name: Edge Functions (Deno)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supabase/functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typage
+        run: deno check --config deno.json */index.ts
+      - name: Tests
+        run: deno test --config deno.json _shared/
+
   audit:
     name: Audit des dépendances
     runs-on: ubuntu-latest

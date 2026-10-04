@@ -2,25 +2,37 @@
 
 Système de gestion hôtelière multi-établissement (React + Vite, Supabase).
 
-## État du produit
+## Fonctions
 
-Reliés à la base Supabase, avec droits appliqués par le serveur (RLS et fonctions SQL) :
+Toutes les données sont dans Supabase ; les droits sont appliqués par la base (RLS et
+fonctions SQL), l'interface ne fait que refléter ce que le serveur autorise.
 
-- connexion, création de compte, mot de passe oublié, verrouillage de poste ;
-- organisations, établissements, rôles par établissement, gestion de l'équipe ;
-- tableau de bord (indicateurs du jour, encaissements, occupation, arrivées, départs, ménage) ;
-- inventaire des chambres et types de chambre ;
-- réservations : création avec contrôle de disponibilité (aucun chevauchement possible
-  sur une même chambre), check-in, check-out avec solde nul exigé, annulation, no-show ;
-- encaissements (espèces, carte, Wave, Orange Money, virement), remboursements réservés
-  à la direction et à la finance, pièces non modifiables ;
-- factures à numérotation continue par établissement, TVA 18 % extraite du TTC ;
-- tâches de ménage créées au départ, statut des chambres ;
-- journal d'audit écrit par trigger.
+- **Accès** : connexion, mot de passe oublié, double authentification (TOTP, exigible par
+  établissement pour la direction et la finance), verrouillage de poste, rôles par
+  établissement (propriétaire, direction, réservations, réception, gouvernante, ménage,
+  maintenance, comptabilité, auditeur).
+- **Réception** : console du jour, planning des chambres (glisser-déposer), réservations avec
+  contrôle de disponibilité (aucun chevauchement possible), options, provenance, modification
+  et délogement, check-in, check-out (solde nul exigé), annulation, no-show.
+- **Tarifs** : tarif de base par type, plans tarifaires, prix par période, fermetures à la
+  vente, durée minimale ; le prix est toujours calculé par le serveur.
+- **Folio et facturation** : prestations, encaissements (espèces, carte, Wave, Orange Money,
+  virement), liens de paiement en ligne (PayDunya, Stripe), factures à numérotation continue
+  avec TVA et taxe de séjour, avoirs, pièces non modifiables.
+- **Caisse** : ouverture, clôture avec écart, validation par une autre personne.
+- **Audit de nuit** : automatique chaque nuit (pg_cron), no-show et indicateurs figés.
+- **Ménage et maintenance** : tâches créées au départ, assignation, inspection ; signalements
+  et retrait d'une chambre de la vente sur une période.
+- **Clients** : fiche de police, historique, VIP, consentement, anonymisation.
+- **Pilotage** : tableau de bord, statistiques (TO, PMC, RevPAR, provenance), exports CSV
+  journalisés, journal comptable SYSCOHADA, journal d'audit.
+- **Communications** : confirmation, annulation et rappel J-1 par e-mail, SMS, WhatsApp.
+- **Technique** : application installable (PWA), copie hors ligne en lecture seule, Sentry
+  optionnel, interface FR/EN pour l'ossature.
 
-Encore en données de démonstration (marqués « Démo » dans le menu, rien n'est enregistré) :
-Hub Hôtels, CRM, Paiements & Finance, Lieux d'événements, Marché Expériences, Forfaits
-Marketing, Retours clients, Deep Analytics, Annuaire Staff, Messagerie, Paramètres.
+Pas encore fait : channel manager (Cloudbeds), moteur de réservation public, API publique.
+
+Variables et secrets à renseigner : [docs/configuration.md](docs/configuration.md).
 
 ## Démarrer en local
 
@@ -39,11 +51,18 @@ premier établissement. Ajouter ensuite les chambres depuis l'inventaire et l'é
 ## Base de données
 
 Les migrations sont dans `supabase/migrations/`, appliquées dans l'ordre des noms.
-Les tests (isolation entre hôtels, rôles, surbooking, facturation) sont dans
-`supabase/tests/` et tournent sur un Postgres local :
+Les tests (isolation entre hôtels, rôles, surbooking, tarifs, folio, caisse, ménage,
+maintenance, audit de nuit, MFA, liens de paiement) sont dans `supabase/tests/` et tournent
+sur un Postgres local :
 
 ```bash
 DATABASE_URL=postgres://postgres@localhost:5432/postgres npm run test:db
+```
+
+Les Edge Functions (`supabase/functions/`) se vérifient avec Deno :
+
+```bash
+cd supabase/functions && deno check --config deno.json */index.ts && deno test --config deno.json _shared/
 ```
 
 ## Contribuer
