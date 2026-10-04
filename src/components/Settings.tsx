@@ -20,9 +20,15 @@ interface Props {
   onChanged: () => Promise<void> | void;
 }
 
-type Tab = 'property' | 'types' | 'rates' | 'distribution' | 'security';
+type Tab = 'property' | 'types' | 'rates' | 'distribution' | 'security' | 'import';
+
+// Conditions du plan (colonnes ajoutées par la migration exploitation 7).
+type PlanRow = RatePlanRow & { cancel_free_days?: number; cancel_fee_nights?: number; no_show_fee_nights?: number; deposit_percent?: number };
+type PlanConditions = Required<Pick<PlanRow, 'cancel_free_days' | 'cancel_fee_nights' | 'no_show_fee_nights' | 'deposit_percent'>>;
+const DEFAULT_CONDITIONS: PlanConditions = { cancel_free_days: 1, cancel_fee_nights: 1, no_show_fee_nights: 1, deposit_percent: 0 };
 
 const Distribution = lazy(() => import('./Distribution'));
+const ImportData = lazy(() => import('./ImportData'));
 
 export default function Settings({ property, roomTypes, ratePlans, rooms, aal2, onChanged }: Props) {
   const { tr } = useI18n();
@@ -39,6 +45,7 @@ export default function Settings({ property, roomTypes, ratePlans, rooms, aal2, 
           { id: 'rates', label: tr('Tarifs', 'Rates') },
           { id: 'distribution', label: tr('Distribution', 'Distribution') },
           { id: 'security', label: tr('Notifications et sécurité', 'Notifications and security') },
+          { id: 'import', label: tr('Import de données', 'Data import') },
         ]}
       />
       {tab === 'property' && <PropertyForm property={property} onChanged={onChanged} />}
@@ -50,6 +57,11 @@ export default function Settings({ property, roomTypes, ratePlans, rooms, aal2, 
         </Suspense>
       )}
       {tab === 'security' && <Security property={property} aal2={aal2} onChanged={onChanged} />}
+      {tab === 'import' && (
+        <Suspense fallback={<Loading />}>
+          <ImportData property={property} onChanged={onChanged} />
+        </Suspense>
+      )}
     </div>
   );
 }
@@ -204,7 +216,7 @@ function Rates({ property, roomTypes, ratePlans, onChanged }: { property: Proper
   const [newPlan, setNewPlan] = useState(false);
   const [newRate, setNewRate] = useState(false);
   const { busy, error, run: act } = useAction();
-  const plan = ratePlans.find((p) => p.id === planId);
+  const plan = ratePlans.find((p) => p.id === planId) as PlanRow | undefined;
 
   const rates = useQuery(
     async () =>
@@ -217,7 +229,7 @@ function Rates({ property, roomTypes, ratePlans, onChanged }: { property: Proper
   );
   const typeName = new Map(roomTypes.map((t) => [t.id, t.name]));
 
-  const updatePlan = (fields: Partial<RatePlanRow>) =>
+  const updatePlan = (fields: Partial<PlanRow>) =>
     act(async () => {
       if (fields.is_default) {
         await run(supabase.from('rate_plans').update({ is_default: false }).eq('property_id', property.id).eq('is_default', true).select('id'));
@@ -253,6 +265,7 @@ function Rates({ property, roomTypes, ratePlans, onChanged }: { property: Proper
             {!plan.is_default && <Button variant="secondary" busy={busy} onClick={() => updatePlan({ is_default: true, active: true })}>{tr('Définir par défaut', 'Set as default')}</Button>}
           </div>
         )}
+        {plan && <PlanConditionsForm key={plan.id} plan={plan} onSave={(f) => updatePlan(f)} />}
       </Card>
 
       <Card
@@ -300,9 +313,9 @@ function Rates({ property, roomTypes, ratePlans, onChanged }: { property: Proper
       {newPlan && (
         <PlanModal
           onClose={() => setNewPlan(false)}
-          onSubmit={async (name, code, minStay, breakfast) => {
+          onSubmit={async (name, code, minStay, breakfast, conditions) => {
             const created = (await run(
-              supabase.from('rate_plans').insert({ property_id: property.id, name, code, min_stay: minStay, breakfast_included: breakfast }).select('id').single(),
+              supabase.from('rate_plans').insert({ property_id: property.id, name, code, min_stay: minStay, breakfast_included: breakfast, ...conditions }).select('id').single(),
             )) as { id: string };
             await onChanged();
             setPlanId(created.id);
@@ -333,12 +346,81 @@ function Rates({ property, roomTypes, ratePlans, onChanged }: { property: Proper
   );
 }
 
-function PlanModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (name: string, code: string, minStay: number, breakfast: boolean) => Promise<void> }) {
+const CONDITION_LIMITS: Record<keyof PlanConditions, number> = { cancel_free_days: 365, cancel_fee_nights: 30, no_show_fee_nights: 30, deposit_percent: 100 };
+const clampCondition = (k: keyof PlanConditions, v: number) => Math.min(CONDITION_LIMITS[k], Math.max(0, Math.trunc(v) || 0));
+
+function conditionFields(tr: (fr: string, en: string) => string): { key: keyof PlanConditions; label: string }[] {
+  return [
+    { key: 'cancel_free_days', label: tr('Annulation gratuite jusqu’à (jours avant l’arrivée)', 'Free cancellation up to (days before arrival)') },
+    { key: 'cancel_fee_nights', label: tr('Nuits facturées si annulation tardive', 'Nights charged for late cancellation') },
+    { key: 'no_show_fee_nights', label: tr('Nuits facturées en cas de no-show', 'Nights charged for a no-show') },
+    { key: 'deposit_percent', label: tr('Acompte attendu (%)', 'Expected deposit (%)') },
+  ];
+}
+
+// Résumé en langage courant des conditions d'annulation, de no-show et d'acompte.
+function policySummary(c: PlanConditions, tr: (fr: string, en: string) => string): string {
+  const n = (v: number, fr: string, en: string) => tr(`${v} ${fr}${v > 1 ? 's' : ''}`, `${v} ${en}${v > 1 ? 's' : ''}`);
+  const cancel =
+    c.cancel_fee_nights === 0
+      ? tr('Annulation gratuite à tout moment', 'Free cancellation at any time')
+      : c.cancel_free_days === 0
+        ? tr(`Annulation gratuite jusqu’au jour de l’arrivée, puis ${n(c.cancel_fee_nights, 'nuit', 'night')} facturée${c.cancel_fee_nights > 1 ? 's' : ''}`, `Free cancellation until the arrival day, then ${n(c.cancel_fee_nights, 'night', 'night')} charged`)
+        : tr(
+            `Annulation gratuite jusqu’à ${n(c.cancel_free_days, 'jour', 'day')} avant l’arrivée, puis ${n(c.cancel_fee_nights, 'nuit', 'night')} facturée${c.cancel_fee_nights > 1 ? 's' : ''}`,
+            `Free cancellation up to ${n(c.cancel_free_days, 'day', 'day')} before arrival, then ${n(c.cancel_fee_nights, 'night', 'night')} charged`,
+          );
+  const noShow =
+    c.no_show_fee_nights === 0
+      ? tr('no-show sans frais', 'no charge for a no-show')
+      : tr(`no-show : ${n(c.no_show_fee_nights, 'nuit', 'night')} facturée${c.no_show_fee_nights > 1 ? 's' : ''}`, `no-show: ${n(c.no_show_fee_nights, 'night', 'night')} charged`);
+  const deposit =
+    c.deposit_percent === 0
+      ? tr('aucun acompte demandé', 'no deposit required')
+      : tr(`acompte de ${c.deposit_percent} % à la réservation`, `${c.deposit_percent}% deposit at booking`);
+  return `${cancel} ; ${noShow} ; ${deposit}.`;
+}
+
+function PlanConditionsForm({ plan, onSave }: { plan: PlanRow; onSave: (fields: Partial<PlanConditions>) => void }) {
+  const { tr } = useI18n();
+  const c: PlanConditions = {
+    cancel_free_days: plan.cancel_free_days ?? DEFAULT_CONDITIONS.cancel_free_days,
+    cancel_fee_nights: plan.cancel_fee_nights ?? DEFAULT_CONDITIONS.cancel_fee_nights,
+    no_show_fee_nights: plan.no_show_fee_nights ?? DEFAULT_CONDITIONS.no_show_fee_nights,
+    deposit_percent: plan.deposit_percent ?? DEFAULT_CONDITIONS.deposit_percent,
+  };
+  return (
+    <div className="mt-5 pt-4 border-t border-slate-100">
+      <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-3">{tr('Conditions', 'Terms')}</p>
+      <div className="grid md:grid-cols-4 gap-3">
+        {conditionFields(tr).map((f) => (
+          <Field key={f.key} label={f.label}>
+            <Input
+              type="number"
+              min={0}
+              max={CONDITION_LIMITS[f.key]}
+              defaultValue={c[f.key]}
+              onBlur={(e) => {
+                const v = clampCondition(f.key, Number(e.target.value));
+                e.target.value = String(v);
+                if (v !== c[f.key]) onSave({ [f.key]: v });
+              }}
+            />
+          </Field>
+        ))}
+      </div>
+      <p className="text-xs text-slate-600 mt-3">{policySummary(c, tr)}</p>
+    </div>
+  );
+}
+
+function PlanModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (name: string, code: string, minStay: number, breakfast: boolean, conditions: PlanConditions) => Promise<void> }) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const { tr } = useI18n();
   const [minStay, setMinStay] = useState(1);
   const [breakfast, setBreakfast] = useState(false);
+  const [conditions, setConditions] = useState<PlanConditions>(DEFAULT_CONDITIONS);
   const { busy, error, run: act } = useAction();
   return (
     <Modal title={tr('Nouveau plan tarifaire', 'New rate plan')} subtitle={tr('Ex. Non remboursable, Entreprise, Demi-pension, Long séjour.', 'E.g. Non-refundable, Corporate, Half board, Long stay.')} onClose={onClose}>
@@ -346,7 +428,7 @@ function PlanModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (name
         className="space-y-3"
         onSubmit={async (e) => {
           e.preventDefault();
-          const ok = await act(async () => { await onSubmit(name, code, minStay, breakfast); return true; });
+          const ok = await act(async () => { await onSubmit(name, code, minStay, breakfast, conditions); return true; });
           if (ok) onClose();
         }}
       >
@@ -356,6 +438,15 @@ function PlanModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (name
           <Field label={tr('Durée minimale (nuits)', 'Minimum stay (nights)')}><Input type="number" min={1} max={60} value={minStay} onChange={(e) => setMinStay(Number(e.target.value))} /></Field>
         </div>
         <Checkbox label={tr('Petit-déjeuner inclus', 'Breakfast included')} checked={breakfast} onChange={(e) => setBreakfast(e.target.checked)} />
+        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider pt-2">{tr('Conditions (facultatif)', 'Terms (optional)')}</p>
+        <div className="grid grid-cols-2 gap-3">
+          {conditionFields(tr).map((f) => (
+            <Field key={f.key} label={f.label}>
+              <Input type="number" min={0} max={CONDITION_LIMITS[f.key]} value={conditions[f.key]} onChange={(e) => setConditions({ ...conditions, [f.key]: clampCondition(f.key, Number(e.target.value)) })} />
+            </Field>
+          ))}
+        </div>
+        <p className="text-[11px] text-slate-500">{policySummary(conditions, tr)}</p>
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>{tr('Fermer', 'Close')}</Button>
@@ -465,6 +556,23 @@ function Security({ property, aal2, onChanged }: { property: Property; aal2: boo
             onBlur={(e) => Number(e.target.value) !== property.guest_retention_months && toggle({ guest_retention_months: Number(e.target.value) })}
           />
         </Field>
+        <div className="mt-4 space-y-1">
+          <Checkbox
+            label={tr('Anonymiser automatiquement les clients au-delà de cette durée', 'Automatically anonymise guests beyond this period')}
+            checked={property.auto_anonymize ?? false}
+            disabled={busy}
+            onChange={(e) =>
+              (!e.target.checked || confirm(tr('Activer l’anonymisation automatique ? Elle est irréversible pour les fiches concernées.', 'Enable automatic anonymisation? It cannot be undone for the affected records.'))) &&
+              toggle({ auto_anonymize: e.target.checked })
+            }
+          />
+          <p className="text-[11px] text-amber-700">
+            {tr(
+              'Chaque nuit, les fiches sans séjour depuis cette durée sont anonymisées de façon irréversible. N’activez qu’après validation de la durée par votre conseil.',
+              'Every night, records with no stay within this period are irreversibly anonymised. Enable only once your legal adviser has approved the period.',
+            )}
+          </p>
+        </div>
       </Card>
       <ErrorNote message={error} />
     </div>

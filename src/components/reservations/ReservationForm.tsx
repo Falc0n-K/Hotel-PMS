@@ -58,6 +58,22 @@ export default function ReservationForm({
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const { busy, error, setError, run } = useAction();
 
+  // Réservation rechargée (modifiée par un collègue) : on affiche ses valeurs à jour.
+  const version = existing?.updated_at;
+  useEffect(() => {
+    if (!existing) return;
+    setRoomId(existing.room_id);
+    setCheckIn(existing.check_in);
+    setCheckOut(existing.check_out);
+    setAdults(existing.adults);
+    setChildren(existing.children);
+    setBreakfast(existing.breakfast);
+    setRatePlanId(existing.rate_plan_id ?? ratePlans.find((p) => p.is_default)?.id ?? '');
+    setSource(existing.source);
+    setNotes(existing.notes ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+
   const room = rooms.find((r) => r.id === roomId);
   const plan = ratePlans.find((p) => p.id === ratePlanId);
   const nights = nightsBetween(checkIn, checkOut);
@@ -120,7 +136,7 @@ export default function ReservationForm({
     const stay = { roomId, checkIn, checkOut, adults, children, breakfast, notes, ratePlanId: ratePlanId || null, source };
     const id = await run(async () => {
       if (existing) {
-        await actions.updateReservation(existing.id, stay);
+        await actions.updateReservation(existing.id, stay, existing.updated_at);
         return existing.id;
       }
       return actions.createReservation({

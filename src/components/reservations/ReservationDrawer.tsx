@@ -7,8 +7,8 @@ import type { Property } from '../../lib/auth';
 import type { AppRole } from '../../lib/roles';
 import { canManageReservations } from '../../lib/roles';
 import {
-  CHARGE_LABELS, PAYMENT_METHOD_LABELS, SOURCE_LABELS, STATUS_LABELS, balanceOf,
-  run, type ChargeCategory, type PaymentMethod, type PmsActions, type RatePlanRow, type ReservationRow,
+  CHARGE_LABELS, PAYMENT_METHOD_LABELS, SOURCE_LABELS, STATUS_LABELS, SYSTEM_CHARGE_CATEGORIES, balanceOf,
+  canWaiveFees, cancellationTerms, chargesAmount, depositOf, planOf, run, type ChargeCategory, type PaymentMethod, type PmsActions, type RatePlanRow, type ReservationRow,
 } from '../../lib/pmsData';
 import { supabase } from '../../lib/supabase';
 import { useQuery } from '../../lib/query';
@@ -76,7 +76,8 @@ export default function ReservationDrawer({ reservation: r, rooms, ratePlans, pr
   const room = rooms.find((x) => x.id === r.room_id);
   const { busy, error, run: act } = useAction();
   const [editing, setEditing] = useState(false);
-  const [modal, setModal] = useState<null | 'charge' | 'payment' | 'link' | 'guest'>(null);
+  const [modal, setModal] = useState<null | 'charge' | 'payment' | 'link' | 'guest' | 'cancellation' | 'no_show'>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [printing, setPrinting] = useState<InvoiceDoc | null>(null);
 
   const details = useQuery<Details>(async () => {
@@ -94,12 +95,15 @@ export default function ReservationDrawer({ reservation: r, rooms, ratePlans, pr
       invoices: (invoices ?? []) as Details['invoices'],
       links: (links ?? []) as Details['links'],
     };
-  }, [r.id, r.guest_id, r.total_amount, r.payments.length, r.folio_charges.length, r.invoices.length]);
+  }, [r.id, r.guest_id, r.updated_at, r.total_amount, r.payments.length, r.folio_charges.length, r.invoices.length]);
 
   const balance = balanceOf(r);
   const nights = nightsBetween(r.check_in, r.check_out);
   const breakfastAmount = r.total_amount - (r.room_amount ?? r.total_amount);
   const activeInvoice = details.data?.invoices.find((i) => i.credit_notes.length === 0);
+  const closed = r.status === 'cancelled' || r.status === 'no_show';
+  const deposit = depositOf(r, ratePlans);
+  const terms = cancellationTerms(planOf(r, ratePlans));
 
   const doAction = (fn: () => Promise<unknown>) => act(async () => {
     await fn();
@@ -143,34 +147,39 @@ export default function ReservationDrawer({ reservation: r, rooms, ratePlans, pr
           {['confirmed', 'checked_in', 'checked_out'].includes(r.status) && (
             <Button variant="secondary" icon={Plus} onClick={() => setModal('charge')}>{tr('Prestation', 'Extra charge')}</Button>
           )}
-          {r.status !== 'cancelled' && r.status !== 'no_show' && (balance > 0 || canFinance) && (
+          {(balance > 0 || (canFinance && (!closed || balance < 0))) && (
             <Button variant="secondary" icon={Wallet} onClick={() => setModal('payment')}>{tr('Encaisser', 'Take payment')}</Button>
           )}
           {balance > 0 && ['option', 'confirmed', 'checked_in', 'checked_out'].includes(r.status) && (
             <Button variant="secondary" icon={Link2} onClick={() => setModal('link')}>{tr('Lien de paiement', 'Payment link')}</Button>
           )}
-          {!activeInvoice && ['checked_in', 'checked_out', 'confirmed'].includes(r.status) && (
+          {!activeInvoice && (['checked_in', 'checked_out', 'confirmed'].includes(r.status) || (closed && chargesAmount(r) > 0)) && (
             <Button variant="secondary" icon={FileText} busy={busy} onClick={() => doAction(() => actions.issueInvoice(r.id))}>{tr('Émettre la facture', 'Issue invoice')}</Button>
           )}
           {(r.status === 'confirmed' || r.status === 'option') && r.check_in < today && (
-            <Button variant="danger" icon={UserX} busy={busy} onClick={() => confirm(tr('Déclarer ce client non présenté ?', 'Mark this guest as a no-show?')) && doAction(() => actions.markNoShow(r.id))}>No-show</Button>
+            <Button variant="danger" icon={UserX} busy={busy} onClick={() => setModal('no_show')}>No-show</Button>
           )}
           {(r.status === 'confirmed' || r.status === 'option') && (
-            <Button
-              variant="danger"
-              icon={Ban}
-              busy={busy}
-              onClick={() => {
-                const reason = prompt(tr('Motif de l’annulation :', 'Cancellation reason:'));
-                if (reason !== null) doAction(() => actions.cancel(r.id, reason));
-              }}
-            >
+            <Button variant="danger" icon={Ban} busy={busy} onClick={() => setModal('cancellation')}>
               {tr('Annuler', 'Cancel')}
             </Button>
           )}
         </div>
       )}
 
+      {(deposit || terms) && (
+        <div className="mb-4 text-xs text-slate-600 space-y-1">
+          {deposit && (
+            <p>
+              {tr('Acompte attendu :', 'Expected deposit:')} <strong className="font-mono">{formatMoney(deposit.amount)}</strong> ({deposit.percent} %){' '}
+              <Badge tone={deposit.paid ? 'green' : 'amber'}>{deposit.paid ? tr('Reçu', 'Received') : tr('Non reçu', 'Not received')}</Badge>
+            </p>
+          )}
+          {terms && <p className="text-[11px] text-slate-500">{terms}</p>}
+        </div>
+      )}
+
+      {notice && <p className="mb-4 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-lg p-2">{notice}</p>}
       <ErrorNote message={error} />
 
       {details.loading && !details.data ? (
@@ -279,6 +288,24 @@ export default function ReservationDrawer({ reservation: r, rooms, ratePlans, pr
           onSaved={() => setEditing(false)}
         />
       )}
+      {(modal === 'cancellation' || modal === 'no_show') && (
+        <PenaltyModal
+          kind={modal}
+          reservation={r}
+          canWaive={canWaiveFees(role)}
+          actions={actions}
+          onClose={() => setModal(null)}
+          onDone={(fee) => {
+            setModal(null);
+            setNotice(
+              fee > 0
+                ? tr(`Frais facturés au folio : ${formatMoney(fee)}.`, `Fee charged to the folio: ${formatMoney(fee)}.`)
+                : tr('Aucuns frais facturés.', 'No fee charged.'),
+            );
+            details.reload();
+          }}
+        />
+      )}
       {modal === 'charge' && <ChargeModal onClose={() => setModal(null)} canDiscount={canFinance} onSubmit={(c, d, q, u) => actions.addCharge(r.id, c, d, q, u)} />}
       {modal === 'payment' && (
         <PaymentModal
@@ -317,6 +344,64 @@ function Line({ label, amount, tone }: { label: string; amount: number; tone?: '
   );
 }
 
+// Annulation ou no-show : affiche les frais prévus par le plan avant de valider.
+function PenaltyModal({ kind, reservation: r, canWaive, actions, onClose, onDone }: {
+  kind: 'cancellation' | 'no_show';
+  reservation: ReservationRow;
+  canWaive: boolean;
+  actions: PmsActions;
+  onClose: () => void;
+  onDone: (fee: number) => void;
+}) {
+  const { tr } = useI18n();
+  const [reason, setReason] = useState('');
+  const [waive, setWaive] = useState(false);
+  const { busy, error, run: act } = useAction();
+  // Une option n'est pas garantie : jamais de frais.
+  const fee = useQuery<number>(
+    () => (r.status === 'option' ? Promise.resolve(0) : actions.penalty(r.id, kind)),
+    [r.id, r.status, kind],
+  );
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const charged = await act(() => (kind === 'cancellation' ? actions.cancel(r.id, reason, waive) : actions.markNoShow(r.id, waive)));
+    if (charged !== undefined) onDone(charged ?? 0);
+  };
+  const isCancel = kind === 'cancellation';
+  return (
+    <Modal
+      title={isCancel ? tr(`Annuler la réservation ${r.code}`, `Cancel reservation ${r.code}`) : tr(`Déclarer ${r.code} en no-show`, `Mark ${r.code} as a no-show`)}
+      subtitle={r.status === 'option' ? tr('Option non garantie : aucuns frais.', 'Provisional booking (not guaranteed): no fee.') : undefined}
+      onClose={onClose}
+    >
+      <form onSubmit={submit} className="space-y-3">
+        <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs flex justify-between">
+          <span className="text-slate-600">{isCancel ? tr('Frais d’annulation applicables', 'Applicable cancellation fee') : tr('Frais de no-show applicables', 'Applicable no-show fee')}</span>
+          <strong className="font-mono text-red-700">
+            {fee.loading ? '…' : fee.error ? '—' : formatMoney(waive ? 0 : fee.data ?? 0)}
+          </strong>
+        </div>
+        <ErrorNote message={fee.error} />
+        {isCancel && (
+          <Field label={tr('Motif de l’annulation', 'Cancellation reason')}>
+            <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+          </Field>
+        )}
+        {canWaive && (fee.data ?? 0) > 0 && (
+          <Checkbox label={tr('Exonérer les frais', 'Waive the fee')} checked={waive} onChange={(e) => setWaive(e.target.checked)} />
+        )}
+        <ErrorNote message={error} />
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>{tr('Fermer', 'Close')}</Button>
+          <Button type="submit" variant="danger" busy={busy}>
+            {isCancel ? tr('Confirmer l’annulation', 'Confirm cancellation') : tr('Confirmer le no-show', 'Confirm no-show')}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function ChargeModal({ onClose, onSubmit, canDiscount }: { onClose: () => void; canDiscount: boolean; onSubmit: (c: ChargeCategory, d: string, q: number, u: number) => Promise<unknown> }) {
   const { tr } = useI18n();
   const [category, setCategory] = useState<ChargeCategory>('restaurant');
@@ -335,7 +420,7 @@ function ChargeModal({ onClose, onSubmit, canDiscount }: { onClose: () => void; 
         <div className="grid grid-cols-2 gap-3">
           <Field label={tr('Catégorie', 'Category')}>
             <Select value={category} onChange={(e) => setCategory(e.target.value as ChargeCategory)}>
-              {(Object.keys(CHARGE_LABELS) as ChargeCategory[]).filter((c) => c !== 'room').map((c) => (
+              {(Object.keys(CHARGE_LABELS) as ChargeCategory[]).filter((c) => !SYSTEM_CHARGE_CATEGORIES.includes(c)).map((c) => (
                 <option key={c} value={c}>{CHARGE_LABELS[c]}</option>
               ))}
             </Select>

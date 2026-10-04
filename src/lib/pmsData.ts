@@ -12,7 +12,11 @@ export type BookingSource =
   | 'direct' | 'phone' | 'walk_in' | 'email' | 'booking_com' | 'expedia' | 'airbnb' | 'tour_operator' | 'corporate' | 'other'
   | 'website' | 'api';
 export type ChargeCategory =
-  | 'room' | 'breakfast' | 'restaurant' | 'bar' | 'minibar' | 'laundry' | 'transport' | 'spa' | 'tourist_tax' | 'other';
+  | 'room' | 'breakfast' | 'restaurant' | 'bar' | 'minibar' | 'laundry' | 'transport' | 'spa' | 'tourist_tax' | 'other'
+  | 'cancellation_fee' | 'no_show_fee';
+
+// Catégories posées par le serveur uniquement (pénalités), jamais saisies à la main.
+export const SYSTEM_CHARGE_CATEGORIES: ChargeCategory[] = ['room', 'cancellation_fee', 'no_show_fee'];
 
 export const PAYMENT_METHOD_LABELS = bilingual<PaymentMethod>({
   cash: ['Espèces', 'Cash'],
@@ -49,6 +53,8 @@ export const CHARGE_LABELS = bilingual<ChargeCategory>({
   spa: ['Spa', 'Spa'],
   tourist_tax: ['Taxe de séjour', 'Tourist tax'],
   other: ['Autre', 'Other'],
+  cancellation_fee: ['Frais d’annulation', 'Cancellation fee'],
+  no_show_fee: ['Frais de no-show', 'No-show fee'],
 });
 
 export const STATUS_LABELS = bilingual<ReservationStatus>({
@@ -75,6 +81,20 @@ export interface RatePlanRow {
   min_stay: number;
   breakfast_included: boolean;
   active: boolean;
+  deposit_percent: number;
+  cancel_free_days: number;
+  cancel_fee_nights: number;
+  no_show_fee_nights: number;
+}
+
+export interface ReservationGroupRow {
+  id: string;
+  name: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 interface RoomRow {
@@ -103,7 +123,9 @@ export interface ReservationRow {
   notes: string | null;
   source: BookingSource;
   rate_plan_id: string | null;
+  group_id: string | null;
   created_at: string;
+  updated_at: string;
   guest: { full_name: string; email: string | null; phone: string | null; vip: boolean } | null;
   payments: { amount: number }[];
   folio_charges: { amount: number }[];
@@ -129,10 +151,42 @@ export interface PaymentRow {
 export const paidAmount = (r: ReservationRow) => r.payments.reduce((s, p) => s + p.amount, 0);
 export const chargesAmount = (r: ReservationRow) => r.folio_charges.reduce((s, c) => s + c.amount, 0);
 // Solde = séjour + prestations - paiements. Une réservation annulée ou non
-// présentée ne doit plus l'hébergement : seules les prestations restent dues
+// présentée ne doit plus l'hébergement : seules les prestations restent dues,
+// dont les frais d'annulation ou de no-show (cf. reservation_balance_unchecked)
 // (et un éventuel acompte apparaît en négatif, à rembourser ou conserver).
 export const balanceOf = (r: ReservationRow) =>
   (['cancelled', 'no_show'].includes(r.status) ? 0 : r.total_amount) + chargesAmount(r) - paidAmount(r);
+
+// Plan applicable à une réservation : le sien, sinon le plan par défaut (comme penalty_amount).
+export const planOf = (r: ReservationRow, plans: RatePlanRow[]) =>
+  plans.find((p) => p.id === r.rate_plan_id) ?? plans.find((p) => p.is_default) ?? null;
+
+// Acompte attendu d'une option ou réservation confirmée dont le plan en exige un.
+export function depositOf(r: ReservationRow, plans: RatePlanRow[]) {
+  if (r.status !== 'option' && r.status !== 'confirmed') return null;
+  const percent = planOf(r, plans)?.deposit_percent ?? 0;
+  if (percent <= 0) return null;
+  const amount = Math.round((r.total_amount * percent) / 100);
+  return { percent, amount, paid: paidAmount(r) >= amount };
+}
+
+// Conditions d'annulation du plan, en une ligne.
+export function cancellationTerms(plan: RatePlanRow | null): string | null {
+  if (!plan || plan.cancel_free_days === undefined) return null;
+  const noShow = tr(
+    `no-show : ${plan.no_show_fee_nights} nuit(s) facturée(s).`,
+    `no-show: ${plan.no_show_fee_nights} night(s) charged.`,
+  );
+  if (plan.cancel_fee_nights <= 0) return tr(`Annulation gratuite ; ${noShow}`, `Free cancellation; ${noShow}`);
+  return tr(
+    `Annulation gratuite jusqu’à ${plan.cancel_free_days} jour(s) avant l’arrivée, puis ${plan.cancel_fee_nights} nuit(s) facturée(s) ; ${noShow}`,
+    `Free cancellation up to ${plan.cancel_free_days} day(s) before arrival, then ${plan.cancel_fee_nights} night(s) charged; ${noShow}`,
+  );
+}
+
+// Rôles autorisés à exonérer les frais et à gérer les groupes (cf. SQL).
+export const canWaiveFees = (role: string) => ['owner', 'general_manager', 'reservation_manager'].includes(role);
+export const canManageGroups = canWaiveFees;
 
 export const ACTIVE_STATUSES: ReservationStatus[] = ['option', 'confirmed', 'checked_in'];
 
@@ -207,8 +261,31 @@ export interface NewReservation extends StayInput {
   status?: 'option' | 'confirmed';
 }
 
+export interface NewGroup {
+  name: string;
+  checkIn: string;
+  checkOut: string;
+  rooms: { roomTypeId: string; count: number; adults: number }[];
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  status: 'option' | 'confirmed';
+  ratePlanId?: string | null;
+  source?: BookingSource;
+  notes?: string;
+}
+
+export const fetchGroups = (propertyId: string) =>
+  run(
+    supabase
+      .from('reservation_groups')
+      .select('id, name, contact_name, contact_email, contact_phone, notes, created_at')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false }),
+  ) as Promise<ReservationGroupRow[]>;
+
 const RESERVATION_COLUMNS =
-  'id, code, status, room_id, guest_id, check_in, check_out, adults, children, breakfast, nightly_rate, room_amount, total_amount, notes, source, rate_plan_id, created_at, ' +
+  'id, code, status, room_id, guest_id, check_in, check_out, adults, children, breakfast, nightly_rate, room_amount, total_amount, notes, source, rate_plan_id, group_id, created_at, updated_at, ' +
   'guest:guests(full_name, email, phone, vip), payments(amount), folio_charges(amount), invoices(id, display_number)';
 
 const SNAPSHOT_KEY = (propertyId: string) => `pms.snapshot.${propertyId}`;
@@ -261,7 +338,7 @@ export function usePropertyData(property: Property | null, withFinance: boolean)
         run(
           supabase
             .from('rate_plans')
-            .select('id, name, code, is_default, min_stay, breakfast_included, active')
+            .select('id, name, code, is_default, min_stay, breakfast_included, active, deposit_percent, cancel_free_days, cancel_fee_nights, no_show_fee_nights')
             .eq('property_id', property.id)
             .order('is_default', { ascending: false })
             .order('name'),
@@ -385,9 +462,11 @@ export function usePropertyData(property: Property | null, withFinance: boolean)
             p_guest_id: r.guestId || null,
           }),
         ),
-      updateReservation: (id: string, s: StayInput) =>
-        act(() =>
-          rpc('update_reservation', {
+      // expectedUpdatedAt : verrouillage optimiste, le serveur refuse (40001) si
+      // la réservation a changé depuis son affichage ; on recharge alors l'écran.
+      updateReservation: (id: string, s: StayInput, expectedUpdatedAt?: string | null) =>
+        act(async () => {
+          const { error } = await supabase.rpc('update_reservation', {
             p_reservation: id,
             p_room: s.roomId,
             p_check_in: s.checkIn,
@@ -398,8 +477,18 @@ export function usePropertyData(property: Property | null, withFinance: boolean)
             p_notes: s.notes || null,
             p_rate_plan: s.ratePlanId || null,
             p_source: s.source ?? null,
-          }),
-        ),
+            p_expected_updated_at: expectedUpdatedAt ?? null,
+          });
+          if (!error) return;
+          if ((error as { code?: string }).code === '40001') {
+            await reload();
+            throw new Error(tr(
+              'Réservation modifiée entre-temps par un collègue : les valeurs à jour ont été rechargées, vérifiez-les puis enregistrez à nouveau.',
+              'Reservation changed meanwhile by a colleague: the latest values have been reloaded, check them and save again.',
+            ));
+          }
+          throw new Error(errorMessage(error));
+        }),
       quote: (roomTypeId: string, ratePlanId: string | null, checkIn: string, checkOut: string) =>
         rpc<number>('price_stay', {
           p_room_type: roomTypeId,
@@ -409,9 +498,33 @@ export function usePropertyData(property: Property | null, withFinance: boolean)
         }),
       checkIn: (id: string) => act(() => rpc('check_in_reservation', { p_reservation: id })),
       checkOut: (id: string) => act(() => rpc('check_out_reservation', { p_reservation: id })),
-      cancel: (id: string, reason?: string) =>
-        act(() => rpc('cancel_reservation', { p_reservation: id, p_reason: reason ?? null })),
-      markNoShow: (id: string) => act(() => rpc('mark_no_show', { p_reservation: id })),
+      // Renvoient les frais facturés (0 si option, délai gratuit ou exonération).
+      cancel: (id: string, reason?: string, waiveFee = false) =>
+        act(() => rpc<number>('cancel_reservation', { p_reservation: id, p_reason: reason ?? null, p_waive_fee: waiveFee })),
+      markNoShow: (id: string, waiveFee = false) =>
+        act(() => rpc<number>('mark_no_show', { p_reservation: id, p_waive_fee: waiveFee })),
+      penalty: (id: string, kind: 'cancellation' | 'no_show') =>
+        rpc<number>('penalty_amount', { p_reservation: id, p_kind: kind }),
+      bookGroup: (g: NewGroup) =>
+        act(() =>
+          rpc<string>('book_group', {
+            p_property: property!.id,
+            p_name: g.name,
+            p_check_in: g.checkIn,
+            p_check_out: g.checkOut,
+            p_rooms: g.rooms.map((x) => ({ room_type_id: x.roomTypeId, count: x.count, adults: x.adults })),
+            p_contact_name: g.contactName || null,
+            p_contact_email: g.contactEmail || null,
+            p_contact_phone: g.contactPhone || null,
+            p_status: g.status,
+            p_rate_plan: g.ratePlanId || null,
+            p_source: g.source ?? 'direct',
+            p_notes: g.notes || null,
+          }),
+        ),
+      confirmGroup: (groupId: string) => act(() => rpc<number>('confirm_group', { p_group: groupId })),
+      cancelGroup: (groupId: string, reason?: string, waiveFee = false) =>
+        act(() => rpc<number>('cancel_group', { p_group: groupId, p_reason: reason || null, p_waive_fee: waiveFee })),
       recordPayment: (id: string, amount: number, method: PaymentMethod, reference?: string) =>
         act(() =>
           rpc('record_payment', { p_reservation: id, p_amount: amount, p_method: method, p_reference: reference || null }),

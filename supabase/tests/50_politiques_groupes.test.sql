@@ -58,6 +58,7 @@ select tests.expect_error(format('select public.update_reservation(%L, %L, curre
 select public.book_group(:'prop', 'Séminaire Sonatel', current_date + 30, current_date + 32,
   jsonb_build_array(jsonb_build_object('room_type_id', :'rt', 'count', 4)), 'Awa Diop', 'awa@exemple.sn') as grp \gset
 select tests.expect((select count(distinct room_id) from public.reservations where group_id = :'grp' and status = 'option') = 4, 'quatre chambres en option');
+select tests.expect((select count(distinct guest_id) from public.reservations where group_id = :'grp') = 4, 'une fiche client par chambre');
 select tests.expect_error(format('select public.book_group(%L, %L, current_date + 30, current_date + 31, %L::jsonb)',
   :'prop', 'Trop gros', jsonb_build_array(jsonb_build_object('room_type_id', :'rt', 'count', 3))::text), 'Pas assez de chambres');
 select tests.expect((select count(*) from public.reservation_groups where property_id = :'prop') = 1, 'groupe refusé non créé (tout ou rien)');

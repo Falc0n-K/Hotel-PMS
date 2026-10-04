@@ -1,5 +1,5 @@
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, AlertTriangle, Shield, X, FlaskConical } from 'lucide-react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, AlertTriangle, Shield, X, FlaskConical, Search, Keyboard } from 'lucide-react';
 import { RoomStatus, PMSNotification } from './types';
 import { useAuth, type Membership } from './lib/auth';
 import { usePropertyData, balanceOf, clearSnapshots } from './lib/pmsData';
@@ -17,6 +17,8 @@ import RevenueChart, { type RevenuePoint } from './components/RevenueChart';
 import OccupancyChart, { type OccupancyPoint } from './components/OccupancyChart';
 import RoomGrid from './components/RoomGrid';
 import DashboardOperations from './components/DashboardOperations';
+import CommandPalette from './components/CommandPalette';
+import ShortcutsHelp from './components/ShortcutsHelp';
 
 // Écrans chargés à la demande : le bundle initial ne contient que le socle.
 const ReceptionistDashboard = lazy(() => import('./components/ReceptionistDashboard'));
@@ -59,6 +61,12 @@ export default function App() {
 }
 
 const STORAGE_KEY = 'pms.currentProperty';
+
+// Raccourcis « g » puis une lettre.
+const GOTO_KEYS: Record<string, string> = { d: 'dashboard', r: 'room-rack', b: 'bookings-desk', h: 'housekeeping', f: 'finance' };
+
+const isTypingTarget = (el: EventTarget | null) =>
+  el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
 
 function readStoredProperty(): string | null {
   try {
@@ -110,11 +118,61 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
   const [isSessionLocked, setIsSessionLocked] = useState(false);
   const [notifications, setNotifications] = useState<PMSNotification[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [roomFocus, setRoomFocus] = useState<{ query: string } | undefined>(undefined);
+  const [bookingFocus, setBookingFocus] = useState<{ id: string; nonce: number } | undefined>(undefined);
+  const consoleRef = useRef<HTMLDivElement>(null);
 
   const userName = profile?.full_name || session?.user.email || tr('Utilisateur', 'User');
   const userEmail = session?.user.email ?? '';
   const navItem = navItems.find((c) => c.id === activeConsole);
   const consoleLabel = navItem ? t(navItem.label) : '';
+
+  // ── Recherche globale et raccourcis clavier ───────────────────────────
+  const gotos = useMemo(
+    () => Object.entries(GOTO_KEYS).filter(([, id]) => navItems.some((n) => n.id === id)).map(([key, id]) => ({ key, id, label: t(navItems.find((n) => n.id === id)!.label) })),
+    [navItems, t],
+  );
+  useEffect(() => {
+    let pendingG = 0;
+    const onKey = (e: KeyboardEvent) => {
+      if (isSessionLocked) return;
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setHelpOpen(false);
+        setPaletteOpen((o) => !o);
+        return;
+      }
+      if (paletteOpen || helpOpen || e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (pendingG && Date.now() - pendingG < 1500) {
+        pendingG = 0;
+        const target = gotos.find((g) => g.key === e.key.toLowerCase());
+        if (target) {
+          e.preventDefault();
+          setActiveConsole(target.id);
+        }
+        return;
+      }
+      if (e.key === '/') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      } else if (e.key === '?') {
+        e.preventDefault();
+        setHelpOpen(true);
+      } else if (e.key === 'g') {
+        pendingG = Date.now();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isSessionLocked, paletteOpen, helpOpen, gotos]);
+
+  useEffect(() => {
+    if (activeConsole !== 'rooms-inventory') setRoomFocus(undefined);
+  }, [activeConsole]);
+
 
   useEffect(() => {
     document.title = `${consoleLabel} · ${property.name}`;
@@ -301,6 +359,7 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
               }
               if (fields.status && fields.status !== room.status) handleUpdateRoomStatus(roomId, fields.status);
             }}
+            focusSearch={roomFocus}
             onAddRoom={(r) => runAction(() => actions.addRoom(r.number, r.floor, r.category, r.nightlyRate))}
             onDeleteRoom={(roomId) => runAction(() => actions.deleteRoom(roomId))}
           />
@@ -308,7 +367,7 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
       case 'room-rack':
         return <RoomRack rooms={rooms} reservations={reservations} ratePlans={data.ratePlans} property={property} role={appRole} today={today} actions={actions} />;
       case 'bookings-desk':
-        return <BookingsDesk rooms={rooms} reservations={reservations} ratePlans={data.ratePlans} property={property} role={appRole} today={today} actions={actions} />;
+        return <BookingsDesk rooms={rooms} reservations={reservations} ratePlans={data.ratePlans} property={property} role={appRole} today={today} actions={actions} focus={bookingFocus} />;
       case 'guests':
         return <Guests property={property} role={appRole} />;
       case 'housekeeping':
@@ -425,16 +484,47 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
                 </div>
               }
             >
-              {renderConsole()}
+              <div ref={consoleRef} className="contents">{renderConsole()}</div>
             </Suspense>
           )}
         </div>
 
         <footer className="h-14 border-t border-slate-100 flex items-center justify-between px-8 text-[11px] text-slate-400 bg-white/50">
           <span>Senegal Hotels PMS © {today.slice(0, 4)}</span>
-          <span>Version {APP_VERSION}</span>
+          <span className="flex items-center gap-3">
+            <button onClick={() => setPaletteOpen(true)} className="flex items-center gap-1.5 font-semibold hover:text-slate-700 cursor-pointer" aria-label={tr('Recherche globale', 'Global search')}>
+              <Search className="w-3.5 h-3.5" />
+              {tr('Rechercher', 'Search')}
+              <kbd className="text-[10px] font-bold border border-slate-200 rounded px-1">Ctrl K</kbd>
+            </button>
+            <button onClick={() => setHelpOpen(true)} className="flex items-center gap-1.5 font-semibold hover:text-slate-700 cursor-pointer" aria-label={tr('Raccourcis clavier', 'Keyboard shortcuts')}>
+              <Keyboard className="w-3.5 h-3.5" />
+              <kbd className="text-[10px] font-bold border border-slate-200 rounded px-1">?</kbd>
+            </button>
+            <span>Version {APP_VERSION}</span>
+          </span>
         </footer>
       </main>
+
+      {paletteOpen && !isSessionLocked && (
+        <CommandPalette
+          screens={navItems.map((n) => ({ id: n.id, label: t(n.label) }))}
+          rooms={rooms}
+          reservations={reservations}
+          showReservations={navItems.some((n) => n.id === 'bookings-desk')}
+          onClose={() => setPaletteOpen(false)}
+          onNavigate={setActiveConsole}
+          onSelectRoom={(room) => {
+            setRoomFocus({ query: room.number });
+            setActiveConsole('rooms-inventory');
+          }}
+          onSelectReservation={(r) => {
+            setBookingFocus({ id: r.id, nonce: Date.now() });
+            setActiveConsole('bookings-desk');
+          }}
+        />
+      )}
+      {helpOpen && !isSessionLocked && <ShortcutsHelp gotos={gotos} onClose={() => setHelpOpen(false)} />}
 
       <LockScreen
         isOpen={isSessionLocked}

@@ -19,7 +19,7 @@ interface Props {
   onChanged: () => void;
 }
 
-type Tab = 'cash' | 'payments' | 'invoices' | 'night' | 'exports';
+type Tab = 'cash' | 'payments' | 'online' | 'invoices' | 'night' | 'exports';
 
 interface Session {
   id: string;
@@ -39,7 +39,7 @@ export default function Finance({ property, role, userId, today, onChanged }: Pr
   const finance = ['owner', 'general_manager', 'accountant', 'auditor'].includes(role);
   const tabs: { id: Tab; label: string }[] = [
     { id: 'cash', label: tr('Caisse', 'Cash register') },
-    ...(finance ? [{ id: 'payments' as Tab, label: tr('Paiements', 'Payments') }, { id: 'invoices' as Tab, label: tr('Factures et avoirs', 'Invoices and credit notes') }] : []),
+    ...(finance ? [{ id: 'payments' as Tab, label: tr('Paiements', 'Payments') }, { id: 'online' as Tab, label: tr('Paiements en ligne', 'Online payments') }, { id: 'invoices' as Tab, label: tr('Factures et avoirs', 'Invoices and credit notes') }] : []),
     { id: 'night', label: tr('Audit de nuit', 'Night audit') },
     ...(finance ? [{ id: 'exports' as Tab, label: tr('Exports comptables', 'Accounting exports') }] : []),
   ];
@@ -51,7 +51,7 @@ export default function Finance({ property, role, userId, today, onChanged }: Pr
     <div className="fade-in-up">
       <PageHeader title={tr('Caisse & Finance', 'Cashier & finance')} subtitle={tr(`Encaissements, facturation et clôtures de ${property.name}.`, `Payments, invoicing and closings for ${property.name}.`)} />
       <Tabs<Tab> value={tab} onChange={setTab} tabs={tabs} />
-      {(tab === 'payments' || tab === 'invoices' || tab === 'exports') && (
+      {(tab === 'payments' || tab === 'online' || tab === 'invoices' || tab === 'exports') && (
         <div className="flex flex-wrap gap-3 mb-4">
           <Field label={tr('Du', 'From')}><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
           <Field label={tr('Au', 'To')}><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
@@ -59,6 +59,7 @@ export default function Finance({ property, role, userId, today, onChanged }: Pr
       )}
       {tab === 'cash' && <CashTab property={property} role={role} userId={userId} onChanged={onChanged} />}
       {tab === 'payments' && <PaymentsTab property={property} from={from} to={to} />}
+      {tab === 'online' && <OnlinePaymentsTab property={property} from={from} to={to} />}
       {tab === 'invoices' && <InvoicesTab property={property} role={role} from={from} to={to} />}
       {tab === 'night' && <NightAuditTab property={property} role={role} today={today} onChanged={onChanged} />}
       {tab === 'exports' && <ExportsTab property={property} from={from} to={to} />}
@@ -302,6 +303,179 @@ function PaymentsTab({ property, from, to }: { property: Property; from: string;
                 <td className="p-3">{PAYMENT_METHOD_LABELS[p.method]}</td>
                 <td className="p-3 text-slate-500">{p.reference ?? '—'}</td>
                 <td className={`p-3 font-mono font-bold text-right ${p.amount < 0 ? 'text-red-600' : ''}`}>{formatMoney(p.amount)}</td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// ── Paiements en ligne (rapprochement PayDunya / Stripe) ──────────────────
+
+type LinkStatus = 'pending' | 'open' | 'paid' | 'expired' | 'failed';
+type LinkProvider = 'stripe' | 'paydunya';
+
+interface PaymentLinkLine {
+  id: string;
+  reservation_id: string;
+  provider: LinkProvider;
+  amount: number;
+  status: LinkStatus;
+  provider_ref: string | null;
+  checkout_url: string | null;
+  payment_id: string | null;
+  created_at: string;
+  completed_at: string | null;
+  last_error: string | null;
+  reservation: { code: string } | null;
+}
+
+const LINK_STATUS: Record<LinkStatus, { fr: string; en: string; tone: 'slate' | 'blue' | 'green' | 'amber' | 'red' }> = {
+  pending: { fr: 'En préparation', en: 'Pending', tone: 'slate' },
+  open: { fr: 'Ouvert', en: 'Open', tone: 'blue' },
+  paid: { fr: 'Payé', en: 'Paid', tone: 'green' },
+  expired: { fr: 'Expiré', en: 'Expired', tone: 'amber' },
+  failed: { fr: 'Échec', en: 'Failed', tone: 'red' },
+};
+const PROVIDER_LABELS: Record<LinkProvider, string> = { stripe: 'Stripe', paydunya: 'PayDunya' };
+const STALE_MS = 24 * 3600 * 1000;
+
+function OnlinePaymentsTab({ property, from, to }: { property: Property; from: string; to: string }) {
+  const { tr } = useI18n();
+  const { error, run: act } = useAction();
+  const [onlyAnomalies, setOnlyAnomalies] = useState(false);
+  const links = useQuery(
+    async () =>
+      (await run(
+        supabase
+          .from('payment_links')
+          .select('id, reservation_id, provider, amount, status, provider_ref, checkout_url, payment_id, created_at, completed_at, last_error, reservation:reservations(code)')
+          .eq('property_id', property.id)
+          .gte('created_at', `${from}T00:00:00`)
+          .lt('created_at', endOfDay(to))
+          .order('created_at', { ascending: false }),
+      )) as unknown as PaymentLinkLine[],
+    [property.id, from, to],
+  );
+
+  // Anomalies : lien resté ouvert plus de 24 h, échec, ou payé sans paiement rattaché.
+  const anomalyOf = (l: PaymentLinkLine, now: number): string | null => {
+    if ((l.status === 'open' || l.status === 'pending') && now - new Date(l.created_at).getTime() > STALE_MS)
+      return tr('Ouvert depuis plus de 24 h', 'Open for more than 24 h');
+    if (l.status === 'failed') return l.last_error ? tr(`Échec : ${l.last_error}`, `Failed: ${l.last_error}`) : tr('Échec', 'Failed');
+    if (l.status === 'paid' && !l.payment_id) return tr('Payé sans paiement enregistré', 'Paid without a recorded payment');
+    return null;
+  };
+
+  const now = Date.now();
+  const rows = (links.data ?? []).map((l) => ({ ...l, anomaly: anomalyOf(l, now) }));
+
+  const totals = (() => {
+    const byProvider = new Map<LinkProvider, { count: number; paid: number }>();
+    const byStatus = new Map<LinkStatus, { count: number; amount: number }>();
+    rows.forEach((l) => {
+      const p = byProvider.get(l.provider) ?? { count: 0, paid: 0 };
+      p.count += 1;
+      if (l.status === 'paid') p.paid += l.amount;
+      byProvider.set(l.provider, p);
+      const st = byStatus.get(l.status) ?? { count: 0, amount: 0 };
+      st.count += 1;
+      st.amount += l.amount;
+      byStatus.set(l.status, st);
+    });
+    return { byProvider: [...byProvider.entries()], byStatus: [...byStatus.entries()] };
+  })();
+
+  if (links.loading && !links.data) return <Loading />;
+  const anomalies = rows.filter((l) => l.anomaly).length;
+  const shown = onlyAnomalies ? rows.filter((l) => l.anomaly) : rows;
+  const statusLabel = (s: LinkStatus) => tr(LINK_STATUS[s].fr, LINK_STATUS[s].en);
+
+  const exportCsv = () =>
+    act(async () => {
+      await rpc('log_export', { p_property: property.id, p_kind: 'payments', p_rows: shown.length });
+      downloadCsv(
+        `paiements-en-ligne-${property.code}-${from}-${to}.csv`,
+        toCsv(
+          shown.map((l) => ({
+            date: l.created_at.slice(0, 16).replace('T', ' '),
+            code: l.reservation?.code ?? '',
+            provider: PROVIDER_LABELS[l.provider],
+            amount: l.amount,
+            status: statusLabel(l.status),
+            provider_ref: l.provider_ref ?? '',
+            payment_id: l.payment_id ?? '',
+            completed_at: l.completed_at ? l.completed_at.slice(0, 16).replace('T', ' ') : '',
+            anomaly: l.anomaly ?? '',
+          })),
+          [
+            { key: 'date', label: tr('Date', 'Date') }, { key: 'code', label: tr('Réservation', 'Reservation') }, { key: 'provider', label: tr('Prestataire', 'Provider') },
+            { key: 'amount', label: tr('Montant', 'Amount') }, { key: 'status', label: tr('Statut', 'Status') }, { key: 'provider_ref', label: tr('Réf. prestataire', 'Provider ref.') },
+            { key: 'payment_id', label: tr('Paiement', 'Payment') }, { key: 'completed_at', label: tr('Finalisé le', 'Completed at') }, { key: 'anomaly', label: tr('Anomalie', 'Anomaly') },
+          ],
+        ),
+      );
+    });
+
+  return (
+    <div className="space-y-4">
+      <ErrorNote message={error ?? links.error} />
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <Stat
+          label={tr('Encaissé en ligne', 'Collected online')}
+          value={formatMoney(rows.filter((l) => l.status === 'paid').reduce((s, l) => s + l.amount, 0))}
+          hint={tr(`${rows.length} liens sur la période`, `${rows.length} links in this period`)}
+        />
+        {(['paydunya', 'stripe'] as LinkProvider[]).map((p) => {
+          const v = totals.byProvider.find(([k]) => k === p)?.[1];
+          return <Stat key={p} label={PROVIDER_LABELS[p]} value={formatMoney(v?.paid ?? 0)} hint={tr(`${v?.count ?? 0} liens`, `${v?.count ?? 0} links`)} />;
+        })}
+        <Stat label={tr('Anomalies', 'Anomalies')} value={String(anomalies)} hint={tr('À vérifier', 'To check')} />
+      </div>
+      <Card title={tr('Par statut', 'By status')}>
+        {totals.byStatus.length === 0 ? (
+          <Empty>{tr('Aucun lien de paiement sur la période.', 'No payment links in this period.')}</Empty>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {totals.byStatus.map(([s, v]) => (
+              <div key={s} className="flex items-center gap-2 text-xs bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
+                <Badge tone={LINK_STATUS[s].tone}>{statusLabel(s)}</Badge>
+                <span className="font-bold">{v.count}</span>
+                <span className="font-mono text-slate-500">{formatMoney(v.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      <Card
+        title={tr('Liens de paiement', 'Payment links')}
+        actions={
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
+              <input type="checkbox" className="accent-orange-600" checked={onlyAnomalies} onChange={(e) => setOnlyAnomalies(e.target.checked)} />
+              {tr('Anomalies seulement', 'Anomalies only')}
+            </label>
+            <Button variant="secondary" icon={Download} onClick={exportCsv} disabled={!shown.length}>{tr('Exporter', 'Export')}</Button>
+          </div>
+        }
+      >
+        {shown.length === 0 ? (
+          <Empty>{tr('Aucun lien à afficher.', 'No links to show.')}</Empty>
+        ) : (
+          <Table head={[tr('Date', 'Date'), tr('Réservation', 'Reservation'), tr('Prestataire', 'Provider'), tr('Statut', 'Status'), tr('Réf. prestataire', 'Provider ref.'), tr('Anomalie', 'Anomaly'), tr('Montant', 'Amount')]}>
+            {shown.map((l) => (
+              <tr key={l.id} className={l.anomaly ? 'bg-red-50/60' : undefined}>
+                <td className="p-3 whitespace-nowrap">{new Date(l.created_at).toLocaleString('fr-FR')}</td>
+                <td className="p-3 font-mono">{l.reservation?.code ?? '—'}</td>
+                <td className="p-3">{PROVIDER_LABELS[l.provider]}</td>
+                <td className="p-3"><Badge tone={LINK_STATUS[l.status].tone}>{statusLabel(l.status)}</Badge></td>
+                <td className="p-3 text-slate-500 font-mono">
+                  {l.checkout_url ? <a href={l.checkout_url} target="_blank" rel="noreferrer" className="underline hover:text-orange-600">{l.provider_ref ?? tr('Lien', 'Link')}</a> : l.provider_ref ?? '—'}
+                </td>
+                <td className="p-3 text-red-700 font-semibold">{l.anomaly ?? ''}</td>
+                <td className="p-3 font-mono font-bold text-right">{formatMoney(l.amount)}</td>
               </tr>
             ))}
           </Table>

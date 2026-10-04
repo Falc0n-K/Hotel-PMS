@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BedDouble, 
   Search, 
@@ -32,7 +32,11 @@ interface RoomInventoryProps {
   onUpdateRoomDetails: (roomId: string, updatedFields: Partial<Room>) => void;
   onAddRoom: (newRoom: Room) => Promise<boolean>;
   onDeleteRoom: (roomId: string) => Promise<boolean>;
+  // Recherche imposée de l'extérieur (palette de commandes) : nouvel objet = nouvelle recherche.
+  focusSearch?: { query: string };
 }
+
+const PAGE_SIZES = [25, 50, 100];
 
 export default function RoomInventory({
   rooms,
@@ -41,7 +45,8 @@ export default function RoomInventory({
   onUpdateRoomStatus,
   onUpdateRoomDetails,
   onAddRoom,
-  onDeleteRoom
+  onDeleteRoom,
+  focusSearch
 }: RoomInventoryProps) {
   const { tr, lang } = useI18n();
   // Search & Filter state
@@ -49,6 +54,17 @@ export default function RoomInventory({
   const [selectedFloor, setSelectedFloor] = useState<string>('Tous');
   const [selectedCategory, setSelectedCategory] = useState<string>('Tous');
   const [selectedStatus, setSelectedStatus] = useState<string>('Tous');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
+  useEffect(() => {
+    if (focusSearch) setSearchQuery(focusSearch.query);
+  }, [focusSearch]);
+
+  // Toute modification des filtres ramène à la première page.
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedFloor, selectedCategory, selectedStatus, pageSize]);
 
   // Form states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -132,6 +148,11 @@ export default function RoomInventory({
       return matchesSearch && matchesFloor && matchesCategory && matchesStatus;
     });
   }, [rooms, searchQuery, selectedFloor, selectedCategory, selectedStatus]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRooms.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pagedRooms = filteredRooms.slice(pageStart, pageStart + pageSize);
 
   // Static computed statistics for active room filters
   const inventoryStats = useMemo(() => {
@@ -345,7 +366,7 @@ export default function RoomInventory({
                   </td>
                 </tr>
               ) : (
-                filteredRooms.map((room) => {
+                pagedRooms.map((room) => {
                   const isEditing = editingRoomId === room.id;
                   return (
                     <tr 
@@ -540,6 +561,42 @@ export default function RoomInventory({
           </table>
         </div>
 
+        {filteredRooms.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 text-[11px] text-slate-500">
+            <label className="flex items-center gap-2 font-semibold">
+              {tr('Par page', 'Per page')}
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="bg-slate-50 border border-slate-200 text-xs text-slate-800 px-2 py-1.5 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              >
+                {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+            <div className="flex items-center gap-3">
+              <span className="font-mono font-bold text-slate-600">
+                {tr(
+                  `${pageStart + 1}–${pageStart + pagedRooms.length} sur ${filteredRooms.length}`,
+                  `${pageStart + 1}–${pageStart + pagedRooms.length} of ${filteredRooms.length}`,
+                )}
+              </span>
+              <button
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {tr('Précédent', 'Previous')}
+              </button>
+              <button
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage >= pageCount}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {tr('Suivant', 'Next')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 5. ADD UNIT DRAWER MODAL OVERLAY */}

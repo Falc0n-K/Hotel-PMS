@@ -1,17 +1,19 @@
-import { useMemo, useState } from 'react';
-import { Plus, Search, Download, Star } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Search, Download, Star, Users } from 'lucide-react';
 import type { Room } from '../types';
 import type { Property } from '../lib/auth';
 import type { AppRole } from '../lib/roles';
 import { canManageReservations } from '../lib/roles';
 import {
-  SOURCE_LABELS, STATUS_LABELS, balanceOf, rpc, type PmsActions, type RatePlanRow, type ReservationRow, type ReservationStatus,
+  SOURCE_LABELS, STATUS_LABELS, balanceOf, canManageGroups, depositOf, fetchGroups, rpc, type PmsActions, type RatePlanRow, type ReservationRow, type ReservationStatus,
 } from '../lib/pmsData';
 import { formatDate, formatMoney, nightsBetween } from '../lib/dates';
 import { downloadCsv, toCsv } from '../lib/csv';
 import { Badge, Button, Empty, ErrorNote, Input, PageHeader, Select, Stat, Table, useAction } from './ui';
 import ReservationForm from './reservations/ReservationForm';
 import ReservationDrawer, { STATUS_TONES } from './reservations/ReservationDrawer';
+import GroupModal, { GroupPanel } from './reservations/GroupModal';
+import { useQuery } from '../lib/query';
 import { useI18n } from '../lib/i18n';
 
 interface Props {
@@ -22,11 +24,13 @@ interface Props {
   role: AppRole;
   today: string;
   actions: PmsActions;
+  // Réservation à ouvrir (recherche globale) ; nonce pour rouvrir la même.
+  focus?: { id: string; nonce: number };
 }
 
-type Filter = 'upcoming' | 'arrivals' | 'in_house' | 'departures' | 'all' | ReservationStatus;
+type Filter = 'upcoming' | 'arrivals' | 'in_house' | 'departures' | 'all' | 'deposit_due' | ReservationStatus;
 
-export default function BookingsDesk({ rooms, reservations, ratePlans, property, role, today, actions }: Props) {
+export default function BookingsDesk({ rooms, reservations, ratePlans, property, role, today, actions, focus }: Props) {
   const { tr } = useI18n();
   const canWrite = canManageReservations(role);
   const canExport = ['owner', 'general_manager', 'reservation_manager', 'accountant', 'auditor'].includes(role);
@@ -34,9 +38,28 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
   const [filter, setFilter] = useState<Filter>('upcoming');
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!focus) return;
+    setFilter('all');
+    setQuery('');
+    setOpenId(focus.id);
+  }, [focus]);
+  const [groupFilter, setGroupFilter] = useState('');
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupId, setGroupId] = useState<string | null>(null);
   const { error, run } = useAction();
 
   const roomNumber = useMemo(() => new Map(rooms.map((r) => [r.id, r.number])), [rooms]);
+
+  // Groupes de l'établissement, rechargés dès qu'une réservation cite un groupe inconnu.
+  const groupKey = useMemo(
+    () => [...new Set(reservations.map((r) => r.group_id).filter(Boolean))].sort().join(','),
+    [reservations],
+  );
+  const groupsQuery = useQuery(() => fetchGroups(property.id), [property.id, groupKey]);
+  const groups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data]);
+  const groupName = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -48,9 +71,11 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
           case 'in_house': return r.status === 'checked_in';
           case 'departures': return r.status === 'checked_in' && r.check_out <= today;
           case 'all': return true;
+          case 'deposit_due': return depositOf(r, ratePlans)?.paid === false;
           default: return r.status === filter;
         }
       })
+      .filter((r) => !groupFilter || r.group_id === groupFilter)
       .filter((r) =>
         !q ||
         r.code.toLowerCase().includes(q) ||
@@ -59,7 +84,7 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
         (roomNumber.get(r.room_id) ?? '').includes(q),
       )
       .sort((a, b) => (filter === 'all' ? b.check_in.localeCompare(a.check_in) : a.check_in.localeCompare(b.check_in)));
-  }, [reservations, filter, query, today, roomNumber]);
+  }, [reservations, filter, groupFilter, query, today, roomNumber, ratePlans]);
 
   const stats = useMemo(() => {
     const live = reservations.filter((r) => ['option', 'confirmed', 'checked_in'].includes(r.status));
@@ -98,6 +123,7 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
     });
 
   const open = reservations.find((r) => r.id === openId);
+  const openGroup = groups.find((g) => g.id === groupId);
 
   return (
     <div className="fade-in-up">
@@ -107,6 +133,7 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
         actions={
           <>
             {canExport && <Button variant="secondary" icon={Download} onClick={exportCsv}>{tr('Exporter', 'Export')}</Button>}
+            {canManageGroups(role) && <Button variant="secondary" icon={Users} disabled={rooms.length === 0} onClick={() => setCreatingGroup(true)}>{tr('Nouveau groupe', 'New group')}</Button>}
             {canWrite && <Button icon={Plus} disabled={rooms.length === 0} title={rooms.length === 0 ? tr('Ajoutez d’abord des chambres', 'Add rooms first') : undefined} onClick={() => setCreating(true)}>{tr('Nouvelle réservation', 'New reservation')}</Button>}
           </>
         }
@@ -133,7 +160,16 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
           <option value="checked_out">{tr('Parties', 'Checked out')}</option>
           <option value="cancelled">{tr('Annulées', 'Cancelled')}</option>
           <option value="no_show">No-show</option>
+          <option value="deposit_due">{tr('Acompte non reçu', 'Deposit not received')}</option>
         </Select>
+        {groups.length > 0 && (
+          <Select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-full md:w-60" aria-label={tr('Groupe', 'Group')}>
+            <option value="">{tr('Tous les groupes et individuels', 'All groups and individuals')}</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </Select>
+        )}
       </div>
 
       <ErrorNote message={error} />
@@ -144,6 +180,7 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
         <Table head={[tr('Référence', 'Reference'), tr('Client', 'Guest'), tr('Chambre', 'Room'), tr('Séjour', 'Stay'), tr('Provenance', 'Source'), tr('Statut', 'Status'), tr('Montant', 'Amount'), tr('Solde', 'Balance')]}>
           {filtered.map((r) => {
             const balance = balanceOf(r);
+            const deposit = depositOf(r, ratePlans);
             return (
               <tr key={r.id} onClick={() => setOpenId(r.id)} className="hover:bg-slate-50 cursor-pointer">
                 <td className="p-3 font-mono font-bold text-[#09153D]">
@@ -154,6 +191,24 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
                   <span className="font-bold text-slate-800">{r.guest?.full_name ?? tr('Client', 'Guest')}</span>
                   {r.guest?.vip && <Star className="inline w-3 h-3 ml-1 text-violet-500" aria-label="VIP" />}
                   <span className="block text-[10px] text-slate-400">{r.guest?.phone}</span>
+                  {(r.group_id || deposit?.paid === false) && (
+                    <span className="flex flex-wrap gap-1 mt-1">
+                      {r.group_id && (
+                        <button
+                          type="button"
+                          className="cursor-pointer"
+                          title={tr('Ouvrir le groupe', 'Open the group')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGroupId(r.group_id);
+                          }}
+                        >
+                          <Badge tone="violet"><Users className="w-3 h-3" /> {groupName.get(r.group_id) ?? tr('Groupe', 'Group')}</Badge>
+                        </button>
+                      )}
+                      {deposit?.paid === false && <Badge tone="amber">{tr('Acompte dû', 'Deposit due')}</Badge>}
+                    </span>
+                  )}
                 </td>
                 <td className="p-3 font-mono font-bold">{roomNumber.get(r.room_id) ?? '?'}</td>
                 <td className="p-3 whitespace-nowrap">
@@ -183,6 +238,31 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
             setCreating(false);
             if (id) setOpenId(id);
           }}
+        />
+      )}
+      {creatingGroup && (
+        <GroupModal
+          rooms={rooms}
+          ratePlans={ratePlans}
+          today={today}
+          actions={actions}
+          onClose={() => setCreatingGroup(false)}
+          onSaved={async (id) => {
+            setCreatingGroup(false);
+            await groupsQuery.reload();
+            setGroupId(id);
+          }}
+        />
+      )}
+      {openGroup && (
+        <GroupPanel
+          group={openGroup}
+          reservations={reservations.filter((r) => r.group_id === openGroup.id)}
+          roomNumber={roomNumber}
+          role={role}
+          actions={actions}
+          onOpenReservation={setOpenId}
+          onClose={() => setGroupId(null)}
         />
       )}
       {open && (

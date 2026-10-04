@@ -32,6 +32,7 @@ export interface Property {
   booking_hold_minutes: number;
   booking_provider: 'stripe' | 'paydunya';
   public_description: string | null;
+  auto_anonymize: boolean;
 }
 
 export interface Membership {

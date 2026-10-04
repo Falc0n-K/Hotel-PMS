@@ -114,7 +114,7 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
         notes: reservation.notes ?? '',
         ratePlanId: reservation.rate_plan_id,
         source: reservation.source,
-      }),
+      }, reservation.updated_at),
     );
   };
 

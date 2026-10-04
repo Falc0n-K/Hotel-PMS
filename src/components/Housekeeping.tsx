@@ -37,6 +37,15 @@ const STATUS: Record<Task['status'], { label: string; tone: Tone }> = {
   inspected: { get label() { return tr('Inspectée', 'Inspected'); }, tone: 'green' },
 };
 
+// Transitions proposées en masse : mêmes règles que les boutons de chaque ligne.
+type BulkStatus = 'start' | 'done' | 'redo' | 'inspect';
+const BULK: Record<BulkStatus, { label: string; to: Task['status']; from: Task['status'][]; managerOnly: boolean }> = {
+  start: { get label() { return tr('Commencer (en cours)', 'Start (in progress)'); }, to: 'in_progress', from: ['todo'], managerOnly: false },
+  done: { get label() { return tr('Terminée (chambre propre)', 'Done (room clean)'); }, to: 'done', from: ['todo', 'in_progress'], managerOnly: false },
+  redo: { get label() { return tr('À refaire (chambre sale)', 'Redo (room dirty)'); }, to: 'todo', from: ['done'], managerOnly: true },
+  inspect: { get label() { return tr('Inspectée', 'Inspected'); }, to: 'inspected', from: ['done'], managerOnly: true },
+};
+
 const PRIORITY: Record<Task['priority'], string> = bilingual<Task['priority']>({ high: ['Haute', 'High'], medium: ['Normale', 'Normal'], low: ['Basse', 'Low'] });
 
 // Gouvernante : assigne et inspecte. Femme / valet de chambre : voit ses tâches,
@@ -48,6 +57,10 @@ export default function Housekeeping({ rooms, property, role, userId, today, act
   const [onlyMine, setOnlyMine] = useState(role === 'housekeeper');
   const [creating, setCreating] = useState(false);
   const { busy, error, run: act } = useAction();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<BulkStatus | ''>('');
+  const [bulkAssignee, setBulkAssignee] = useState('');
+  const [bulkReport, setBulkReport] = useState<string | null>(null);
 
   const tasks = useQuery(async () => {
     const data = await run(
@@ -85,6 +98,51 @@ export default function Housekeeping({ rooms, property, role, userId, today, act
       await tasks.reload();
       onChanged();
     });
+
+  // ── Actions groupées : on rejoue l'action unitaire, tâche par tâche ──────
+  const picked = list.filter((t) => selected.has(t.id));
+  const allPicked = list.length > 0 && picked.length === list.length;
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleAll = () => setSelected(allPicked ? new Set() : new Set(list.map((t) => t.id)));
+  const bulkOptions = (Object.keys(BULK) as BulkStatus[]).filter((k) => manager || !BULK[k].managerOnly);
+
+  const runBulk = (targets: Task[], skipped: number, one: (t: Task) => Promise<unknown>) =>
+    act(async () => {
+      setBulkReport(null);
+      let ok = 0;
+      const failures: string[] = [];
+      for (const t of targets) {
+        try {
+          await one(t);
+          ok += 1;
+        } catch (e) {
+          failures.push(`${roomNumber.get(t.room_id) ?? '?'} : ${(e as Error).message}`);
+        }
+      }
+      setSelected(new Set());
+      await tasks.reload();
+      onChanged();
+      const parts = [tr(`${ok} réussie(s)`, `${ok} succeeded`)];
+      if (failures.length) parts.push(tr(`${failures.length} en échec`, `${failures.length} failed`));
+      if (skipped) parts.push(tr(`${skipped} ignorée(s) (transition impossible)`, `${skipped} skipped (invalid transition)`));
+      setBulkReport(parts.join(' · ') + (failures.length ? ` — ${failures.join(' ; ')}` : ''));
+    });
+
+  const applyBulkStatus = () => {
+    if (!bulkStatus) return;
+    const targets = picked.filter((t) => BULK[bulkStatus].from.includes(t.status));
+    runBulk(targets, picked.length - targets.length, (t) => rpc('set_housekeeping_task_status', { p_task: t.id, p_status: BULK[bulkStatus].to }));
+  };
+  const applyBulkAssign = () => {
+    const targets = picked.filter((t) => t.status !== 'inspected');
+    runBulk(targets, picked.length - targets.length, (t) => rpc('assign_housekeeping_task', { p_task: t.id, p_user: bulkAssignee || null }));
+  };
 
   const counts = {
     todo: (tasks.data ?? []).filter((t) => t.status === 'todo').length,
@@ -126,12 +184,45 @@ export default function Housekeeping({ rooms, property, role, userId, today, act
         ) : list.length === 0 ? (
           <Empty>{tr('Rien à faire pour le moment.', 'Nothing to do for now.')}</Empty>
         ) : (
+          <>
+          <div className="flex flex-wrap items-center gap-2 pb-3 mb-1 border-b border-slate-100">
+            <label className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 mr-2">
+              <input type="checkbox" className="accent-orange-600 w-4 h-4" checked={allPicked} onChange={toggleAll} />
+              {tr('Tout sélectionner', 'Select all')} ({picked.length}/{list.length})
+            </label>
+            <Select className="w-56" aria-label={tr('Statut à appliquer', 'Status to apply')} value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as BulkStatus | '')}>
+              <option value="">{tr('Changer le statut…', 'Change status…')}</option>
+              {bulkOptions.map((k) => <option key={k} value={k}>{BULK[k].label}</option>)}
+            </Select>
+            <Button variant="secondary" busy={busy} disabled={!picked.length || !bulkStatus} onClick={applyBulkStatus}>
+              {tr('Appliquer', 'Apply')}
+            </Button>
+            {manager && (
+              <>
+                <Select className="w-48" aria-label={tr('Assigner la sélection', 'Assign selection')} value={bulkAssignee} onChange={(e) => setBulkAssignee(e.target.value)}>
+                  <option value="">{tr('Non assignée', 'Unassigned')}</option>
+                  {(team.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </Select>
+                <Button variant="secondary" busy={busy} disabled={!picked.length} onClick={applyBulkAssign}>
+                  {tr('Assigner', 'Assign')}
+                </Button>
+              </>
+            )}
+          </div>
+          {bulkReport && <p role="status" className="text-[11px] font-semibold text-slate-600 bg-slate-50 rounded-xl p-2.5 my-2">{bulkReport}</p>}
           <ul className="divide-y divide-slate-100">
             {list.map((t) => {
               const mine = t.assigned_to === userId;
               return (
                 <li key={t.id} className="py-3 flex flex-col md:flex-row md:items-center gap-3">
-                  <div className="flex items-center gap-3 md:w-56">
+                  <div className="flex items-center gap-3 md:w-64">
+                    <input
+                      type="checkbox"
+                      className="accent-orange-600 w-4 h-4 shrink-0"
+                      aria-label={tr(`Sélectionner la chambre ${roomNumber.get(t.room_id) ?? '?'}`, `Select room ${roomNumber.get(t.room_id) ?? '?'}`)}
+                      checked={selected.has(t.id)}
+                      onChange={() => toggle(t.id)}
+                    />
                     <span className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center font-black font-mono text-slate-800">
                       {roomNumber.get(t.room_id) ?? '?'}
                     </span>
@@ -173,6 +264,7 @@ export default function Housekeeping({ rooms, property, role, userId, today, act
               );
             })}
           </ul>
+          </>
         )}
       </Card>
 
