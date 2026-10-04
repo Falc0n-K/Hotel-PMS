@@ -31,7 +31,7 @@ le front. Ce n'est pas un test d'intrusion externe : à prévoir avant d'ouvrir 
 
 ## Failles trouvées et corrigées
 
-Migration `20261004140000_revue_securite_codes.sql`, testée par
+Migration `20261004130013_revue_securite_codes.sql`, testée par
 `40_revue_securite.test.sql`.
 
 ### 1. Lecture hors établissement par trois fonctions de calcul (moyenne)

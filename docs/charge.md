@@ -54,7 +54,7 @@ en pointe.
 ## Anomalie trouvée
 
 Collision des références de réservation sous charge (voir `docs/securite.md`, point 3),
-corrigée par la migration `20261004140000_revue_securite_codes.sql`.
+corrigée par la migration `20261004130013_revue_securite_codes.sql`.
 
 ## Limites
 

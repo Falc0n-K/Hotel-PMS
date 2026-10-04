@@ -176,10 +176,9 @@ Authentication → Emails → SMTP Settings (sinon Supabase limite à quelques e
 - Database → Extensions : `pg_cron` et `pg_net` (activés par la migration, à vérifier).
 - Database → Backups : vérifier la rétention du plan ; Point-in-Time Recovery conseillé
   avant le premier hôtel réel. Faire un essai de restauration sur un projet jetable.
-- Migrations en attente : `20261004130000_separer_policies_ecriture.sql` et
-  `20261004140000_revue_securite_codes.sql` (correctifs de sécurité, voir `docs/securite.md`).
-  Appliquées automatiquement par le workflow de déploiement au prochain merge dans `main`,
-  ou à coller dans cet ordre dans le SQL Editor.
+- Migration en attente : `supabase/migrations/20261004150000_separer_policies_ecriture.sql`
+  (appliquée automatiquement par le workflow de déploiement, ou à coller dans le SQL Editor).
+  Les correctifs de la revue de sécurité (`20261004130013`) sont déjà appliqués.
 - Données de recette : exécuter une fois `scripts/cleanup-e2e.sql` (compte de test désactivé,
   établissement « Hôtel Test E2E » à supprimer).
 - Avis Supabase « Extension in Public » sur `pg_net` : l'extension était déjà installée dans
