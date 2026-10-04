@@ -13,6 +13,7 @@ if (dsn) {
   Sentry.init({
     dsn,
     environment: import.meta.env.VITE_APP_ENV ?? 'production',
+    release: `hotel-pms@${__APP_VERSION__}`,
     sendDefaultPii: false,
     tracesSampleRate: 0,
   });

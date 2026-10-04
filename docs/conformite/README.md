@@ -26,6 +26,7 @@ Commission de Protection des Données Personnelles (CDP), www.cdp.sn.
 | [`politique-de-confidentialite.md`](politique-de-confidentialite.md) | Clients des hôtels | À publier sur le site de l'hôtel et à lier depuis la page de réservation |
 | [`accord-sous-traitance.md`](accord-sous-traitance.md) | Contrat éditeur ↔ hôtel | Annexe obligatoire au contrat d'abonnement |
 | [`procedure-cdp.md`](procedure-cdp.md) | Éditeur et hôtels | Formalités auprès de la CDP, transferts hors du Sénégal |
+| [`cgu.md`](cgu.md) | Contrat éditeur ↔ hôtel | Conditions générales d'utilisation et d'abonnement |
 
 ## Ce que le logiciel fait déjà
 

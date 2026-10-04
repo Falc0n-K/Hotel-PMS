@@ -76,3 +76,16 @@ jobs:
       - name: npm audit, outillage (informatif)
         continue-on-error: true
         run: npm audit --audit-level=high
+
+  version:
+    name: Version et CHANGELOG
+    # Seulement pour les PR vers main (release/* et hotfix/*) : la version doit être nouvelle
+    # et décrite dans le CHANGELOG, sinon la release automatique n'aurait rien à publier.
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Version nouvelle, supérieure et décrite dans le CHANGELOG
+        run: node scripts/check-version.mjs

@@ -103,6 +103,7 @@ export default function Sidebar({
             <LogOut className="w-3.5 h-3.5" /> {t('shell.signout')}
           </button>
         </div>
+        <p className="text-[9px] text-slate-400 text-center font-mono" title="Version">v{__APP_VERSION__}</p>
       </div>
     </aside>
   );

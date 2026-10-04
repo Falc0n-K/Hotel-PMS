@@ -44,6 +44,25 @@ Redéployer après tout ajout (les `VITE_` sont lues à la compilation).
 | `VITE_APP_ENV` | `production` en Production, `preview` en Preview (étiquette dans Sentry et bandeau « Préproduction ») |
 | `VITE_TURNSTILE_SITE_KEY` | dash.cloudflare.com → Turnstile → Add widget (domaine Vercel) → Site Key. Public par conception. Requis pour la réservation en ligne. |
 
+### Captcha Cloudflare Turnstile (réservation en ligne), pas à pas
+
+1. Créer un compte gratuit sur dash.cloudflare.com (aucun domaine à transférer).
+2. Menu **Turnstile** → **Add widget** : nom « Hotel PMS », domaines
+   `hotel-pms-mu.vercel.app` (et votre domaine personnalisé, `localhost` pour les
+   tests), mode **Managed** → Create.
+3. Copier la **Site Key** → Vercel → Settings → Environment Variables →
+   `VITE_TURNSTILE_SITE_KEY` (Production et Preview) → **redéployer** (la clé est lue à
+   la compilation).
+4. Copier la **Secret Key** → Supabase → Project Settings → Edge Functions → Secrets →
+   `TURNSTILE_SECRET_KEY` (ou `supabase secrets set TURNSTILE_SECRET_KEY=…`). Aucun
+   redéploiement de fonction nécessaire.
+5. Vérifier : ouvrir `/reserver/<adresse>`, choisir une chambre ; le widget doit
+   apparaître au-dessus du bouton « Réserver et payer ».
+
+Sans ces deux clés, la page publique s'affiche mais toute réservation est refusée
+(« Vérification anti-robot échouée »). Clés de test Cloudflare pour le local :
+site `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA`.
+
 ### Réglages Vercel (pas des variables)
 
 - Settings → Deployment Protection : activer **Vercel Authentication** sur les Previews
@@ -75,6 +94,22 @@ dépôt personnel.
 | `SUPABASE_PROJECT_REF` | `gqbztdprvqwewivzebsa` |
 | `SENTRY_ORG` *(facultatif)* | slug de l'organisation Sentry |
 | `SENTRY_PROJECT` *(facultatif)* | slug du projet Sentry |
+
+### Releases automatiques et envoi du lien (facultatif)
+
+Le workflow `.github/workflows/release.yml` crée le tag et la release GitHub à chaque
+nouvelle version arrivée sur `main`, puis envoie le lien par les canaux configurés :
+
+| Où | Nom | Valeur |
+|---|---|---|
+| Secret | `RESEND_API_KEY` | Même clé Resend que pour Supabase (ou une clé dédiée) |
+| Variable | `RELEASE_NOTIFY_TO` | Destinataires, séparés par des virgules (ex. `direction@votre-domaine.sn, dev@votre-domaine.sn`) |
+| Variable | `RELEASE_MAIL_FROM` | Expéditeur d'un domaine vérifié dans Resend (ex. `Hotel PMS <releases@votre-domaine.sn>`) |
+| Secret | `RELEASE_WEBHOOK_URL` | URL de webhook entrant Slack, Google Chat, Teams ou Discord |
+| Variable | `APP_URL` | URL de production, rappelée dans le message (défaut `https://hotel-pms-mu.vercel.app`) |
+
+Le lien pointe vers la page de release GitHub : seules les personnes ayant accès au
+dépôt peuvent l'ouvrir s'il est privé.
 
 ### Environnement GitHub « production »
 
@@ -200,8 +235,8 @@ Créer un second projet Supabase « Hotel PMS Staging » dans la même région, 
 | Où | Obligatoire | Facultatif (active une fonction) |
 |---|---|---|
 | Vercel | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | `VITE_SENTRY_DSN`, `VITE_APP_ENV`, `VITE_TURNSTILE_SITE_KEY` |
-| GitHub secrets | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` | `SENTRY_AUTH_TOKEN` |
-| GitHub variables | `SUPABASE_PROJECT_REF` | `SENTRY_ORG`, `SENTRY_PROJECT` |
+| GitHub secrets | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` | `SENTRY_AUTH_TOKEN`, `RESEND_API_KEY`, `RELEASE_WEBHOOK_URL` |
+| GitHub variables | `SUPABASE_PROJECT_REF` | `SENTRY_ORG`, `SENTRY_PROJECT`, `RELEASE_NOTIFY_TO`, `RELEASE_MAIL_FROM`, `APP_URL` |
 | Supabase secrets | `APP_URL`, `CRON_SECRET` | `PAYDUNYA_*` (4), `STRIPE_*` (2), `RESEND_API_KEY`, `MAIL_FROM`, `TWILIO_*` (4), `TURNSTILE_SECRET_KEY`, `CLOUDBEDS_*` (2) |
 | Supabase Vault | `project_url`, `cron_secret` | |
 | Supabase Auth | Site URL, Redirect URLs, MFA TOTP | SMTP Resend |
