@@ -48,3 +48,10 @@
 .glow-orange-lg {
   box-shadow: 0 0 25px rgba(249, 115, 22, 0.25);
 }
+
+/* Impression des factures : seul l'aperçu est imprimé. */
+@media print {
+  body > *:not(.print-root) { display: none !important; }
+  .print-root { position: static !important; padding: 0 !important; }
+  .no-print { display: none !important; }
+}

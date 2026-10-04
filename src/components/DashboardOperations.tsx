@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { LogIn, LogOut, Brush, Check, AlertTriangle } from 'lucide-react';
 import type { Room } from '../types';
 import type { HousekeepingTaskRow, ReservationRow } from '../lib/pmsData';
-import { paidAmount } from '../lib/pmsData';
+import { balanceOf } from '../lib/pmsData';
 import { formatMoney } from '../lib/dates';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   tasks: HousekeepingTaskRow[];
   showBalances: boolean;
   canCompleteTasks: boolean;
-  onCompleteTask: (task: HousekeepingTaskRow) => Promise<void>;
+  onCompleteTask: (task: HousekeepingTaskRow) => Promise<unknown>;
 }
 
 // Tableau de bord orienté action : ce que la réception et le ménage ont à
@@ -34,7 +34,7 @@ export default function DashboardOperations({
   );
   const departures = reservations.filter((r) => r.status === 'checked_in' && r.check_out <= today);
   const unpaid = reservations.filter(
-    (r) => r.status === 'checked_in' && paidAmount(r) < r.total_amount,
+    (r) => r.status === 'checked_in' && balanceOf(r) > 0,
   );
 
   return (
@@ -58,7 +58,7 @@ export default function DashboardOperations({
             left={r.guest?.full_name ?? 'Client'}
             sub={
               showBalances
-                ? `Solde : ${formatMoney(r.total_amount - paidAmount(r))}`
+                ? `Solde : ${formatMoney(balanceOf(r))}`
                 : r.code
             }
             right={`Ch. ${roomNumber.get(r.room_id) ?? '?'}`}
@@ -92,7 +92,7 @@ export default function DashboardOperations({
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>
             {unpaid.length} séjour{unpaid.length > 1 ? 's' : ''} en cours avec un solde à encaisser (total{' '}
-            {formatMoney(unpaid.reduce((s, r) => s + r.total_amount - paidAmount(r), 0))}).
+            {formatMoney(unpaid.reduce((s, r) => s + balanceOf(r), 0))}).
           </span>
         </div>
       )}

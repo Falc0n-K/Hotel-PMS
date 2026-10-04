@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Bell, Check, Trash2, Hotel } from 'lucide-react';
 import { PMSNotification } from '../types';
+import { useI18n } from '../lib/i18n';
 
 interface HeaderProps {
   title: string;
@@ -21,6 +22,7 @@ export default function Header({
   onMarkNotificationRead,
   onClearNotification
 }: HeaderProps) {
+  const { t } = useI18n();
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -33,7 +35,7 @@ export default function Header({
           <span>{title}</span>
         </h2>
         <p className="text-xs text-slate-500 font-medium">
-          Bonjour <span className="text-slate-700 font-semibold">{userName}</span>
+          {t('shell.hello')} <span className="text-slate-700 font-semibold">{userName}</span>
         </p>
       </div>
 
@@ -44,8 +46,8 @@ export default function Header({
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Filtrer les chambres (numéro, client, type)…"
-            aria-label="Filtrer les chambres"
+            placeholder={t('shell.search')}
+            aria-label={t('shell.search')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 text-xs text-slate-700 rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors placeholder:text-slate-400"

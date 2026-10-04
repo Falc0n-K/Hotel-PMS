@@ -191,3 +191,48 @@ export function NewPasswordScreen({ onDone }: { onDone: () => void }) {
     </div>
   );
 }
+
+// Deuxième étape de connexion quand le compte a une double authentification.
+export function MfaChallengeScreen() {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const { data } = await supabase.auth.mfa.listFactors();
+    const factor = data?.totp.find((f) => f.status === 'verified');
+    if (!factor) {
+      setBusy(false);
+      setError('Aucune application d’authentification trouvée sur ce compte.');
+      return;
+    }
+    const { error: err } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: code.trim() });
+    setBusy(false);
+    if (err) setError('Code incorrect ou expiré.');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
+      <form onSubmit={submit} className="bg-white w-full max-w-sm rounded-3xl shadow-xl border border-slate-100 p-8 space-y-3">
+        <h1 className="text-lg font-extrabold text-slate-950">Double authentification</h1>
+        <p className="text-xs text-slate-500">Saisissez le code à 6 chiffres affiché par votre application.</p>
+        <Field icon={KeyRound} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" value={code} onChange={(v) => setCode(v.replace(/\D/g, ''))} required autoFocus />
+        {error && (
+          <div role="alert" className="flex gap-2 p-2.5 bg-red-50 text-red-600 text-[11px] font-bold rounded-lg">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+        <button type="submit" disabled={busy || code.length !== 6} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-xl text-xs disabled:opacity-50 cursor-pointer">
+          Vérifier
+        </button>
+        <button type="button" onClick={() => supabase.auth.signOut()} className="w-full text-[11px] text-slate-500 cursor-pointer">
+          Se déconnecter
+        </button>
+      </form>
+    </div>
+  );
+}

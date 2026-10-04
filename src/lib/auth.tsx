@@ -14,6 +14,19 @@ export interface Property {
   vat_rate_bp: number;
   tourist_tax_per_night: number;
   breakfast_price: number;
+  legal_name: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  ninea: string | null;
+  rccm: string | null;
+  check_in_time: string;
+  check_out_time: string;
+  require_mfa: boolean;
+  notify_email: boolean;
+  notify_sms: boolean;
+  notify_whatsapp: boolean;
+  guest_retention_months: number;
 }
 
 export interface Membership {
@@ -34,6 +47,10 @@ interface AuthState {
   memberships: Membership[];
   passwordRecovery: boolean;
   endPasswordRecovery: () => void;
+  // Niveau d'assurance de la session : aal2 après un code de double authentification.
+  aal: 'aal1' | 'aal2';
+  needsMfa: boolean;
+  refreshAal: () => Promise<void>;
   refreshMemberships: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -47,6 +64,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const loadedUser = useRef<string | null>(null);
+  const [aal, setAal] = useState<'aal1' | 'aal2'>('aal1');
+  const [needsMfa, setNeedsMfa] = useState(false);
+
+  // Le niveau se lit dans le jeton de session, sans appel réseau : appeler le
+  // client Supabase pendant un événement d'authentification le bloque.
+  const applyAal = useCallback((s: Session | null) => {
+    const level = aalOf(s);
+    const hasFactor = (s?.user.factors ?? []).some((f) => f.status === 'verified');
+    setAal(level);
+    setNeedsMfa(hasFactor && level !== 'aal2');
+  }, []);
+
+  const refreshAal = useCallback(async () => {
+    const { data } = await supabase.auth.refreshSession();
+    applyAal(data.session);
+  }, [applyAal]);
 
   const loadUserData = useCallback(async (userId: string) => {
     loadedUser.current = userId;
@@ -70,14 +103,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return;
       setSession(data.session);
+      applyAal(data.session);
       if (data.session) await loadUserData(data.session.user.id);
       setLoading(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+      applyAal(newSession);
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+      if (event === 'MFA_CHALLENGE_VERIFIED') setTimeout(() => loadUserData(newSession!.user.id), 0);
       if (event === 'SIGNED_OUT' || !newSession) {
         loadedUser.current = null;
+        setAal('aal1');
+        setNeedsMfa(false);
         setProfile(null);
         setMemberships([]);
       } else if ((event === 'SIGNED_IN' && loadedUser.current !== newSession.user.id) || event === 'USER_UPDATED') {
@@ -92,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [loadUserData]);
+  }, [loadUserData, applyAal]);
 
   const refreshMemberships = useCallback(async () => {
     if (session) await loadUserData(session.user.id);
@@ -110,6 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         memberships,
         passwordRecovery,
         endPasswordRecovery: () => setPasswordRecovery(false),
+        aal,
+        needsMfa,
+        refreshAal,
         refreshMemberships,
         signOut,
       }}>
@@ -122,4 +163,13 @@ export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth doit être utilisé sous <AuthProvider>');
   return ctx;
+}
+
+function aalOf(s: Session | null): 'aal1' | 'aal2' {
+  try {
+    const payload = JSON.parse(atob(s!.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.aal === 'aal2' ? 'aal2' : 'aal1';
+  } catch {
+    return 'aal1';
+  }
 }

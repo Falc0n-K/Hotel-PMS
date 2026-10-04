@@ -1,13 +1,15 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, AlertTriangle, Shield, X, FlaskConical } from 'lucide-react';
-import { RoomStatus, PMSNotification, ROLE_CONSOLES_MAPPING } from './types';
+import { RoomStatus, PMSNotification } from './types';
 import { useAuth, type Membership } from './lib/auth';
-import { usePropertyData, paidAmount } from './lib/pmsData';
+import { usePropertyData, balanceOf, clearSnapshots } from './lib/pmsData';
 import { APP_ROLE_LABELS, canManageReservations, canSeeFinance, uiRoleFor } from './lib/roles';
 import { addDays } from './lib/dates';
-import Sidebar, { CONSOLES, DEMO_CONSOLES } from './components/Sidebar';
+import Sidebar from './components/Sidebar';
+import { navFor } from './lib/nav';
+import { useI18n } from './lib/i18n';
 import Header from './components/Header';
-import LoginScreen, { NewPasswordScreen } from './components/LoginScreen';
+import LoginScreen, { MfaChallengeScreen, NewPasswordScreen } from './components/LoginScreen';
 import Onboarding from './components/Onboarding';
 import { LockScreen } from './components/Modals';
 import MetricCards, { type DashboardStats } from './components/MetricCards';
@@ -21,19 +23,20 @@ const ReceptionistDashboard = lazy(() => import('./components/ReceptionistDashbo
 const RoomInventory = lazy(() => import('./components/RoomInventory'));
 const BookingsDesk = lazy(() => import('./components/BookingsDesk'));
 const TeamAccess = lazy(() => import('./components/TeamAccess'));
-const HotelsHub = lazy(() => import('./components/HotelsHub'));
-const GuestsCRM = lazy(() => import('./components/GuestsCRM'));
-const PaymentsFinance = lazy(() => import('./components/PaymentsFinance'));
-const EventVenues = lazy(() => import('./components/EventVenues'));
-const ExperiencesMarket = lazy(() => import('./components/ExperiencesMarket'));
-const MarketingPackages = lazy(() => import('./components/MarketingPackages'));
-const GuestFeedbacks = lazy(() => import('./components/GuestFeedbacks'));
-const DeepAnalytics = lazy(() => import('./components/DeepAnalytics'));
-const StaffDirectory = lazy(() => import('./components/StaffDirectory'));
-const MessagesInbox = lazy(() => import('./components/MessagesInbox'));
-const GlobalSettings = lazy(() => import('./components/GlobalSettings'));
+const RoomRack = lazy(() => import('./components/RoomRack'));
+const Guests = lazy(() => import('./components/Guests'));
+const Housekeeping = lazy(() => import('./components/Housekeeping'));
+const Maintenance = lazy(() => import('./components/Maintenance'));
+const Finance = lazy(() => import('./components/Finance'));
+const Analytics = lazy(() => import('./components/Analytics'));
+const Communications = lazy(() => import('./components/Communications'));
+const Hotels = lazy(() => import('./components/Hotels'));
+const Settings = lazy(() => import('./components/Settings'));
+const AuditLog = lazy(() => import('./components/AuditLog'));
+const Account = lazy(() => import('./components/Account'));
 
-const APP_VERSION = '0.5.0';
+const APP_VERSION = '0.6.0';
+const APP_ENV = import.meta.env.VITE_APP_ENV;
 
 function FullPageLoader() {
   return (
@@ -49,6 +52,7 @@ export default function App() {
   if (auth.loading) return <FullPageLoader />;
   if (auth.passwordRecovery && auth.session) return <NewPasswordScreen onDone={auth.endPasswordRecovery} />;
   if (!auth.session) return <LoginScreen />;
+  if (auth.needsMfa) return <MfaChallengeScreen />;
   if (auth.memberships.length === 0) return <Onboarding />;
   return <Workspace memberships={auth.memberships} />;
 }
@@ -64,7 +68,13 @@ function readStoredProperty(): string | null {
 }
 
 function Workspace({ memberships }: { memberships: Membership[] }) {
-  const { session, profile, signOut } = useAuth();
+  const { session, profile, signOut: authSignOut, refreshMemberships, aal } = useAuth();
+  const { t } = useI18n();
+  // À la déconnexion, la copie hors ligne (données clients) est effacée du poste.
+  const signOut = useCallback(async () => {
+    clearSnapshots();
+    await authSignOut();
+  }, [authSignOut]);
 
   const [propertyId, setPropertyId] = useState<string>(() => {
     const stored = readStoredProperty();
@@ -87,13 +97,13 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
   const data = usePropertyData(property, financeVisible);
   const { rooms, reservations, today, actions } = data;
 
-  const allowedConsoles = ROLE_CONSOLES_MAPPING[currentRole];
+  const navItems = useMemo(() => navFor(appRole), [appRole]);
   const [activeConsole, setActiveConsole] = useState<string>(() =>
-    currentRole === 'Réceptionniste (Front Desk)' ? 'reception-desk' : 'dashboard',
+    ['front_desk', 'reservation_manager'].includes(appRole) ? 'reception-desk' : appRole === 'housekeeper' ? 'housekeeping' : 'dashboard',
   );
   useEffect(() => {
-    if (!allowedConsoles.includes(activeConsole)) setActiveConsole(allowedConsoles[0]);
-  }, [allowedConsoles, activeConsole]);
+    if (!navItems.some((n) => n.id === activeConsole)) setActiveConsole(navItems[0].id);
+  }, [navItems, activeConsole]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSessionLocked, setIsSessionLocked] = useState(false);
@@ -102,7 +112,8 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
 
   const userName = profile?.full_name || session?.user.email || 'Utilisateur';
   const userEmail = session?.user.email ?? '';
-  const consoleLabel = CONSOLES.find((c) => c.id === activeConsole)?.label ?? 'Tableau de Bord';
+  const navItem = navItems.find((c) => c.id === activeConsole);
+  const consoleLabel = navItem ? t(navItem.label) : '';
 
   useEffect(() => {
     document.title = `${consoleLabel} · ${property.name}`;
@@ -227,8 +238,6 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
     });
   }, [today, data.payments]);
 
-  const demoProps = { currentHotel: property.name, currentRole, onAddNotification: handleAddNotification };
-
   const renderConsole = () => {
     switch (activeConsole) {
       case 'reception-desk':
@@ -293,55 +302,54 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
             onDeleteRoom={(roomId) => runAction(() => actions.deleteRoom(roomId))}
           />
         );
+      case 'room-rack':
+        return <RoomRack rooms={rooms} reservations={reservations} ratePlans={data.ratePlans} property={property} role={appRole} today={today} actions={actions} />;
       case 'bookings-desk':
-        return (
-          <BookingsDesk
-            rooms={rooms}
-            reservations={reservations}
-            today={today}
-            breakfastPrice={property.breakfast_price}
-            currentHotel={property.name}
-            appRole={appRole}
-            actions={actions}
-            onAddNotification={handleAddNotification}
-          />
-        );
+        return <BookingsDesk rooms={rooms} reservations={reservations} ratePlans={data.ratePlans} property={property} role={appRole} today={today} actions={actions} />;
+      case 'guests':
+        return <Guests property={property} role={appRole} />;
+      case 'housekeeping':
+        return <Housekeeping rooms={rooms} property={property} role={appRole} userId={session!.user.id} today={today} actions={actions} onChanged={data.reload} />;
+      case 'maintenance':
+        return <Maintenance rooms={rooms} property={property} role={appRole} today={today} onChanged={data.reload} />;
+      case 'finance':
+        return <Finance property={property} role={appRole} userId={session!.user.id} today={today} onChanged={data.reload} />;
+      case 'analytics':
+        return <Analytics property={property} roomCount={rooms.filter((r) => r.status !== 'maintenance').length} today={today} />;
+      case 'communications':
+        return <Communications property={property} />;
+      case 'hotels':
+        return <Hotels memberships={memberships} currentId={property.id} onSwitch={setPropertyId} onAdded={refreshMemberships} />;
       case 'team-access':
         return <TeamAccess property={property} myRole={appRole} myUserId={session!.user.id} />;
-      case 'hotels-hub':
-        return <HotelsHub currentHotel={property.name} onHotelChange={() => undefined} currentRole={currentRole} />;
-      case 'guests-crm':
-        return <GuestsCRM {...demoProps} />;
-      case 'payments-finance':
-        return <PaymentsFinance {...demoProps} />;
-      case 'event-venues':
-        return <EventVenues {...demoProps} />;
-      case 'experiences-market':
-        return <ExperiencesMarket {...demoProps} />;
-      case 'marketing-packages':
-        return <MarketingPackages {...demoProps} />;
-      case 'guest-feedbacks':
-        return <GuestFeedbacks {...demoProps} />;
-      case 'deep-analytics':
-        return <DeepAnalytics {...demoProps} />;
-      case 'staff-directory':
-        return <StaffDirectory {...demoProps} />;
-      case 'messages-inbox':
-        return <MessagesInbox {...demoProps} />;
-      case 'global-settings':
-        return <GlobalSettings {...demoProps} />;
+      case 'settings':
+        return (
+          <Settings
+            property={property}
+            roomTypes={data.roomTypes}
+            ratePlans={data.ratePlans}
+            aal2={aal === 'aal2'}
+            onChanged={async () => {
+              await refreshMemberships();
+              await data.reload();
+            }}
+          />
+        );
+      case 'audit-log':
+        return <AuditLog property={property} today={today} />;
+      case 'account':
+        return <Account />;
       default:
         return null;
     }
   };
 
-  // Les réservations impayées en séjour alimentent le badge de notifications.
-  const unpaidInHouse = reservations.filter((r) => r.status === 'checked_in' && paidAmount(r) < r.total_amount).length;
+  const unpaidInHouse = reservations.filter((r) => r.status === 'checked_in' && balanceOf(r) > 0).length;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex">
       <Sidebar
-        currentRole={currentRole}
+        items={navItems}
         roleLabel={APP_ROLE_LABELS[appRole]}
         activeConsole={activeConsole}
         onConsoleSelect={setActiveConsole}
@@ -380,13 +388,17 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
               {actionError}
             </Banner>
           )}
-          {DEMO_CONSOLES.has(activeConsole) && (
-            <Banner tone="amber" icon="demo">
-              Module de démonstration : les données affichées sont fictives et rien n’est enregistré. Seuls le tableau de
-              bord, la console réception, l’inventaire, le guichet réservations et l’équipe sont reliés à la base.
+          {APP_ENV && APP_ENV !== 'production' && (
+            <Banner tone="amber">{t('shell.staging')} : environnement de test.</Banner>
+          )}
+          {data.offline && <Banner tone="amber">{t('shell.offline')}</Banner>}
+          {property.require_mfa && aal !== 'aal2' && ['owner', 'general_manager', 'accountant'].includes(appRole) && (
+            <Banner tone="red">
+              Cet établissement exige la double authentification pour votre rôle : activez-la dans « Mon compte », puis
+              reconnectez-vous.
             </Banner>
           )}
-          {unpaidInHouse > 0 && activeConsole === 'bookings-desk' && canManageReservations(appRole) && (
+          {unpaidInHouse > 0 && (activeConsole === 'bookings-desk' || activeConsole === 'reception-desk') && canManageReservations(appRole) && (
             <Banner tone="amber">
               {unpaidInHouse} séjour{unpaidInHouse > 1 ? 's' : ''} en cours avec un solde à encaisser avant le départ.
             </Banner>
