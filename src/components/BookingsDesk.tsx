@@ -12,6 +12,7 @@ import { downloadCsv, toCsv } from '../lib/csv';
 import { Badge, Button, Empty, ErrorNote, Input, PageHeader, Select, Stat, Table, useAction } from './ui';
 import ReservationForm from './reservations/ReservationForm';
 import ReservationDrawer, { STATUS_TONES } from './reservations/ReservationDrawer';
+import { useI18n } from '../lib/i18n';
 
 interface Props {
   rooms: Room[];
@@ -26,6 +27,7 @@ interface Props {
 type Filter = 'upcoming' | 'arrivals' | 'in_house' | 'departures' | 'all' | ReservationStatus;
 
 export default function BookingsDesk({ rooms, reservations, ratePlans, property, role, today, actions }: Props) {
+  const { tr } = useI18n();
   const canWrite = canManageReservations(role);
   const canExport = ['owner', 'general_manager', 'reservation_manager', 'accountant', 'auditor'].includes(role);
   const [query, setQuery] = useState('');
@@ -87,10 +89,10 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
       downloadCsv(
         `reservations-${property.code}-${today}.csv`,
         toCsv(rows, [
-          { key: 'code', label: 'Référence' }, { key: 'guest', label: 'Client' }, { key: 'room', label: 'Chambre' },
-          { key: 'check_in', label: 'Arrivée' }, { key: 'check_out', label: 'Départ' }, { key: 'nights', label: 'Nuits' },
-          { key: 'status', label: 'Statut' }, { key: 'source', label: 'Provenance' }, { key: 'total', label: 'Montant séjour' },
-          { key: 'balance', label: 'Solde' },
+          { key: 'code', label: tr('Référence', 'Reference') }, { key: 'guest', label: tr('Client', 'Guest') }, { key: 'room', label: tr('Chambre', 'Room') },
+          { key: 'check_in', label: tr('Arrivée', 'Arrival') }, { key: 'check_out', label: tr('Départ', 'Departure') }, { key: 'nights', label: tr('Nuits', 'Nights') },
+          { key: 'status', label: tr('Statut', 'Status') }, { key: 'source', label: tr('Provenance', 'Source') }, { key: 'total', label: tr('Montant séjour', 'Stay amount') },
+          { key: 'balance', label: tr('Solde', 'Balance') },
         ]),
       );
     });
@@ -100,36 +102,36 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
   return (
     <div className="fade-in-up">
       <PageHeader
-        title="Réservations"
-        subtitle={`Toutes les réservations de ${property.name} (90 derniers jours et à venir).`}
+        title={tr('Réservations', 'Reservations')}
+        subtitle={tr(`Toutes les réservations de ${property.name} (90 derniers jours et à venir).`, `All reservations for ${property.name} (last 90 days and upcoming).`)}
         actions={
           <>
-            {canExport && <Button variant="secondary" icon={Download} onClick={exportCsv}>Exporter</Button>}
-            {canWrite && <Button icon={Plus} disabled={rooms.length === 0} title={rooms.length === 0 ? 'Ajoutez d’abord des chambres' : undefined} onClick={() => setCreating(true)}>Nouvelle réservation</Button>}
+            {canExport && <Button variant="secondary" icon={Download} onClick={exportCsv}>{tr('Exporter', 'Export')}</Button>}
+            {canWrite && <Button icon={Plus} disabled={rooms.length === 0} title={rooms.length === 0 ? tr('Ajoutez d’abord des chambres', 'Add rooms first') : undefined} onClick={() => setCreating(true)}>{tr('Nouvelle réservation', 'New reservation')}</Button>}
           </>
         }
       />
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <Stat label="Arrivées du jour" value={String(stats.arrivals)} />
-        <Stat label="En séjour" value={String(stats.inHouse)} />
-        <Stat label="Départs du jour" value={String(stats.departures)} />
-        <Stat label="Soldes à encaisser" value={formatMoney(stats.due)} hint="Clients en séjour" />
+        <Stat label={tr('Arrivées du jour', 'Today’s arrivals')} value={String(stats.arrivals)} />
+        <Stat label={tr('En séjour', 'In house')} value={String(stats.inHouse)} />
+        <Stat label={tr('Départs du jour', 'Today’s departures')} value={String(stats.departures)} />
+        <Stat label={tr('Soldes à encaisser', 'Balances to collect')} value={formatMoney(stats.due)} hint={tr('Clients en séjour', 'In-house guests')} />
       </div>
 
       <div className="flex flex-col md:flex-row gap-3 mb-4">
         <div className="relative md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <Input className="pl-8" placeholder="Client, référence, téléphone, chambre…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Rechercher" />
+          <Input className="pl-8" placeholder={tr('Client, référence, téléphone, chambre…', 'Guest, reference, phone, room…')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={tr('Rechercher', 'Search')} />
         </div>
-        <Select value={filter} onChange={(e) => setFilter(e.target.value as Filter)} className="w-full md:w-60" aria-label="Filtre">
-          <option value="upcoming">En cours et à venir</option>
-          <option value="arrivals">Arrivées à traiter</option>
-          <option value="in_house">En séjour</option>
-          <option value="departures">Départs à traiter</option>
-          <option value="all">Toutes</option>
-          <option value="checked_out">Parties</option>
-          <option value="cancelled">Annulées</option>
+        <Select value={filter} onChange={(e) => setFilter(e.target.value as Filter)} className="w-full md:w-60" aria-label={tr('Filtre', 'Filter')}>
+          <option value="upcoming">{tr('En cours et à venir', 'Current and upcoming')}</option>
+          <option value="arrivals">{tr('Arrivées à traiter', 'Pending arrivals')}</option>
+          <option value="in_house">{tr('En séjour', 'In house')}</option>
+          <option value="departures">{tr('Départs à traiter', 'Pending departures')}</option>
+          <option value="all">{tr('Toutes', 'All')}</option>
+          <option value="checked_out">{tr('Parties', 'Checked out')}</option>
+          <option value="cancelled">{tr('Annulées', 'Cancelled')}</option>
           <option value="no_show">No-show</option>
         </Select>
       </div>
@@ -137,26 +139,26 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
       <ErrorNote message={error} />
 
       {filtered.length === 0 ? (
-        <Empty>Aucune réservation pour ce filtre.</Empty>
+        <Empty>{tr('Aucune réservation pour ce filtre.', 'No reservations for this filter.')}</Empty>
       ) : (
-        <Table head={['Référence', 'Client', 'Chambre', 'Séjour', 'Provenance', 'Statut', 'Montant', 'Solde']}>
+        <Table head={[tr('Référence', 'Reference'), tr('Client', 'Guest'), tr('Chambre', 'Room'), tr('Séjour', 'Stay'), tr('Provenance', 'Source'), tr('Statut', 'Status'), tr('Montant', 'Amount'), tr('Solde', 'Balance')]}>
           {filtered.map((r) => {
             const balance = balanceOf(r);
             return (
               <tr key={r.id} onClick={() => setOpenId(r.id)} className="hover:bg-slate-50 cursor-pointer">
                 <td className="p-3 font-mono font-bold text-[#09153D]">
                   {r.code}
-                  {r.invoices[0] && <span className="block text-[9px] text-emerald-600">Facture {r.invoices[r.invoices.length - 1].display_number}</span>}
+                  {r.invoices[0] && <span className="block text-[9px] text-emerald-600">{tr('Facture', 'Invoice')} {r.invoices[r.invoices.length - 1].display_number}</span>}
                 </td>
                 <td className="p-3">
-                  <span className="font-bold text-slate-800">{r.guest?.full_name ?? 'Client'}</span>
+                  <span className="font-bold text-slate-800">{r.guest?.full_name ?? tr('Client', 'Guest')}</span>
                   {r.guest?.vip && <Star className="inline w-3 h-3 ml-1 text-violet-500" aria-label="VIP" />}
                   <span className="block text-[10px] text-slate-400">{r.guest?.phone}</span>
                 </td>
                 <td className="p-3 font-mono font-bold">{roomNumber.get(r.room_id) ?? '?'}</td>
                 <td className="p-3 whitespace-nowrap">
                   {formatDate(r.check_in)} → {formatDate(r.check_out)}
-                  <span className="block text-[10px] text-slate-400">{nightsBetween(r.check_in, r.check_out)} nuit(s) · {r.adults + r.children} pers.</span>
+                  <span className="block text-[10px] text-slate-400">{tr(`${nightsBetween(r.check_in, r.check_out)} nuit(s) · ${r.adults + r.children} pers.`, `${nightsBetween(r.check_in, r.check_out)} night(s) · ${r.adults + r.children} guests`)}</span>
                 </td>
                 <td className="p-3">{SOURCE_LABELS[r.source]}</td>
                 <td className="p-3"><Badge tone={STATUS_TONES[r.status]}>{STATUS_LABELS[r.status]}</Badge></td>

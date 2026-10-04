@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
 import { formatDate, formatMoney } from '../lib/dates';
 import { downloadCsv, toCsv } from '../lib/csv';
+import { useI18n } from '../lib/i18n';
 import { Badge, Button, Card, Empty, ErrorNote, Input, Loading, PageHeader, Table, useAction } from './ui';
 import { GuestModal, STATUS_TONES, type GuestFull } from './reservations/ReservationDrawer';
 
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function Guests({ property, role }: Props) {
+  const { tr } = useI18n();
   const canEdit = ['owner', 'general_manager', 'reservation_manager', 'front_desk'].includes(role);
   const isManagement = ['owner', 'general_manager'].includes(role);
   const [query, setQuery] = useState('');
@@ -54,16 +56,16 @@ export default function Guests({ property, role }: Props) {
     act(async () => {
       await rpc('log_export', { p_property: property.id, p_kind: 'guests', p_rows: rows.length });
       downloadCsv(
-        `clients-${property.code}.csv`,
+        tr(`clients-${property.code}.csv`, `guests-${property.code}.csv`),
         toCsv(
           rows.filter((g) => !g.anonymized_at).map((g) => ({
             name: g.full_name, email: g.email ?? '', phone: g.phone ?? '', nationality: g.nationality ?? '',
-            stays: g.reservations.length, spent: spent(g), vip: g.vip ? 'oui' : '', consent: g.marketing_consent ? 'oui' : 'non',
+            stays: g.reservations.length, spent: spent(g), vip: g.vip ? tr('oui', 'yes') : '', consent: g.marketing_consent ? tr('oui', 'yes') : tr('non', 'no'),
           })),
           [
-            { key: 'name', label: 'Nom' }, { key: 'email', label: 'E-mail' }, { key: 'phone', label: 'Téléphone' },
-            { key: 'nationality', label: 'Nationalité' }, { key: 'stays', label: 'Séjours' }, { key: 'spent', label: 'Montant total' },
-            { key: 'vip', label: 'VIP' }, { key: 'consent', label: 'Consentement marketing' },
+            { key: 'name', label: tr('Nom', 'Name') }, { key: 'email', label: tr('E-mail', 'Email') }, { key: 'phone', label: tr('Téléphone', 'Phone') },
+            { key: 'nationality', label: tr('Nationalité', 'Nationality') }, { key: 'stays', label: tr('Séjours', 'Stays') }, { key: 'spent', label: tr('Montant total', 'Total amount') },
+            { key: 'vip', label: 'VIP' }, { key: 'consent', label: tr('Consentement marketing', 'Marketing consent') },
           ],
         ),
       );
@@ -72,13 +74,16 @@ export default function Guests({ property, role }: Props) {
   return (
     <div className="fade-in-up">
       <PageHeader
-        title="Clients"
-        subtitle="Fiches clients, historique des séjours et fiche de police. Données personnelles : accès limité et journalisé."
-        actions={isManagement ? <Button variant="secondary" icon={Download} busy={busy} onClick={exportCsv}>Exporter</Button> : undefined}
+        title={tr('Clients', 'Guests')}
+        subtitle={tr(
+          'Fiches clients, historique des séjours et fiche de police. Données personnelles : accès limité et journalisé.',
+          'Guest profiles, stay history and police registration form. Personal data: restricted and logged access.',
+        )}
+        actions={isManagement ? <Button variant="secondary" icon={Download} busy={busy} onClick={exportCsv}>{tr('Exporter', 'Export')}</Button> : undefined}
       />
       <div className="relative md:w-96 mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-        <Input className="pl-8" placeholder="Nom, e-mail, téléphone, n° de pièce…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Rechercher un client" />
+        <Input className="pl-8" placeholder={tr('Nom, e-mail, téléphone, n° de pièce…', 'Name, email, phone, ID number…')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={tr('Rechercher un client', 'Search for a guest')} />
       </div>
       <ErrorNote message={error ?? guests.error} />
 
@@ -87,15 +92,15 @@ export default function Guests({ property, role }: Props) {
           {guests.loading && !guests.data ? (
             <Loading />
           ) : rows.length === 0 ? (
-            <Empty>Aucun client.</Empty>
+            <Empty>{tr('Aucun client.', 'No guests.')}</Empty>
           ) : (
-            <Table head={['Client', 'Contact', 'Séjours', 'Montant total', '']}>
+            <Table head={[tr('Client', 'Guest'), tr('Contact', 'Contact'), tr('Séjours', 'Stays'), tr('Montant total', 'Total amount'), '']}>
               {rows.map((g) => (
                 <tr key={g.id} onClick={() => setSelected(g.id)} className={`cursor-pointer hover:bg-slate-50 ${selected === g.id ? 'bg-orange-50/40' : ''}`}>
                   <td className="p-3">
                     <span className="font-bold text-slate-800">{g.full_name}</span>
                     {g.vip && <Star className="inline w-3 h-3 ml-1 text-violet-500" aria-label="VIP" />}
-                    {g.anonymized_at && <Badge>Anonymisé</Badge>}
+                    {g.anonymized_at && <Badge>{tr('Anonymisé', 'Anonymized')}</Badge>}
                     {g.nationality && <span className="block text-[10px] text-slate-400">{g.nationality}</span>}
                   </td>
                   <td className="p-3 text-slate-600">{g.phone}<span className="block text-[10px] text-slate-400">{g.email}</span></td>
@@ -103,7 +108,7 @@ export default function Guests({ property, role }: Props) {
                   <td className="p-3 font-mono">{formatMoney(spent(g))}</td>
                   <td className="p-3 text-right">
                     {canEdit && !g.anonymized_at && (
-                      <Button variant="ghost" icon={Pencil} aria-label="Modifier" onClick={(e) => { e.stopPropagation(); setEditing(g); }} />
+                      <Button variant="ghost" icon={Pencil} aria-label={tr('Modifier', 'Edit')} onClick={(e) => { e.stopPropagation(); setEditing(g); }} />
                     )}
                   </td>
                 </tr>
@@ -112,16 +117,16 @@ export default function Guests({ property, role }: Props) {
           )}
         </Card>
 
-        <Card title={current ? current.full_name : 'Historique'}>
+        <Card title={current ? current.full_name : tr('Historique', 'History')}>
           {!current ? (
-            <Empty>Sélectionnez un client.</Empty>
+            <Empty>{tr('Sélectionnez un client.', 'Select a guest.')}</Empty>
           ) : (
             <div className="space-y-3">
               <dl className="grid grid-cols-2 gap-1 text-xs">
-                <dt className="text-slate-400">Pièce</dt><dd className="font-semibold">{[current.id_document_type, current.id_document_number].filter(Boolean).join(' ') || '—'}</dd>
-                <dt className="text-slate-400">Né(e) le</dt><dd className="font-semibold">{current.birth_date ? formatDate(current.birth_date) : '—'}</dd>
-                <dt className="text-slate-400">Résidence</dt><dd className="font-semibold">{current.country_of_residence ?? '—'}</dd>
-                <dt className="text-slate-400">Client depuis</dt><dd className="font-semibold">{formatDate(current.created_at.slice(0, 10))}</dd>
+                <dt className="text-slate-400">{tr('Pièce', 'ID document')}</dt><dd className="font-semibold">{[current.id_document_type, current.id_document_number].filter(Boolean).join(' ') || '—'}</dd>
+                <dt className="text-slate-400">{tr('Né(e) le', 'Date of birth')}</dt><dd className="font-semibold">{current.birth_date ? formatDate(current.birth_date) : '—'}</dd>
+                <dt className="text-slate-400">{tr('Résidence', 'Residence')}</dt><dd className="font-semibold">{current.country_of_residence ?? '—'}</dd>
+                <dt className="text-slate-400">{tr('Client depuis', 'Guest since')}</dt><dd className="font-semibold">{formatDate(current.created_at.slice(0, 10))}</dd>
               </dl>
               <ul className="divide-y divide-slate-100 text-xs">
                 {stays.map((s) => (
@@ -139,14 +144,14 @@ export default function Guests({ property, role }: Props) {
                   icon={EyeOff}
                   busy={busy}
                   onClick={() =>
-                    confirm(`Anonymiser définitivement ${current.full_name} ? Les données personnelles seront effacées, les factures conservées.`) &&
+                    confirm(tr(`Anonymiser définitivement ${current.full_name} ? Les données personnelles seront effacées, les factures conservées.`, `Permanently anonymize ${current.full_name}? Personal data will be erased; invoices will be kept.`)) &&
                     act(async () => {
                       await rpc('anonymize_guest', { p_guest: current.id });
                       await guests.reload();
                     })
                   }
                 >
-                  Anonymiser (droit à l’effacement)
+                  {tr('Anonymiser (droit à l’effacement)', 'Anonymize (right to erasure)')}
                 </Button>
               )}
             </div>

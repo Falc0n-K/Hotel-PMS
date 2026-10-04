@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, Bed, Info, User, Check, X, Phone, Calendar, LogIn, LogOut, RefreshCw } from 'lucide-react';
 import { Room, RoomStatus } from '../types';
+import { useI18n } from '../lib/i18n';
 
 interface RoomGridProps {
   rooms: Room[];
@@ -9,6 +10,8 @@ interface RoomGridProps {
 }
 
 export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: RoomGridProps) {
+  const { tr, lang } = useI18n();
+  const locale = lang === 'en' ? 'en-GB' : 'fr-FR';
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
   // Group rooms by floor (Floor 4, 3, 2, 1) for hierarchical display
@@ -47,11 +50,11 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
 
   const getStatusName = (status: RoomStatus) => {
     switch (status) {
-      case 'occupied': return 'Occupée';
-      case 'available': return 'Disponible';
-      case 'reserved': return 'Réservée';
-      case 'not-ready': return 'Non Prête (Ménage)';
-      case 'maintenance': return 'Maintenance (Stop)';
+      case 'occupied': return tr('Occupée', 'Occupied');
+      case 'available': return tr('Disponible', 'Available');
+      case 'reserved': return tr('Réservée', 'Reserved');
+      case 'not-ready': return tr('Non Prête (Ménage)', 'Not ready (housekeeping)');
+      case 'maintenance': return tr('Maintenance (Stop)', 'Maintenance (out of order)');
       default: return status;
     }
   };
@@ -68,12 +71,12 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
       {/* Header Widget Info */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h4 className="text-sm font-bold text-slate-900 tracking-tight">Disponibilité des Chambres</h4>
-          <p className="text-[11px] text-slate-400 font-medium">Total des chambres en circulation</p>
+          <h4 className="text-sm font-bold text-slate-900 tracking-tight">{tr('Disponibilité des Chambres', 'Room availability')}</h4>
+          <p className="text-[11px] text-slate-400 font-medium">{tr('Total des chambres en circulation', 'Total rooms in service')}</p>
         </div>
 
         <div className="text-right flex items-baseline gap-2">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">TOTAL CHAMBRES</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{tr('TOTAL CHAMBRES', 'TOTAL ROOMS')}</span>
           <span className="text-3xl font-extrabold text-[#09153D] tracking-tight font-mono">{rooms.length}</span>
         </div>
       </div>
@@ -88,10 +91,10 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
               <div key={floorNum} className="flex flex-col">
                 <div className="flex items-center justify-between mb-1.5 px-1">
                   <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                    Étage {floorNum}
+                    {tr(`Étage ${floorNum}`, `Floor ${floorNum}`)}
                   </span>
                   <span className="text-[9px] font-mono text-slate-300">
-                    {floorRooms.length} chambre{floorRooms.length > 1 ? 's' : ''}
+                    {floorRooms.length} {floorRooms.length > 1 ? tr('chambres', 'rooms') : tr('chambre', 'room')}
                   </span>
                 </div>
                 
@@ -107,7 +110,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                         className={`aspect-square w-full rounded-md border text-[9.5px] font-bold font-mono text-white flex items-center justify-center transition-all duration-200 shadow-sm relative cursor-pointer ${
                           activeMatch ? getStatusColorClass(room.status) : 'bg-slate-100 text-slate-300 border-slate-100 scale-95 opacity-40'
                         } ${isSelected ? 'ring-4 ring-orange-500/30 scale-110 z-10' : ''}`}
-                        title={`Chambre ${room.number} - ${getStatusName(room.status)} ${room.guestName ? '(' + room.guestName + ')' : ''}`}
+                        title={`${tr('Chambre', 'Room')} ${room.number} - ${getStatusName(room.status)} ${room.guestName ? '(' + room.guestName + ')' : ''}`}
                       >
                         {room.number.slice(1)} {/* display room index 01-30 */}
                         
@@ -129,6 +132,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
           <div className="w-full lg:w-80 bg-slate-50 border border-slate-200/80 rounded-2xl p-5 shrink-0 animate-in slide-in-from-right-4 duration-200 relative">
             <button
               onClick={() => setSelectedRoomId(null)}
+              aria-label={tr('Fermer', 'Close')}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
             >
               <X className="w-4.5 h-4.5" />
@@ -139,7 +143,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                 <Bed className="w-4.5 h-4.5" />
               </div>
               <div>
-                <h5 className="font-extrabold text-slate-950 font-sans">Chambre {selectedRoom.number}</h5>
+                <h5 className="font-extrabold text-slate-950 font-sans">{tr('Chambre', 'Room')} {selectedRoom.number}</h5>
                 <p className="text-[10px] text-slate-500 font-medium">{selectedRoom.category}</p>
               </div>
             </div>
@@ -147,14 +151,14 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
             <div className="space-y-3.5 border-t border-b border-slate-200/60 py-4 mb-4">
               {/* Status details */}
               <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400 font-medium">Statut actuel :</span>
+                <span className="text-slate-400 font-medium">{tr('Statut actuel :', 'Current status:')}</span>
                 <span className="font-bold text-slate-800">{getStatusName(selectedRoom.status)}</span>
               </div>
 
               {/* Price details */}
               <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400 font-medium">Tarif journalier :</span>
-                <span className="font-extrabold text-slate-900 font-mono">{selectedRoom.nightlyRate.toLocaleString('fr-FR')} FCFA/nuit</span>
+                <span className="text-slate-400 font-medium">{tr('Tarif journalier :', 'Nightly rate:')}</span>
+                <span className="font-extrabold text-slate-900 font-mono">{selectedRoom.nightlyRate.toLocaleString(locale)} {tr('FCFA/nuit', 'FCFA/night')}</span>
               </div>
 
               {/* Guest metadata if Occupied / Reserved */}
@@ -176,17 +180,17 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                     <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1 pt-1 border-t border-slate-50">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-emerald-500" />
-                        Arrivée: {new Date(selectedRoom.checkInDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                        {tr('Arrivée:', 'Arrival:')} {new Date(selectedRoom.checkInDate).toLocaleDateString(locale, { day: '2-digit', month: 'short' })}
                       </span>
                       <span>
-                        Départ: {selectedRoom.checkOutDate ? new Date(selectedRoom.checkOutDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—'}
+                        {tr('Départ:', 'Departure:')} {selectedRoom.checkOutDate ? new Date(selectedRoom.checkOutDate).toLocaleDateString(locale, { day: '2-digit', month: 'short' }) : '—'}
                       </span>
                     </div>
                   )}
                 </div>
               ) : (
                 <p className="text-[11px] text-slate-400 italic text-center py-2">
-                  Aucun occupant assigné
+                  {tr('Aucun occupant assigné', 'No guest assigned')}
                 </p>
               )}
             </div>
@@ -194,7 +198,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
             {/* Quick transition triggers: actions list */}
             <div className="space-y-2">
               <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Actions Rapides PMS
+                {tr('Actions Rapides PMS', 'PMS quick actions')}
               </span>
 
               {selectedRoom.status === 'available' && (
@@ -203,7 +207,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                   className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>Enregistrer l'Arrivée (Check-in)</span>
+                  <span>{tr("Enregistrer l'Arrivée (Check-in)", 'Check in guest')}</span>
                 </button>
               )}
 
@@ -213,7 +217,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                   className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Libérer la Chambre (Check-out)</span>
+                  <span>{tr('Libérer la Chambre (Check-out)', 'Check out room')}</span>
                 </button>
               )}
 
@@ -223,7 +227,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Marquer Prête & Nettoyée</span>
+                  <span>{tr('Marquer Prête & Nettoyée', 'Mark clean & ready')}</span>
                 </button>
               )}
 
@@ -239,7 +243,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                     onClick={() => onUpdateRoomStatus(selectedRoom.id, 'available')}
                     className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-1.5 px-2.5 rounded-xl text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer"
                   >
-                    <span>Annuler la réservation</span>
+                    <span>{tr('Annuler la réservation', 'Cancel reservation')}</span>
                   </button>
                 </div>
               )}
@@ -251,7 +255,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                     className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
                   >
                     <RefreshCw className="w-3 h-3" />
-                    <span>Ménage requis</span>
+                    <span>{tr('Ménage requis', 'Housekeeping needed')}</span>
                   </button>
                 )}
               </div>
@@ -262,7 +266,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                   className="w-full bg-red-50 hover:bg-red-100 border border-red-200/50 text-red-600 py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <span>🔧</span>
-                  <span>Mettre en Maintenance (Stop Service)</span>
+                  <span>{tr('Mettre en Maintenance (Stop Service)', 'Set out of order (maintenance)')}</span>
                 </button>
               ) : (
                 <button
@@ -270,7 +274,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                   className="w-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/50 text-emerald-700 py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Lever la Maintenance — Chambre Disponible</span>
+                  <span>{tr('Lever la Maintenance — Chambre Disponible', 'End maintenance — room available')}</span>
                 </button>
               )}
             </div>
@@ -284,7 +288,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
           <span className="w-3.5 h-3.5 rounded bg-orange-500 shadow-sm" />
           <div>
             <span className="font-extrabold text-slate-900 font-mono">{countOccupied}</span>{' '}
-            <span className="text-slate-500 font-medium">Occupées</span>
+            <span className="text-slate-500 font-medium">{tr('Occupées', 'Occupied')}</span>
           </div>
         </div>
         
@@ -292,7 +296,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
           <span className="w-3.5 h-3.5 rounded bg-emerald-500 shadow-sm" />
           <div>
             <span className="font-extrabold text-slate-900 font-mono">{countAvailable}</span>{' '}
-            <span className="text-slate-500 font-medium">Disponibles</span>
+            <span className="text-slate-500 font-medium">{tr('Disponibles', 'Available')}</span>
           </div>
         </div>
 
@@ -300,7 +304,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
           <span className="w-3.5 h-3.5 rounded bg-amber-400 shadow-sm" />
           <div>
             <span className="font-extrabold text-slate-900 font-mono">{countReserved}</span>{' '}
-            <span className="text-slate-500 font-medium">Réservées</span>
+            <span className="text-slate-500 font-medium">{tr('Réservées', 'Reserved')}</span>
           </div>
         </div>
 
@@ -308,7 +312,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
           <span className="w-3.5 h-3.5 rounded bg-slate-300 shadow-sm" />
           <div>
             <span className="font-extrabold text-slate-900 font-mono">{countNotReady}</span>{' '}
-            <span className="text-slate-500 font-medium">Non Prêtes</span>
+            <span className="text-slate-500 font-medium">{tr('Non Prêtes', 'Not ready')}</span>
           </div>
         </div>
 

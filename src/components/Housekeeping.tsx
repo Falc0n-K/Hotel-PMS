@@ -4,6 +4,7 @@ import type { Room } from '../types';
 import type { Property } from '../lib/auth';
 import type { AppRole } from '../lib/roles';
 import { rpc, run, type PmsActions } from '../lib/pmsData';
+import { bilingual, tr, useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
 import { Badge, Button, Card, Empty, ErrorNote, Field, Input, Loading, Modal, PageHeader, Select, Stat, useAction, type Tone } from './ui';
@@ -30,17 +31,18 @@ interface Props {
 }
 
 const STATUS: Record<Task['status'], { label: string; tone: Tone }> = {
-  todo: { label: 'À faire', tone: 'red' },
-  in_progress: { label: 'En cours', tone: 'amber' },
-  done: { label: 'Terminée', tone: 'blue' },
-  inspected: { label: 'Inspectée', tone: 'green' },
+  todo: { get label() { return tr('À faire', 'To do'); }, tone: 'red' },
+  in_progress: { get label() { return tr('En cours', 'In progress'); }, tone: 'amber' },
+  done: { get label() { return tr('Terminée', 'Done'); }, tone: 'blue' },
+  inspected: { get label() { return tr('Inspectée', 'Inspected'); }, tone: 'green' },
 };
 
-const PRIORITY: Record<Task['priority'], string> = { high: 'Haute', medium: 'Normale', low: 'Basse' };
+const PRIORITY: Record<Task['priority'], string> = bilingual<Task['priority']>({ high: ['Haute', 'High'], medium: ['Normale', 'Normal'], low: ['Basse', 'Low'] });
 
 // Gouvernante : assigne et inspecte. Femme / valet de chambre : voit ses tâches,
 // les démarre et les termine. Le statut de la chambre suit automatiquement.
 export default function Housekeeping({ rooms, property, role, userId, today, actions, onChanged }: Props) {
+  const { tr } = useI18n();
   const manager = ['owner', 'general_manager', 'housekeeping_manager'].includes(role);
   const canCreate = manager || role === 'front_desk';
   const [onlyMine, setOnlyMine] = useState(role === 'housekeeper');
@@ -94,32 +96,35 @@ export default function Housekeeping({ rooms, property, role, userId, today, act
   return (
     <div className="fade-in-up">
       <PageHeader
-        title="Ménage"
-        subtitle="Les départs créent les tâches automatiquement. Une chambre terminée passe « propre », puis « inspectée » après contrôle."
-        actions={canCreate ? <Button icon={Plus} onClick={() => setCreating(true)}>Nouvelle tâche</Button> : undefined}
+        title={tr('Ménage', 'Housekeeping')}
+        subtitle={tr(
+          'Les départs créent les tâches automatiquement. Une chambre terminée passe « propre », puis « inspectée » après contrôle.',
+          'Departures create tasks automatically. A finished room becomes “clean”, then “inspected” after checking.',
+        )}
+        actions={canCreate ? <Button icon={Plus} onClick={() => setCreating(true)}>{tr('Nouvelle tâche', 'New task')}</Button> : undefined}
       />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <Stat label="À faire" value={String(counts.todo)} />
-        <Stat label="En cours" value={String(counts.progress)} />
-        <Stat label="À inspecter" value={String(counts.toInspect)} />
-        <Stat label="Chambres sales" value={String(counts.dirty)} />
+        <Stat label={tr('À faire', 'To do')} value={String(counts.todo)} />
+        <Stat label={tr('En cours', 'In progress')} value={String(counts.progress)} />
+        <Stat label={tr('À inspecter', 'To inspect')} value={String(counts.toInspect)} />
+        <Stat label={tr('Chambres sales', 'Dirty rooms')} value={String(counts.dirty)} />
       </div>
 
       <ErrorNote message={error ?? tasks.error} />
 
       <Card
-        title="Tâches du jour"
+        title={tr('Tâches du jour', "Today's tasks")}
         actions={
           <label className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
             <input type="checkbox" className="accent-orange-600" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} />
-            Mes tâches seulement
+            {tr('Mes tâches seulement', 'My tasks only')}
           </label>
         }
       >
         {tasks.loading && !tasks.data ? (
           <Loading />
         ) : list.length === 0 ? (
-          <Empty>Rien à faire pour le moment.</Empty>
+          <Empty>{tr('Rien à faire pour le moment.', 'Nothing to do for now.')}</Empty>
         ) : (
           <ul className="divide-y divide-slate-100">
             {list.map((t) => {
@@ -132,35 +137,35 @@ export default function Housekeeping({ rooms, property, role, userId, today, act
                     </span>
                     <div>
                       <Badge tone={STATUS[t.status].tone}>{STATUS[t.status].label}</Badge>
-                      <p className="text-[10px] text-slate-400 mt-1">Priorité {PRIORITY[t.priority].toLowerCase()}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">{tr(`Priorité ${PRIORITY[t.priority].toLowerCase()}`, `${PRIORITY[t.priority]} priority`)}</p>
                     </div>
                   </div>
-                  <p className="flex-1 text-xs text-slate-600">{t.notes ?? 'Ménage'}</p>
+                  <p className="flex-1 text-xs text-slate-600">{t.notes ?? tr('Ménage', 'Housekeeping')}</p>
                   <div className="md:w-48">
                     {manager && t.status !== 'inspected' ? (
                       <Select
-                        aria-label="Assigner"
+                        aria-label={tr('Assigner', 'Assign')}
                         value={t.assigned_to ?? ''}
                         onChange={(e) => change(() => rpc('assign_housekeeping_task', { p_task: t.id, p_user: e.target.value || null }))}
                       >
-                        <option value="">Non assignée</option>
+                        <option value="">{tr('Non assignée', 'Unassigned')}</option>
                         {(team.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </Select>
                     ) : (
-                      <span className="text-[11px] text-slate-500">{t.assigned_to ? people.get(t.assigned_to) ?? (mine ? 'Vous' : 'Assignée') : 'Non assignée'}</span>
+                      <span className="text-[11px] text-slate-500">{t.assigned_to ? people.get(t.assigned_to) ?? (mine ? tr('Vous', 'You') : tr('Assignée', 'Assigned')) : tr('Non assignée', 'Unassigned')}</span>
                     )}
                   </div>
                   <div className="flex gap-2 md:w-60 justify-end">
                     {t.status === 'todo' && (
-                      <Button variant="secondary" icon={Play} busy={busy} onClick={() => change(() => actions.setTaskStatus(t.id, 'in_progress'))}>Commencer</Button>
+                      <Button variant="secondary" icon={Play} busy={busy} onClick={() => change(() => actions.setTaskStatus(t.id, 'in_progress'))}>{tr('Commencer', 'Start')}</Button>
                     )}
                     {(t.status === 'todo' || t.status === 'in_progress') && (
-                      <Button variant="success" icon={Check} busy={busy} onClick={() => change(() => actions.setTaskStatus(t.id, 'done'))}>Terminée</Button>
+                      <Button variant="success" icon={Check} busy={busy} onClick={() => change(() => actions.setTaskStatus(t.id, 'done'))}>{tr('Terminée', 'Done')}</Button>
                     )}
                     {manager && t.status === 'done' && (
                       <>
-                        <Button variant="secondary" icon={RotateCcw} busy={busy} onClick={() => change(() => actions.setTaskStatus(t.id, 'todo'))}>À refaire</Button>
-                        <Button icon={ShieldCheck} busy={busy} onClick={() => change(() => actions.setTaskStatus(t.id, 'inspected'))}>Inspectée</Button>
+                        <Button variant="secondary" icon={RotateCcw} busy={busy} onClick={() => change(() => actions.setTaskStatus(t.id, 'todo'))}>{tr('À refaire', 'Redo')}</Button>
+                        <Button icon={ShieldCheck} busy={busy} onClick={() => change(() => actions.setTaskStatus(t.id, 'inspected'))}>{tr('Inspectée', 'Inspected')}</Button>
                       </>
                     )}
                   </div>
@@ -188,6 +193,7 @@ export default function Housekeeping({ rooms, property, role, userId, today, act
 }
 
 function NewTask({ rooms, onClose, onSubmit }: { rooms: Room[]; onClose: () => void; onSubmit: (roomId: string, priority: Task['priority'], notes: string) => Promise<void> }) {
+  const { tr } = useI18n();
   const [roomId, setRoomId] = useState(rooms[0]?.id ?? '');
   const [priority, setPriority] = useState<Task['priority']>('medium');
   const [notes, setNotes] = useState('');
@@ -201,29 +207,29 @@ function NewTask({ rooms, onClose, onSubmit }: { rooms: Room[]; onClose: () => v
     if (ok) onClose();
   };
   return (
-    <Modal title="Nouvelle tâche de ménage" onClose={onClose}>
+    <Modal title={tr('Nouvelle tâche de ménage', 'New housekeeping task')} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Chambre">
+          <Field label={tr('Chambre', 'Room')}>
             <Select value={roomId} onChange={(e) => setRoomId(e.target.value)}>
               {rooms.map((r) => <option key={r.id} value={r.id}>{r.number} · {r.category}</option>)}
             </Select>
           </Field>
-          <Field label="Priorité">
+          <Field label={tr('Priorité', 'Priority')}>
             <Select value={priority} onChange={(e) => setPriority(e.target.value as Task['priority'])}>
-              <option value="high">Haute</option>
-              <option value="medium">Normale</option>
-              <option value="low">Basse</option>
+              <option value="high">{tr('Haute', 'High')}</option>
+              <option value="medium">{tr('Normale', 'Normal')}</option>
+              <option value="low">{tr('Basse', 'Low')}</option>
             </Select>
           </Field>
         </div>
-        <Field label="Consigne">
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Recouche, changement de draps, VIP…" />
+        <Field label={tr('Consigne', 'Instructions')}>
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={tr('Recouche, changement de draps, VIP…', 'Stayover, change of sheets, VIP…')} />
         </Field>
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Fermer</Button>
-          <Button type="submit" busy={busy}>Créer</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{tr('Fermer', 'Close')}</Button>
+          <Button type="submit" busy={busy}>{tr('Créer', 'Create')}</Button>
         </div>
       </form>
     </Modal>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Mail, MessageSquare, Phone } from 'lucide-react';
 import type { Property } from '../lib/auth';
 import { run } from '../lib/pmsData';
+import { bilingual, tr, useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
 import { Badge, Card, Empty, ErrorNote, Loading, PageHeader, Select, Table, type Tone } from './ui';
@@ -19,17 +20,17 @@ interface Message {
   reservation: { code: string } | null;
 }
 
-const TEMPLATES: Record<string, string> = {
-  reservation_confirmed: 'Confirmation',
-  reservation_cancelled: 'Annulation',
-  arrival_reminder: 'Rappel J-1',
-};
+const TEMPLATES: Record<string, string> = bilingual({
+  reservation_confirmed: ['Confirmation', 'Confirmation'],
+  reservation_cancelled: ['Annulation', 'Cancellation'],
+  arrival_reminder: ['Rappel J-1', 'Day-before reminder'],
+});
 
 const STATUS: Record<Message['status'], { label: string; tone: Tone }> = {
-  pending: { label: 'En attente', tone: 'amber' },
-  sent: { label: 'Envoyé', tone: 'green' },
-  failed: { label: 'Échec', tone: 'red' },
-  skipped: { label: 'Non configuré', tone: 'slate' },
+  pending: { get label() { return tr('En attente', 'Pending'); }, tone: 'amber' },
+  sent: { get label() { return tr('Envoyé', 'Sent'); }, tone: 'green' },
+  failed: { get label() { return tr('Échec', 'Failed'); }, tone: 'red' },
+  skipped: { get label() { return tr('Non configuré', 'Not configured'); }, tone: 'slate' },
 };
 
 const ICONS = { email: Mail, sms: Phone, whatsapp: MessageSquare };
@@ -38,6 +39,7 @@ const ICONS = { email: Mail, sms: Phone, whatsapp: MessageSquare };
 // annulation, rappel la veille de l'arrivée). Les canaux s'activent dans
 // Paramètres ; les clés des prestataires se règlent côté Supabase.
 export default function Communications({ property }: { property: Property }) {
+  const { lang, tr } = useI18n();
   const [status, setStatus] = useState<'' | Message['status']>('');
   const messages = useQuery(async () => {
     let q = supabase
@@ -51,7 +53,7 @@ export default function Communications({ property }: { property: Property }) {
   }, [property.id, status]);
 
   const channels = [
-    property.notify_email && 'e-mail',
+    property.notify_email && tr('e-mail', 'email'),
     property.notify_sms && 'SMS',
     property.notify_whatsapp && 'WhatsApp',
   ].filter(Boolean);
@@ -59,11 +61,14 @@ export default function Communications({ property }: { property: Property }) {
   return (
     <div className="fade-in-up">
       <PageHeader
-        title="Communications"
-        subtitle={`Messages automatiques aux clients. Canaux actifs : ${channels.length ? channels.join(', ') : 'aucun'} (à régler dans Paramètres).`}
+        title={tr('Communications', 'Messages')}
+        subtitle={tr(
+          `Messages automatiques aux clients. Canaux actifs : ${channels.length ? channels.join(', ') : 'aucun'} (à régler dans Paramètres).`,
+          `Automatic messages to guests. Active channels: ${channels.length ? channels.join(', ') : 'none'} (set in Settings).`,
+        )}
         actions={
-          <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label="Filtrer par statut" className="w-48">
-            <option value="">Tous les statuts</option>
+          <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label={tr('Filtrer par statut', 'Filter by status')} className="w-48">
+            <option value="">{tr('Tous les statuts', 'All statuses')}</option>
             {(Object.keys(STATUS) as Message['status'][]).map((s) => <option key={s} value={s}>{STATUS[s].label}</option>)}
           </Select>
         }
@@ -73,14 +78,14 @@ export default function Communications({ property }: { property: Property }) {
         {messages.loading && !messages.data ? (
           <Loading />
         ) : !messages.data?.length ? (
-          <Empty>Aucun message.</Empty>
+          <Empty>{tr('Aucun message.', 'No messages.')}</Empty>
         ) : (
-          <Table head={['Date', 'Canal', 'Destinataire', 'Message', 'Réservation', 'Statut']}>
+          <Table head={[tr('Date', 'Date'), tr('Canal', 'Channel'), tr('Destinataire', 'Recipient'), tr('Message', 'Message'), tr('Réservation', 'Reservation'), tr('Statut', 'Status')]}>
             {messages.data.map((m) => {
               const Icon = ICONS[m.channel];
               return (
                 <tr key={m.id}>
-                  <td className="p-3 whitespace-nowrap">{new Date(m.created_at).toLocaleString('fr-FR')}</td>
+                  <td className="p-3 whitespace-nowrap">{new Date(m.created_at).toLocaleString(lang === 'en' ? 'en-GB' : 'fr-FR')}</td>
                   <td className="p-3"><Icon className="w-4 h-4 text-slate-500" aria-label={m.channel} /></td>
                   <td className="p-3">{m.recipient}</td>
                   <td className="p-3">{TEMPLATES[m.template] ?? m.template}</td>

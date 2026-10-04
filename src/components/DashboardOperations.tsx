@@ -4,6 +4,7 @@ import type { Room } from '../types';
 import type { HousekeepingTaskRow, ReservationRow } from '../lib/pmsData';
 import { balanceOf } from '../lib/pmsData';
 import { formatMoney } from '../lib/dates';
+import { useI18n } from '../lib/i18n';
 
 interface Props {
   today: string;
@@ -26,6 +27,7 @@ export default function DashboardOperations({
   canCompleteTasks,
   onCompleteTask,
 }: Props) {
+  const { tr } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const roomNumber = useMemo(() => new Map(rooms.map((r) => [r.id, r.number])), [rooms]);
 
@@ -39,48 +41,48 @@ export default function DashboardOperations({
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 w-full">
-      <Panel icon={LogIn} title="Arrivées du jour" count={arrivals.length} empty="Aucune arrivée attendue.">
+      <Panel icon={LogIn} title={tr('Arrivées du jour', "Today's arrivals")} count={arrivals.length} empty={tr('Aucune arrivée attendue.', 'No arrivals expected.')}>
         {arrivals.map((r) => (
           <Line
             key={r.id}
-            left={r.guest?.full_name ?? 'Client'}
-            sub={`${r.code}${r.check_in < today ? ' · arrivée en retard' : ''}`}
-            right={`Ch. ${roomNumber.get(r.room_id) ?? '?'}`}
+            left={r.guest?.full_name ?? tr('Client', 'Guest')}
+            sub={`${r.code}${r.check_in < today ? tr(' · arrivée en retard', ' · late arrival') : ''}`}
+            right={`${tr('Ch.', 'Rm')} ${roomNumber.get(r.room_id) ?? '?'}`}
             warn={r.check_in < today}
           />
         ))}
       </Panel>
 
-      <Panel icon={LogOut} title="Départs du jour" count={departures.length} empty="Aucun départ prévu.">
+      <Panel icon={LogOut} title={tr('Départs du jour', "Today's departures")} count={departures.length} empty={tr('Aucun départ prévu.', 'No departures scheduled.')}>
         {departures.map((r) => (
           <Line
             key={r.id}
-            left={r.guest?.full_name ?? 'Client'}
+            left={r.guest?.full_name ?? tr('Client', 'Guest')}
             sub={
               showBalances
-                ? `Solde : ${formatMoney(balanceOf(r))}`
+                ? tr(`Solde : ${formatMoney(balanceOf(r))}`, `Balance: ${formatMoney(balanceOf(r))}`)
                 : r.code
             }
-            right={`Ch. ${roomNumber.get(r.room_id) ?? '?'}`}
+            right={`${tr('Ch.', 'Rm')} ${roomNumber.get(r.room_id) ?? '?'}`}
             warn={r.check_out < today}
           />
         ))}
       </Panel>
 
-      <Panel icon={Brush} title="Chambres à préparer" count={tasks.length} empty="Aucune tâche de ménage ouverte.">
+      <Panel icon={Brush} title={tr('Chambres à préparer', 'Rooms to prepare')} count={tasks.length} empty={tr('Aucune tâche de ménage ouverte.', 'No open housekeeping tasks.')}>
         {error && <p className="text-[11px] text-red-600 font-semibold px-1">{error}</p>}
         {tasks.map((t) => (
           <div key={t.id} className="flex items-center justify-between gap-2 py-2 border-b border-slate-50 last:border-0">
             <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-800">Chambre {roomNumber.get(t.room_id) ?? '?'}</p>
-              <p className="text-[10px] text-slate-400 truncate">{t.notes ?? 'Ménage'}</p>
+              <p className="text-xs font-bold text-slate-800">{tr('Chambre', 'Room')} {roomNumber.get(t.room_id) ?? '?'}</p>
+              <p className="text-[10px] text-slate-400 truncate">{t.notes ?? tr('Ménage', 'Housekeeping')}</p>
             </div>
             {canCompleteTasks && (
               <button
                 onClick={() => onCompleteTask(t).catch((e: Error) => setError(e.message))}
                 className="shrink-0 flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1.5 rounded-lg cursor-pointer hover:bg-emerald-100"
               >
-                <Check className="w-3 h-3" /> Prête
+                <Check className="w-3 h-3" /> {tr('Prête', 'Ready')}
               </button>
             )}
           </div>
@@ -91,8 +93,10 @@ export default function DashboardOperations({
         <div className="xl:col-span-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 flex gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>
-            {unpaid.length} séjour{unpaid.length > 1 ? 's' : ''} en cours avec un solde à encaisser (total{' '}
-            {formatMoney(unpaid.reduce((s, r) => s + balanceOf(r), 0))}).
+            {tr(
+              `${unpaid.length} séjour${unpaid.length > 1 ? 's' : ''} en cours avec un solde à encaisser (total ${formatMoney(unpaid.reduce((s, r) => s + balanceOf(r), 0))}).`,
+              `${unpaid.length} current stay${unpaid.length > 1 ? 's' : ''} with a balance to collect (total ${formatMoney(unpaid.reduce((s, r) => s + balanceOf(r), 0))}).`,
+            )}
           </span>
         </div>
       )}

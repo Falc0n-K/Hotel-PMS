@@ -4,6 +4,7 @@ import type { Room } from '../types';
 import type { Property } from '../lib/auth';
 import type { AppRole } from '../lib/roles';
 import { rpc, run } from '../lib/pmsData';
+import { tr, useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
 import { addDays, formatDate } from '../lib/dates';
@@ -32,14 +33,15 @@ interface Props {
 }
 
 const STATUS: Record<Order['status'], { label: string; tone: Tone }> = {
-  open: { label: 'Ouvert', tone: 'red' },
-  in_progress: { label: 'En cours', tone: 'amber' },
-  resolved: { label: 'Résolu', tone: 'green' },
+  open: { get label() { return tr('Ouvert', 'Open'); }, tone: 'red' },
+  in_progress: { get label() { return tr('En cours', 'In progress'); }, tone: 'amber' },
+  resolved: { get label() { return tr('Résolu', 'Resolved'); }, tone: 'green' },
 };
 
 // Tout le personnel peut signaler une panne. Retirer une chambre de la vente
 // (blocage daté) est réservé à la direction, la gouvernante et la maintenance.
 export default function Maintenance({ rooms, property, role, today, onChanged }: Props) {
+  const { tr } = useI18n();
   const canHandle = ['owner', 'general_manager', 'housekeeping_manager', 'maintenance'].includes(role);
   const [tab, setTab] = useState<'open' | 'resolved'>('open');
   const [creating, setCreating] = useState(false);
@@ -60,7 +62,7 @@ export default function Maintenance({ rooms, property, role, today, onChanged }:
     act(async () => {
       let resolution: string | null = null;
       if (status === 'resolved') {
-        resolution = prompt('Intervention réalisée :');
+        resolution = prompt(tr('Intervention réalisée :', 'Work carried out:'));
         if (resolution === null) return;
       }
       await rpc('update_maintenance_order', { p_order: o.id, p_status: status, p_resolution: resolution });
@@ -71,17 +73,17 @@ export default function Maintenance({ rooms, property, role, today, onChanged }:
   return (
     <div className="fade-in-up">
       <PageHeader
-        title="Maintenance"
-        subtitle="Signalements, interventions et chambres retirées de la vente sur une période."
-        actions={<Button icon={Plus} onClick={() => setCreating(true)}>Signaler</Button>}
+        title={tr('Maintenance', 'Maintenance')}
+        subtitle={tr('Signalements, interventions et chambres retirées de la vente sur une période.', 'Issue reports, work orders and rooms taken out of sale for a period.')}
+        actions={<Button icon={Plus} onClick={() => setCreating(true)}>{tr('Signaler', 'Report')}</Button>}
       />
-      <Tabs<'open' | 'resolved'> value={tab} onChange={setTab} tabs={[{ id: 'open', label: 'En cours' }, { id: 'resolved', label: 'Résolus' }]} />
+      <Tabs<'open' | 'resolved'> value={tab} onChange={setTab} tabs={[{ id: 'open', label: tr('En cours', 'In progress') }, { id: 'resolved', label: tr('Résolus', 'Resolved') }]} />
       <ErrorNote message={error ?? orders.error} />
       <Card>
         {orders.loading && !orders.data ? (
           <Loading />
         ) : !orders.data?.length ? (
-          <Empty>Aucun ordre de travail.</Empty>
+          <Empty>{tr('Aucun ordre de travail.', 'No work orders.')}</Empty>
         ) : (
           <ul className="divide-y divide-slate-100">
             {orders.data.map((o) => (
@@ -94,18 +96,18 @@ export default function Maintenance({ rooms, property, role, today, onChanged }:
                   {o.description && <p className="text-xs text-slate-500">{o.description}</p>}
                   <div className="flex flex-wrap gap-2 mt-1">
                     <Badge tone={STATUS[o.status].tone}>{STATUS[o.status].label}</Badge>
-                    {o.priority === 'high' && <Badge tone="red">Urgent</Badge>}
+                    {o.priority === 'high' && <Badge tone="red">{tr('Urgent', 'Urgent')}</Badge>}
                     {o.blocks_from && (
-                      <Badge tone="violet">Hors vente du {formatDate(o.blocks_from)} au {formatDate(o.blocks_to ?? undefined)}</Badge>
+                      <Badge tone="violet">{tr(`Hors vente du ${formatDate(o.blocks_from)} au ${formatDate(o.blocks_to ?? undefined)}`, `Out of sale from ${formatDate(o.blocks_from)} to ${formatDate(o.blocks_to ?? undefined)}`)}</Badge>
                     )}
-                    <span className="text-[10px] text-slate-400">Signalé le {formatDate(o.created_at.slice(0, 10))}</span>
+                    <span className="text-[10px] text-slate-400">{tr('Signalé le', 'Reported on')} {formatDate(o.created_at.slice(0, 10))}</span>
                   </div>
-                  {o.resolution && <p className="text-[11px] text-emerald-700 mt-1">Intervention : {o.resolution}</p>}
+                  {o.resolution && <p className="text-[11px] text-emerald-700 mt-1">{tr('Intervention :', 'Work done:')} {o.resolution}</p>}
                 </div>
                 {canHandle && o.status !== 'resolved' && (
                   <div className="flex gap-2">
-                    {o.status === 'open' && <Button variant="secondary" icon={Play} busy={busy} onClick={() => update(o, 'in_progress')}>Prendre en charge</Button>}
-                    <Button variant="success" icon={CheckCircle2} busy={busy} onClick={() => update(o, 'resolved')}>Résolu</Button>
+                    {o.status === 'open' && <Button variant="secondary" icon={Play} busy={busy} onClick={() => update(o, 'in_progress')}>{tr('Prendre en charge', 'Take on')}</Button>}
+                    <Button variant="success" icon={CheckCircle2} busy={busy} onClick={() => update(o, 'resolved')}>{tr('Résolu', 'Resolved')}</Button>
                   </div>
                 )}
               </li>
@@ -150,6 +152,7 @@ interface ReportValues {
 }
 
 function ReportModal({ rooms, today, canBlock, onClose, onSubmit }: { rooms: Room[]; today: string; canBlock: boolean; onClose: () => void; onSubmit: (v: ReportValues) => Promise<void> }) {
+  const { tr } = useI18n();
   const [v, setV] = useState<ReportValues>({ roomId: '', title: '', description: '', priority: 'medium', block: false, from: today, to: addDays(today, 1) });
   const { busy, error, run: act } = useAction();
   const set = <K extends keyof ReportValues>(k: K, value: ReportValues[K]) => setV((p) => ({ ...p, [k]: value }));
@@ -162,44 +165,44 @@ function ReportModal({ rooms, today, canBlock, onClose, onSubmit }: { rooms: Roo
     if (ok) onClose();
   };
   return (
-    <Modal title="Signaler un problème" onClose={onClose}>
+    <Modal title={tr('Signaler un problème', 'Report an issue')} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Chambre">
+          <Field label={tr('Chambre', 'Room')}>
             <Select value={v.roomId} onChange={(e) => set('roomId', e.target.value)}>
-              <option value="">Parties communes</option>
+              <option value="">{tr('Parties communes', 'Common areas')}</option>
               {rooms.map((r) => <option key={r.id} value={r.id}>{r.number} · {r.category}</option>)}
             </Select>
           </Field>
-          <Field label="Priorité">
+          <Field label={tr('Priorité', 'Priority')}>
             <Select value={v.priority} onChange={(e) => set('priority', e.target.value as Order['priority'])}>
-              <option value="high">Urgent</option>
-              <option value="medium">Normal</option>
-              <option value="low">Faible</option>
+              <option value="high">{tr('Urgent', 'Urgent')}</option>
+              <option value="medium">{tr('Normal', 'Normal')}</option>
+              <option value="low">{tr('Faible', 'Low')}</option>
             </Select>
           </Field>
         </div>
-        <Field label="Problème">
-          <Input required minLength={3} value={v.title} onChange={(e) => set('title', e.target.value)} placeholder="Climatisation en panne, fuite…" />
+        <Field label={tr('Problème', 'Issue')}>
+          <Input required minLength={3} value={v.title} onChange={(e) => set('title', e.target.value)} placeholder={tr('Climatisation en panne, fuite…', 'Air conditioning down, leak…')} />
         </Field>
-        <Field label="Détails">
+        <Field label={tr('Détails', 'Details')}>
           <Textarea rows={2} value={v.description} onChange={(e) => set('description', e.target.value)} />
         </Field>
         {canBlock && v.roomId && (
           <div className="bg-slate-50 rounded-xl p-3 space-y-2">
-            <Checkbox label="Retirer la chambre de la vente sur une période" checked={v.block} onChange={(e) => set('block', e.target.checked)} />
+            <Checkbox label={tr('Retirer la chambre de la vente sur une période', 'Take the room out of sale for a period')} checked={v.block} onChange={(e) => set('block', e.target.checked)} />
             {v.block && (
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Du"><Input type="date" value={v.from} min={today} onChange={(e) => set('from', e.target.value)} /></Field>
-                <Field label="Au (exclu)"><Input type="date" value={v.to} min={addDays(v.from, 1)} onChange={(e) => set('to', e.target.value)} /></Field>
+                <Field label={tr('Du', 'From')}><Input type="date" value={v.from} min={today} onChange={(e) => set('from', e.target.value)} /></Field>
+                <Field label={tr('Au (exclu)', 'To (exclusive)')}><Input type="date" value={v.to} min={addDays(v.from, 1)} onChange={(e) => set('to', e.target.value)} /></Field>
               </div>
             )}
           </div>
         )}
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Fermer</Button>
-          <Button type="submit" busy={busy}>Enregistrer</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{tr('Fermer', 'Close')}</Button>
+          <Button type="submit" busy={busy}>{tr('Enregistrer', 'Save')}</Button>
         </div>
       </form>
     </Modal>

@@ -4,6 +4,7 @@ import type { Room } from '../types';
 import type { Property } from '../lib/auth';
 import type { AppRole } from '../lib/roles';
 import { canManageReservations } from '../lib/roles';
+import { useI18n } from '../lib/i18n';
 import { STATUS_LABELS, run, type PmsActions, type RatePlanRow, type ReservationRow, balanceOf } from '../lib/pmsData';
 import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
@@ -37,6 +38,7 @@ const SHOWN: ReservationRow['status'][] = ['option', 'confirmed', 'checked_in', 
 // Un clic sur une case libre crée une réservation, un glisser-déposer déplace
 // le séjour (les règles de disponibilité restent vérifiées par le serveur).
 export default function RoomRack({ rooms, reservations, ratePlans, property, role, today, actions }: Props) {
+  const { tr, lang } = useI18n();
   const canWrite = canManageReservations(role);
   const [span, setSpan] = useState(14);
   const [start, setStart] = useState(addDays(today, -1));
@@ -92,8 +94,14 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
     const target = rooms.find((r) => r.id === roomId);
     if (roomId === reservation.room_id && checkIn === reservation.check_in) return;
     const what = inHouse
-      ? `Déloger ${reservation.guest?.full_name ?? 'le client'} vers la chambre ${target?.number} ?`
-      : `Déplacer ${reservation.code} en chambre ${target?.number} du ${formatDate(checkIn)} au ${formatDate(checkOut)} ? Le prix sera recalculé.`;
+      ? tr(
+          `Déloger ${reservation.guest?.full_name ?? 'le client'} vers la chambre ${target?.number} ?`,
+          `Move ${reservation.guest?.full_name ?? 'the guest'} to room ${target?.number}?`,
+        )
+      : tr(
+          `Déplacer ${reservation.code} en chambre ${target?.number} du ${formatDate(checkIn)} au ${formatDate(checkOut)} ? Le prix sera recalculé.`,
+          `Move ${reservation.code} to room ${target?.number} from ${formatDate(checkIn)} to ${formatDate(checkOut)}? The price will be recalculated.`,
+        );
     if (!confirm(what)) return;
     act(() =>
       actions.updateReservation(reservation.id, {
@@ -116,19 +124,22 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
   return (
     <div className="fade-in-up">
       <PageHeader
-        title="Planning des chambres"
-        subtitle="Cliquez sur une case libre pour réserver, glissez un séjour pour le déplacer ou déloger le client."
+        title={tr('Planning des chambres', 'Room rack')}
+        subtitle={tr(
+          'Cliquez sur une case libre pour réserver, glissez un séjour pour le déplacer ou déloger le client.',
+          'Click a free cell to book, drag a stay to move it or rehouse the guest.',
+        )}
         actions={
           <>
-            <Button variant="secondary" icon={ChevronLeft} onClick={() => setStart(addDays(start, -7))} aria-label="Semaine précédente" />
-            <Button variant="secondary" onClick={() => setStart(addDays(today, -1))}>Aujourd’hui</Button>
-            <Button variant="secondary" icon={ChevronRight} onClick={() => setStart(addDays(start, 7))} aria-label="Semaine suivante" />
-            <Select value={span} onChange={(e) => setSpan(Number(e.target.value))} className="w-28" aria-label="Période">
-              <option value={7}>7 jours</option>
-              <option value={14}>14 jours</option>
-              <option value={30}>30 jours</option>
+            <Button variant="secondary" icon={ChevronLeft} onClick={() => setStart(addDays(start, -7))} aria-label={tr('Semaine précédente', 'Previous week')} />
+            <Button variant="secondary" onClick={() => setStart(addDays(today, -1))}>{tr('Aujourd’hui', 'Today')}</Button>
+            <Button variant="secondary" icon={ChevronRight} onClick={() => setStart(addDays(start, 7))} aria-label={tr('Semaine suivante', 'Next week')} />
+            <Select value={span} onChange={(e) => setSpan(Number(e.target.value))} className="w-28" aria-label={tr('Période', 'Period')}>
+              <option value={7}>{tr('7 jours', '7 days')}</option>
+              <option value={14}>{tr('14 jours', '14 days')}</option>
+              <option value={30}>{tr('30 jours', '30 days')}</option>
             </Select>
-            {canWrite && rooms.length > 0 && <Button icon={Plus} onClick={() => setCreating({ roomId: rooms[0].id, checkIn: today })}>Réservation</Button>}
+            {canWrite && rooms.length > 0 && <Button icon={Plus} onClick={() => setCreating({ roomId: rooms[0].id, checkIn: today })}>{tr('Réservation', 'Reservation')}</Button>}
           </>
         }
       />
@@ -138,13 +149,13 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
       <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-x-auto mt-3">
         <div className="min-w-max">
           <div className="grid sticky top-0 bg-white z-10 border-b border-slate-100" style={{ gridTemplateColumns: columns }}>
-            <div className="p-2 text-[10px] font-bold text-slate-400 uppercase">Chambre</div>
+            <div className="p-2 text-[10px] font-bold text-slate-400 uppercase">{tr('Chambre', 'Room')}</div>
             {days.map((d) => {
               const date = new Date(`${d}T12:00:00Z`);
               const weekend = [0, 6].includes(date.getUTCDay());
               return (
                 <div key={d} className={`p-1.5 text-center border-l border-slate-50 ${d === today ? 'bg-orange-50' : weekend ? 'bg-slate-50/70' : ''}`}>
-                  <p className="text-[9px] uppercase text-slate-400 font-bold">{date.toLocaleDateString('fr-FR', { weekday: 'short', timeZone: 'UTC' }).replace('.', '')}</p>
+                  <p className="text-[9px] uppercase text-slate-400 font-bold">{date.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR', { weekday: 'short', timeZone: 'UTC' }).replace('.', '')}</p>
                   <p className={`text-xs font-black ${d === today ? 'text-orange-600' : 'text-slate-700'}`}>{date.getUTCDate()}</p>
                 </div>
               );
@@ -173,7 +184,7 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
                       setDragId(null);
                       if (res) moveTo(res, room.id, d);
                     }}
-                    aria-label={`Chambre ${room.number}, ${formatDate(d)}`}
+                    aria-label={`${tr('Chambre', 'Room')} ${room.number}, ${formatDate(d)}`}
                   />
                 ))}
                 {roomBlocks.map((b) => {
@@ -181,7 +192,7 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
                   return (
                     <div
                       key={b.id}
-                      title={`Hors service : ${b.title}`}
+                      title={`${tr('Hors service :', 'Out of order:')} ${b.title}`}
                       style={{ gridColumn: `${p.startCol} / span ${p.spanCols}`, gridRow: 1 }}
                       className="m-1 rounded-lg border border-red-300 text-red-800 text-[10px] font-bold px-2 flex items-center gap-1 overflow-hidden pointer-events-none"
                     >
@@ -205,12 +216,12 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
                       }}
                       onDragEnd={() => setDragId(null)}
                       onClick={() => setOpenId(r.id)}
-                      title={`${r.guest?.full_name ?? 'Client'} · ${STATUS_LABELS[r.status]} · ${formatDate(r.check_in)} → ${formatDate(r.check_out)}`}
+                      title={`${r.guest?.full_name ?? tr('Client', 'Guest')} · ${STATUS_LABELS[r.status]} · ${formatDate(r.check_in)} → ${formatDate(r.check_out)}`}
                       style={{ gridColumn: `${p.startCol} / span ${p.spanCols}`, gridRow: 1 }}
                       className={`relative z-[2] my-1.5 ${p.clippedLeft ? 'ml-0 rounded-l-none' : 'ml-1'} mr-1 rounded-lg border text-[10px] font-bold px-2 text-left truncate cursor-pointer ${BAR_COLORS[r.status]} ${movable ? 'active:cursor-grabbing' : ''}`}
                     >
-                      {due && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-600 mr-1 align-middle" aria-label="Solde dû" />}
-                      {r.guest?.full_name ?? 'Client'}
+                      {due && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-600 mr-1 align-middle" aria-label={tr('Solde dû', 'Balance due')} />}
+                      {r.guest?.full_name ?? tr('Client', 'Guest')}
                     </button>
                   );
                 })}
@@ -219,7 +230,7 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
           })}
 
           <div className="grid bg-slate-50/60" style={{ gridTemplateColumns: columns }}>
-            <div className="p-2 text-[10px] font-bold text-slate-500 uppercase">Occupation</div>
+            <div className="p-2 text-[10px] font-bold text-slate-500 uppercase">{tr('Occupation', 'Occupancy')}</div>
             {occupancy.map((n, i) => (
               <div key={days[i]} className="p-1.5 text-center text-[10px] font-mono font-bold text-slate-600 border-l border-slate-100">
                 {rooms.length ? Math.round((n / rooms.length) * 100) : 0}%
@@ -230,12 +241,12 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
       </div>
 
       <div className="flex flex-wrap gap-4 mt-4 text-[11px] text-slate-500">
-        <Legend className="bg-amber-100 border-amber-300" label="Option" />
-        <Legend className="bg-sky-100 border-sky-300" label="Confirmée" />
-        <Legend className="bg-orange-500 border-orange-600" label="En séjour" />
-        <Legend className="bg-slate-200 border-slate-300" label="Partie" />
-        <Legend className="bg-red-100 border-red-300" label="Hors service" />
-        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-600" /> Solde dû</span>
+        <Legend className="bg-amber-100 border-amber-300" label={tr('Option', 'Option')} />
+        <Legend className="bg-sky-100 border-sky-300" label={tr('Confirmée', 'Confirmed')} />
+        <Legend className="bg-orange-500 border-orange-600" label={tr('En séjour', 'In house')} />
+        <Legend className="bg-slate-200 border-slate-300" label={tr('Partie', 'Checked out')} />
+        <Legend className="bg-red-100 border-red-300" label={tr('Hors service', 'Out of order')} />
+        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-600" /> {tr('Solde dû', 'Balance due')}</span>
       </div>
 
       {creating && (
