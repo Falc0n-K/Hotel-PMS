@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  qualite:
+    name: Typage et build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Typage TypeScript
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+
+  base-de-donnees:
+    name: Migrations et tests SQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      # Isolation entre hôtels, rôles, anti-surbooking, solde au départ,
+      # numérotation des factures : un échec ici bloque le merge.
+      - name: Tests de la base
+        run: bash scripts/test-db.sh
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+  audit:
+    name: Audit des dépendances
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: npm audit, dépendances livrées (high + critical)
+        run: npm audit --omit=dev --audit-level=high
+      - name: npm audit, outillage (informatif)
+        continue-on-error: true
+        run: npm audit --audit-level=high

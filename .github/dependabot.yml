@@ -1,0 +1,27 @@
+# Les PR de mise à jour arrivent sur develop, jamais directement sur main
+# (voir BRANCHING.md).
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+      production-minor-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci(actions)"
