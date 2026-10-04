@@ -1,0 +1,5 @@
+-- Chargement du planning par la réception (requête de l'application, RLS active).
+select set_config('request.jwt.claim.sub', '10ad0000-0000-4000-8000-000000000001', false);
+set role authenticated;
+select count(*) from (select r.id from public.reservations r where r.property_id = (select property_id from load.ctx) and r.check_out >= current_date - 90 order by r.check_in desc limit 2000) x;
+reset role;

@@ -1,0 +1,5 @@
+-- 50 réceptionnistes réservent la même chambre (C1) aux mêmes dates (book_stay, RLS active).
+select set_config('request.jwt.claim.sub', '10ad0000-0000-4000-8000-000000000001', false);
+set role authenticated;
+select load.try_book_room('race_room', (select id from public.rooms where number = 'C1'), current_date + 320, current_date + 322);
+reset role;
