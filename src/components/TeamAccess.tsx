@@ -3,6 +3,7 @@ import { UserPlus, ShieldCheck, Trash2, AlertCircle, Loader2 } from 'lucide-reac
 import { supabase, errorMessage } from '../lib/supabase';
 import { APP_ROLE_LABELS, type AppRole } from '../lib/roles';
 import type { Property } from '../lib/auth';
+import { useI18n } from '../lib/i18n';
 
 interface MemberRow {
   id: string;
@@ -21,6 +22,7 @@ interface Props {
 // Les règles (un directeur ne nomme pas de propriétaire, on ne se retire pas
 // soi-même) sont vérifiées côté serveur ; l'interface ne fait que les refléter.
 export default function TeamAccess({ property, myRole, myUserId }: Props) {
+  const { tr } = useI18n();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,8 @@ export default function TeamAccess({ property, myRole, myUserId }: Props) {
   };
 
   const remove = async (m: MemberRow) => {
-    if (!confirm(`Retirer l’accès de ${m.profile?.full_name ?? m.profile?.email ?? 'cet utilisateur'} à ${property.name} ?`)) return;
+    const who = m.profile?.full_name ?? m.profile?.email;
+    if (!confirm(tr(`Retirer l’accès de ${who ?? 'cet utilisateur'} à ${property.name} ?`, `Remove ${who ?? 'this user'}'s access to ${property.name}?`))) return;
     setError(null);
     const { error } = await supabase.from('memberships').delete().eq('id', m.id).select('id').single();
     if (error) setError(errorMessage(error));
@@ -86,10 +89,12 @@ export default function TeamAccess({ property, myRole, myUserId }: Props) {
   return (
     <div className="space-y-6 fade-in-up">
       <div>
-        <h2 className="text-2xl font-black text-[#09153D] tracking-tight">Équipe et accès</h2>
+        <h2 className="text-2xl font-black text-[#09153D] tracking-tight">{tr('Équipe et accès', 'Team and access')}</h2>
         <p className="text-xs text-slate-400 font-medium">
-          Rôles appliqués par le serveur pour {property.name}. Un collaborateur crée d’abord son compte, puis vous
-          l’ajoutez ici avec son adresse e-mail.
+          {tr(
+            `Rôles appliqués par le serveur pour ${property.name}. Un collaborateur crée d’abord son compte, puis vous l’ajoutez ici avec son adresse e-mail.`,
+            `Roles enforced by the server for ${property.name}. A team member first creates their account, then you add them here with their email address.`,
+          )}
         </p>
       </div>
 
@@ -97,14 +102,14 @@ export default function TeamAccess({ property, myRole, myUserId }: Props) {
         <input
           type="email"
           required
-          aria-label="E-mail du collaborateur"
-          placeholder="E-mail du collaborateur"
+          aria-label={tr('E-mail du collaborateur', 'Team member email')}
+          placeholder={tr('E-mail du collaborateur', 'Team member email')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="flex-1 bg-slate-50 border border-slate-200 text-xs p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500"
         />
         <select
-          aria-label="Rôle"
+          aria-label={tr('Rôle', 'Role')}
           value={role}
           onChange={(e) => setRole(e.target.value as AppRole)}
           className="bg-slate-50 border border-slate-200 text-xs font-bold p-3 rounded-xl cursor-pointer"
@@ -120,7 +125,7 @@ export default function TeamAccess({ property, myRole, myUserId }: Props) {
           disabled={busy}
           className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
         >
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Ajouter
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} {tr('Ajouter', 'Add')}
         </button>
       </form>
 
@@ -135,16 +140,16 @@ export default function TeamAccess({ property, myRole, myUserId }: Props) {
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-slate-50/60 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-              <th className="p-4 text-left">Collaborateur</th>
-              <th className="p-4 text-left">Rôle</th>
-              <th className="p-4 text-right">Action</th>
+              <th className="p-4 text-left">{tr('Collaborateur', 'Team member')}</th>
+              <th className="p-4 text-left">{tr('Rôle', 'Role')}</th>
+              <th className="p-4 text-right">{tr('Action', 'Action')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
                 <td colSpan={3} className="p-8 text-center text-slate-400">
-                  Chargement…
+                  {tr('Chargement…', 'Loading…')}
                 </td>
               </tr>
             ) : (
@@ -155,7 +160,7 @@ export default function TeamAccess({ property, myRole, myUserId }: Props) {
                   <tr key={m.id}>
                     <td className="p-4">
                       <p className="font-bold text-slate-800">
-                        {m.profile?.full_name ?? '—'} {isMe && <span className="text-[10px] text-slate-400">(vous)</span>}
+                        {m.profile?.full_name ?? '—'} {isMe && <span className="text-[10px] text-slate-400">{tr('(vous)', '(you)')}</span>}
                       </p>
                       <p className="text-[10px] text-slate-400 font-mono">{m.profile?.email}</p>
                     </td>
@@ -166,7 +171,7 @@ export default function TeamAccess({ property, myRole, myUserId }: Props) {
                         </span>
                       ) : (
                         <select
-                          aria-label={`Rôle de ${m.profile?.full_name ?? m.profile?.email}`}
+                          aria-label={tr(`Rôle de ${m.profile?.full_name ?? m.profile?.email}`, `Role of ${m.profile?.full_name ?? m.profile?.email}`)}
                           value={m.role}
                           onChange={(e) => changeRole(m, e.target.value as AppRole)}
                           className="bg-slate-50 border border-slate-200 text-xs font-bold p-2 rounded-lg cursor-pointer"
@@ -183,7 +188,7 @@ export default function TeamAccess({ property, myRole, myUserId }: Props) {
                       {!locked && (
                         <button
                           onClick={() => remove(m)}
-                          aria-label="Retirer l’accès"
+                          aria-label={tr('Retirer l’accès', 'Remove access')}
                           className="p-2 rounded-lg border border-slate-200 text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
 import { formatDate } from '../lib/dates';
 import { Badge, Button, Card, Checkbox, Empty, ErrorNote, Field, Input, Loading, Modal, Select, Table, Textarea, useAction } from './ui';
+import { tr, useI18n } from '../lib/i18n';
 
 // Paramètres → Distribution : réservation en ligne, clés d'API, webhooks et
 // calendriers iCal. Réservé à la direction (la RLS refuse les autres rôles).
@@ -14,21 +15,21 @@ import { Badge, Button, Card, Checkbox, Empty, ErrorNote, Field, Input, Loading,
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1`;
 
 const SCOPES = [
-  { id: 'availability:read', label: 'Lire les disponibilités' },
-  { id: 'reservations:read', label: 'Lire les réservations' },
-  { id: 'reservations:write', label: 'Créer des réservations' },
+  { id: 'availability:read', get label() { return tr('Lire les disponibilités', 'Read availability'); } },
+  { id: 'reservations:read', get label() { return tr('Lire les réservations', 'Read reservations'); } },
+  { id: 'reservations:write', get label() { return tr('Créer des réservations', 'Create reservations'); } },
 ];
 
 const EVENTS = [
-  { id: '*', label: 'Tous les événements' },
-  { id: 'reservation.created', label: 'Réservation créée' },
-  { id: 'reservation.confirmed', label: 'Option confirmée' },
-  { id: 'reservation.updated', label: 'Réservation modifiée' },
-  { id: 'reservation.cancelled', label: 'Réservation annulée' },
-  { id: 'reservation.checked_in', label: 'Arrivée' },
-  { id: 'reservation.checked_out', label: 'Départ' },
-  { id: 'reservation.no_show', label: 'No-show' },
-  { id: 'payment.received', label: 'Paiement reçu' },
+  { id: '*', get label() { return tr('Tous les événements', 'All events'); } },
+  { id: 'reservation.created', get label() { return tr('Réservation créée', 'Reservation created'); } },
+  { id: 'reservation.confirmed', get label() { return tr('Option confirmée', 'Hold confirmed'); } },
+  { id: 'reservation.updated', get label() { return tr('Réservation modifiée', 'Reservation updated'); } },
+  { id: 'reservation.cancelled', get label() { return tr('Réservation annulée', 'Reservation cancelled'); } },
+  { id: 'reservation.checked_in', get label() { return tr('Arrivée', 'Check-in'); } },
+  { id: 'reservation.checked_out', get label() { return tr('Départ', 'Check-out'); } },
+  { id: 'reservation.no_show', get label() { return tr('No-show', 'No-show'); } },
+  { id: 'payment.received', get label() { return tr('Paiement reçu', 'Payment received'); } },
 ];
 
 const ICAL_SOURCES: BookingSource[] = ['airbnb', 'booking_com', 'expedia', 'other'];
@@ -37,7 +38,7 @@ async function copy(text: string) {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
-    window.prompt('Copiez :', text);
+    window.prompt(tr('Copiez :', 'Copy:'), text);
   }
 }
 
@@ -62,6 +63,7 @@ function OnlineBooking({ property, onChanged }: { property: Property; onChanged:
     booking_provider: property.booking_provider,
     public_description: property.public_description ?? '',
   });
+  const { tr } = useI18n();
   const [saved, setSaved] = useState(false);
   const { busy, error, run: act } = useAction();
   const publicUrl = `${window.location.origin}/reserver/${p.booking_slug}`;
@@ -85,15 +87,17 @@ function OnlineBooking({ property, onChanged }: { property: Property; onChanged:
   };
 
   return (
-    <Card title="Réservation en ligne" actions={<Globe className="w-4 h-4 text-orange-600" />}>
+    <Card title={tr('Réservation en ligne', 'Online booking')} actions={<Globe className="w-4 h-4 text-orange-600" />}>
       <form onSubmit={submit} className="space-y-3">
         <p className="text-xs text-slate-500">
-          Une page publique où vos clients choisissent leurs dates et paient en ligne. La chambre est bloquée en option le temps
-          du paiement, puis confirmée automatiquement ; sans paiement, l’option est annulée à l’échéance.
+          {tr(
+            'Une page publique où vos clients choisissent leurs dates et paient en ligne. La chambre est bloquée en option le temps du paiement, puis confirmée automatiquement ; sans paiement, l’option est annulée à l’échéance.',
+            'A public page where your guests choose their dates and pay online. The room is held while the payment is made, then confirmed automatically; without payment, the hold is cancelled when it expires.',
+          )}
         </p>
-        <Checkbox label="Ouvrir la réservation en ligne" checked={p.booking_enabled} onChange={(e) => setP({ ...p, booking_enabled: e.target.checked })} />
+        <Checkbox label={tr('Ouvrir la réservation en ligne', 'Enable online booking')} checked={p.booking_enabled} onChange={(e) => setP({ ...p, booking_enabled: e.target.checked })} />
         <div className="grid md:grid-cols-3 gap-3">
-          <Field label="Adresse de la page" hint="Lettres minuscules, chiffres et tirets">
+          <Field label={tr('Adresse de la page', 'Page address')} hint={tr('Lettres minuscules, chiffres et tirets', 'Lowercase letters, digits and hyphens')}>
             <Input
               required
               pattern="[a-z0-9-]{3,40}"
@@ -101,32 +105,32 @@ function OnlineBooking({ property, onChanged }: { property: Property; onChanged:
               onChange={(e) => setP({ ...p, booking_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40) })}
             />
           </Field>
-          <Field label="Délai pour payer (minutes)" hint="Entre 10 et 1440">
+          <Field label={tr('Délai pour payer (minutes)', 'Time to pay (minutes)')} hint={tr('Entre 10 et 1440', 'Between 10 and 1440')}>
             <Input type="number" min={10} max={1440} value={p.booking_hold_minutes} onChange={(e) => setP({ ...p, booking_hold_minutes: Math.trunc(Number(e.target.value)) })} />
           </Field>
-          <Field label="Paiement">
+          <Field label={tr('Paiement', 'Payment')}>
             <Select value={p.booking_provider} onChange={(e) => setP({ ...p, booking_provider: e.target.value as Property['booking_provider'] })}>
-              <option value="paydunya">PayDunya (Wave, Orange Money, carte)</option>
-              <option value="stripe">Stripe (carte internationale)</option>
+              <option value="paydunya">{tr('PayDunya (Wave, Orange Money, carte)', 'PayDunya (Wave, Orange Money, card)')}</option>
+              <option value="stripe">{tr('Stripe (carte internationale)', 'Stripe (international card)')}</option>
             </Select>
           </Field>
         </div>
-        <Field label="Présentation affichée aux clients">
+        <Field label={tr('Présentation affichée aux clients', 'Description shown to guests')}>
           <Textarea rows={3} maxLength={1000} value={p.public_description} onChange={(e) => setP({ ...p, public_description: e.target.value })} />
         </Field>
         {property.booking_enabled && property.booking_slug && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="font-mono bg-slate-50 border border-slate-100 rounded-lg px-2 py-1">{publicUrl}</span>
-            <Button type="button" variant="ghost" icon={Copy} onClick={() => copy(publicUrl)}>Copier</Button>
+            <Button type="button" variant="ghost" icon={Copy} onClick={() => copy(publicUrl)}>{tr('Copier', 'Copy')}</Button>
             <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-orange-600">
-              <ExternalLink className="w-3.5 h-3.5" /> Ouvrir
+              <ExternalLink className="w-3.5 h-3.5" /> {tr('Ouvrir', 'Open')}
             </a>
           </div>
         )}
         <ErrorNote message={error} />
         <div className="flex items-center justify-end gap-3">
-          {saved && <span className="text-xs font-semibold text-emerald-600">Enregistré</span>}
-          <Button type="submit" icon={Save} busy={busy}>Enregistrer</Button>
+          {saved && <span className="text-xs font-semibold text-emerald-600">{tr('Enregistré', 'Saved')}</span>}
+          <Button type="submit" icon={Save} busy={busy}>{tr('Enregistrer', 'Save')}</Button>
         </div>
       </form>
     </Card>
@@ -146,6 +150,7 @@ interface ApiKeyRow {
 }
 
 function ApiKeys({ property }: { property: Property }) {
+  const { tr } = useI18n();
   const keys = useQuery(
     async () =>
       (await run(
@@ -159,19 +164,22 @@ function ApiKeys({ property }: { property: Property }) {
 
   return (
     <Card
-      title="Clés d’API (partenaires)"
-      actions={<Button variant="secondary" icon={Plus} onClick={() => setCreating(true)}>Nouvelle clé</Button>}
+      title={tr('Clés d’API (partenaires)', 'API keys (partners)')}
+      actions={<Button variant="secondary" icon={Plus} onClick={() => setCreating(true)}>{tr('Nouvelle clé', 'New key')}</Button>}
     >
       <p className="text-xs text-slate-500 mb-3">
-        Pour un tour-opérateur, une agence ou un site tiers : disponibilités et réservations en direct.
-        Documentation à transmettre : <span className="font-mono">docs/api.md</span>, base <span className="font-mono">{FUNCTIONS_URL}/api/v1</span>.
+        {tr(
+          'Pour un tour-opérateur, une agence ou un site tiers : disponibilités et réservations en direct. Documentation à transmettre :',
+          'For a tour operator, an agency or a third-party website: live availability and reservations. Documentation to share:',
+        )}{' '}
+        <span className="font-mono">docs/api.md</span>{tr(', base ', ', base URL ')}<span className="font-mono">{FUNCTIONS_URL}/api/v1</span>.
       </p>
       {keys.loading && !keys.data ? (
         <Loading />
       ) : !keys.data?.length ? (
-        <Empty>Aucune clé.</Empty>
+        <Empty>{tr('Aucune clé.', 'No keys.')}</Empty>
       ) : (
-        <Table head={['Nom', 'Clé', 'Droits', 'Dernière utilisation', '']}>
+        <Table head={[tr('Nom', 'Name'), tr('Clé', 'Key'), tr('Droits', 'Scopes'), tr('Dernière utilisation', 'Last used'), '']}>
           {keys.data.map((k) => (
             <tr key={k.id} className={k.revoked_at ? 'opacity-50' : ''}>
               <td className="p-3 font-semibold">{k.name}</td>
@@ -179,17 +187,17 @@ function ApiKeys({ property }: { property: Property }) {
               <td className="p-3">
                 <div className="flex flex-wrap gap-1">{k.scopes.map((s) => <Badge key={s}>{s}</Badge>)}</div>
               </td>
-              <td className="p-3">{k.last_used_at ? formatDate(k.last_used_at.slice(0, 10)) : 'Jamais'}</td>
+              <td className="p-3">{k.last_used_at ? formatDate(k.last_used_at.slice(0, 10)) : tr('Jamais', 'Never')}</td>
               <td className="p-3 text-right">
                 {k.revoked_at ? (
-                  <Badge tone="red">Révoquée</Badge>
+                  <Badge tone="red">{tr('Révoquée', 'Revoked')}</Badge>
                 ) : (
                   <Button
                     variant="danger"
                     busy={busy}
-                    onClick={() => confirm(`Révoquer la clé « ${k.name} » ? Le partenaire perdra l’accès immédiatement.`) && act(async () => { await rpc('revoke_api_key', { p_key: k.id }); await keys.reload(); })}
+                    onClick={() => confirm(tr(`Révoquer la clé « ${k.name} » ? Le partenaire perdra l’accès immédiatement.`, `Revoke the key "${k.name}"? The partner will lose access immediately.`)) && act(async () => { await rpc('revoke_api_key', { p_key: k.id }); await keys.reload(); })}
                   >
-                    Révoquer
+                    {tr('Révoquer', 'Revoke')}
                   </Button>
                 )}
               </td>
@@ -208,17 +216,18 @@ function ApiKeys({ property }: { property: Property }) {
           }}
         />
       )}
-      {shown && <SecretModal title="Clé d’API créée" secret={shown} onClose={() => setShown(null)} />}
+      {shown && <SecretModal title={tr('Clé d’API créée', 'API key created')} secret={shown} onClose={() => setShown(null)} />}
     </Card>
   );
 }
 
 function ApiKeyModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (name: string, scopes: string[]) => Promise<void> }) {
+  const { tr } = useI18n();
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<string[]>(['availability:read']);
   const { busy, error, run: act } = useAction();
   return (
-    <Modal title="Nouvelle clé d’API" subtitle="Donnez le minimum de droits nécessaires au partenaire." onClose={onClose}>
+    <Modal title={tr('Nouvelle clé d’API', 'New API key')} subtitle={tr('Donnez le minimum de droits nécessaires au partenaire.', 'Grant the partner only the scopes they need.')} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -227,7 +236,7 @@ function ApiKeyModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (na
           if (ok) onClose();
         }}
       >
-        <Field label="Partenaire"><Input required minLength={2} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} placeholder="Tour-opérateur Teranga Voyages" /></Field>
+        <Field label={tr('Partenaire', 'Partner')}><Input required minLength={2} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('Tour-opérateur Teranga Voyages', 'Teranga Voyages tour operator')} /></Field>
         <div className="space-y-2">
           {SCOPES.map((s) => (
             <Checkbox
@@ -240,8 +249,8 @@ function ApiKeyModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (na
         </div>
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Fermer</Button>
-          <Button type="submit" busy={busy} disabled={!scopes.length}>Créer</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{tr('Fermer', 'Close')}</Button>
+          <Button type="submit" busy={busy} disabled={!scopes.length}>{tr('Créer', 'Create')}</Button>
         </div>
       </form>
     </Modal>
@@ -249,14 +258,15 @@ function ApiKeyModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (na
 }
 
 function SecretModal({ title, secret, onClose }: { title: string; secret: string; onClose: () => void }) {
+  const { tr } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
-    <Modal title={title} subtitle="Elle ne sera plus jamais affichée : copiez-la maintenant et transmettez-la par un canal sûr." onClose={onClose}>
+    <Modal title={title} subtitle={tr('Elle ne sera plus jamais affichée : copiez-la maintenant et transmettez-la par un canal sûr.', 'It will never be shown again: copy it now and share it through a secure channel.')} onClose={onClose}>
       <div className="space-y-3">
         <p className="font-mono text-xs break-all bg-slate-50 border border-slate-200 rounded-xl p-3 select-all">{secret}</p>
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" icon={Copy} onClick={async () => { await copy(secret); setCopied(true); }}>{copied ? 'Copiée' : 'Copier'}</Button>
-          <Button onClick={onClose}>J’ai copié</Button>
+          <Button variant="secondary" icon={Copy} onClick={async () => { await copy(secret); setCopied(true); }}>{copied ? tr('Copiée', 'Copied') : tr('Copier', 'Copy')}</Button>
+          <Button onClick={onClose}>{tr('J’ai copié', 'I have copied it')}</Button>
         </div>
       </div>
     </Modal>
@@ -285,9 +295,14 @@ interface DeliveryRow {
 }
 
 const DELIVERY_TONES = { pending: 'amber', delivered: 'green', failed: 'red' } as const;
-const DELIVERY_LABELS = { pending: 'En attente', delivered: 'Livré', failed: 'Échec' } as const;
+const DELIVERY_LABELS = {
+  get pending() { return tr('En attente', 'Pending'); },
+  get delivered() { return tr('Livré', 'Delivered'); },
+  get failed() { return tr('Échec', 'Failed'); },
+};
 
 function Webhooks({ property }: { property: Property }) {
+  const { tr } = useI18n();
   const data = useQuery(async () => {
     const [endpoints, deliveries] = await Promise.all([
       run(supabase.from('webhook_endpoints').select('id, url, events, description, active').eq('property_id', property.id).order('created_at')),
@@ -310,18 +325,22 @@ function Webhooks({ property }: { property: Property }) {
   return (
     <Card
       title="Webhooks"
-      actions={<Button variant="secondary" icon={Plus} onClick={() => setCreating(true)}>Nouveau webhook</Button>}
+      actions={<Button variant="secondary" icon={Plus} onClick={() => setCreating(true)}>{tr('Nouveau webhook', 'New webhook')}</Button>}
     >
       <p className="text-xs text-slate-500 mb-3">
-        Prévenez un autre logiciel (site, comptabilité, CRM) à chaque réservation ou paiement. Messages signés
-        (en-tête <span className="font-mono">X-PMS-Signature</span>), renvoyés automatiquement en cas d’échec.
+        {tr(
+          'Prévenez un autre logiciel (site, comptabilité, CRM) à chaque réservation ou paiement. Messages signés (en-tête',
+          'Notify other software (website, accounting, CRM) on every reservation or payment. Signed messages (header',
+        )}{' '}
+        <span className="font-mono">X-PMS-Signature</span>
+        {tr('), renvoyés automatiquement en cas d’échec.', '), automatically retried on failure.')}
       </p>
       {data.loading && !data.data ? (
         <Loading />
       ) : !data.data?.endpoints.length ? (
-        <Empty>Aucun webhook.</Empty>
+        <Empty>{tr('Aucun webhook.', 'No webhooks.')}</Empty>
       ) : (
-        <Table head={['Adresse', 'Événements', 'Actif', '']}>
+        <Table head={[tr('Adresse', 'URL'), tr('Événements', 'Events'), tr('Actif', 'Active'), '']}>
           {data.data.endpoints.map((w) => (
             <tr key={w.id}>
               <td className="p-3">
@@ -332,7 +351,7 @@ function Webhooks({ property }: { property: Property }) {
               <td className="p-3">
                 <Checkbox
                   label=""
-                  aria-label="Actif"
+                  aria-label={tr('Actif', 'Active')}
                   checked={w.active}
                   disabled={busy}
                   onChange={(e) => act(async () => { await run(supabase.from('webhook_endpoints').update({ active: e.target.checked }).eq('id', w.id).select('id')); await data.reload(); })}
@@ -342,9 +361,9 @@ function Webhooks({ property }: { property: Property }) {
                 <Button
                   variant="ghost"
                   icon={Trash2}
-                  aria-label="Supprimer"
+                  aria-label={tr('Supprimer', 'Delete')}
                   busy={busy}
-                  onClick={() => confirm('Supprimer ce webhook et son historique ?') && act(async () => { await run(supabase.from('webhook_endpoints').delete().eq('id', w.id).select('id')); await data.reload(); })}
+                  onClick={() => confirm(tr('Supprimer ce webhook et son historique ?', 'Delete this webhook and its history?')) && act(async () => { await run(supabase.from('webhook_endpoints').delete().eq('id', w.id).select('id')); await data.reload(); })}
                 />
               </td>
             </tr>
@@ -354,11 +373,11 @@ function Webhooks({ property }: { property: Property }) {
 
       {!!data.data?.deliveries.length && (
         <div className="mt-4">
-          <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">Derniers envois</h4>
-          <Table head={['Date', 'Événement', 'Destination', 'Statut', 'Essais', 'Dernière réponse']}>
+          <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">{tr('Derniers envois', 'Recent deliveries')}</h4>
+          <Table head={[tr('Date', 'Date'), tr('Événement', 'Event'), tr('Destination', 'Destination'), tr('Statut', 'Status'), tr('Essais', 'Attempts'), tr('Dernière réponse', 'Last response')]}>
             {data.data.deliveries.map((d) => (
               <tr key={d.id}>
-                <td className="p-3 whitespace-nowrap">{new Date(d.created_at).toLocaleString('fr-FR')}</td>
+                <td className="p-3 whitespace-nowrap">{new Date(d.created_at).toLocaleString(tr('fr-FR', 'en-GB'))}</td>
                 <td className="p-3 font-mono">{d.event}</td>
                 <td className="p-3 font-mono truncate max-w-[16rem]">{urlOf.get(d.endpoint_id) ?? '—'}</td>
                 <td className="p-3"><Badge tone={DELIVERY_TONES[d.status]}>{DELIVERY_LABELS[d.status]}</Badge></td>
@@ -382,18 +401,19 @@ function Webhooks({ property }: { property: Property }) {
           }}
         />
       )}
-      {shown && <SecretModal title="Secret de signature" secret={shown} onClose={() => setShown(null)} />}
+      {shown && <SecretModal title={tr('Secret de signature', 'Signing secret')} secret={shown} onClose={() => setShown(null)} />}
     </Card>
   );
 }
 
 function WebhookModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (url: string, events: string[], description: string) => Promise<void> }) {
+  const { tr } = useI18n();
   const [url, setUrl] = useState('https://');
   const [events, setEvents] = useState<string[]>(['reservation.created', 'reservation.cancelled']);
   const [description, setDescription] = useState('');
   const { busy, error, run: act } = useAction();
   return (
-    <Modal title="Nouveau webhook" subtitle="Adresse HTTPS publique qui recevra les événements." onClose={onClose}>
+    <Modal title={tr('Nouveau webhook', 'New webhook')} subtitle={tr('Adresse HTTPS publique qui recevra les événements.', 'Public HTTPS URL that will receive the events.')} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -403,7 +423,7 @@ function WebhookModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (u
         }}
       >
         <Field label="URL"><Input type="url" required pattern="https://.+" value={url} onChange={(e) => setUrl(e.target.value)} /></Field>
-        <Field label="Description"><Input maxLength={120} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Site internet, comptabilité…" /></Field>
+        <Field label="Description"><Input maxLength={120} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tr('Site internet, comptabilité…', 'Website, accounting…')} /></Field>
         <div className="grid grid-cols-2 gap-2">
           {EVENTS.map((ev) => (
             <Checkbox
@@ -416,8 +436,8 @@ function WebhookModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (u
         </div>
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Fermer</Button>
-          <Button type="submit" busy={busy} disabled={!events.length}>Créer</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{tr('Fermer', 'Close')}</Button>
+          <Button type="submit" busy={busy} disabled={!events.length}>{tr('Créer', 'Create')}</Button>
         </div>
       </form>
     </Modal>
@@ -440,6 +460,7 @@ interface FeedRow {
 }
 
 function IcalFeeds({ property, rooms }: { property: Property; rooms: Room[] }) {
+  const { tr } = useI18n();
   const feeds = useQuery(
     async () =>
       (await run(
@@ -460,30 +481,38 @@ function IcalFeeds({ property, rooms }: { property: Property; rooms: Room[] }) {
   const icalUrl = (token: string) => `${FUNCTIONS_URL}/ical?token=${token}`;
 
   return (
-    <Card title="Calendriers iCal (Airbnb, Booking.com…)" actions={<CalendarSync className="w-4 h-4 text-orange-600" />}>
+    <Card title={tr('Calendriers iCal (Airbnb, Booking.com…)', 'iCal calendars (Airbnb, Booking.com…)')} actions={<CalendarSync className="w-4 h-4 text-orange-600" />}>
       <p className="text-xs text-slate-500 mb-3">
-        Synchronisation simple avec les plateformes sans channel manager. <strong>Export</strong> : collez l’adresse de la chambre
-        dans la plateforme pour y bloquer les dates prises ici (sans nom de client). <strong>Import</strong> : collez l’adresse
-        iCal fournie par la plateforme ; ses séjours deviennent des réservations, mises à jour toutes les 30 minutes.
+        {tr('Synchronisation simple avec les plateformes sans channel manager.', 'Simple sync with platforms, no channel manager needed.')}{' '}
+        <strong>Export</strong>
+        {tr(
+          ' : collez l’adresse de la chambre dans la plateforme pour y bloquer les dates prises ici (sans nom de client).',
+          ': paste the room’s URL into the platform to block the dates booked here (without guest names).',
+        )}{' '}
+        <strong>Import</strong>
+        {tr(
+          ' : collez l’adresse iCal fournie par la plateforme ; ses séjours deviennent des réservations, mises à jour toutes les 30 minutes.',
+          ': paste the iCal URL provided by the platform; its stays become reservations, updated every 30 minutes.',
+        )}
       </p>
       {feeds.loading && !feeds.data ? (
         <Loading />
       ) : (
         <>
-          <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">Export par chambre</h4>
+          <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">{tr('Export par chambre', 'Export per room')}</h4>
           {sorted.length === 0 ? (
-            <Empty>Ajoutez d’abord des chambres.</Empty>
+            <Empty>{tr('Ajoutez d’abord des chambres.', 'Add rooms first.')}</Empty>
           ) : (
-            <Table head={['Chambre', 'Adresse à coller dans la plateforme', '']}>
+            <Table head={[tr('Chambre', 'Room'), tr('Adresse à coller dans la plateforme', 'URL to paste into the platform'), '']}>
               {sorted.map((r) => {
                 const f = exportOf.get(r.id);
                 return (
                   <tr key={r.id}>
                     <td className="p-3 font-mono font-bold">{r.number}</td>
-                    <td className="p-3 font-mono text-[11px] break-all">{f?.token ? icalUrl(f.token) : <span className="text-slate-400 font-sans">Non créée</span>}</td>
+                    <td className="p-3 font-mono text-[11px] break-all">{f?.token ? icalUrl(f.token) : <span className="text-slate-400 font-sans">{tr('Non créée', 'Not created')}</span>}</td>
                     <td className="p-3 text-right whitespace-nowrap">
                       {f?.token ? (
-                        <Button variant="ghost" icon={Copy} onClick={() => copy(icalUrl(f.token!))}>Copier</Button>
+                        <Button variant="ghost" icon={Copy} onClick={() => copy(icalUrl(f.token!))}>{tr('Copier', 'Copy')}</Button>
                       ) : (
                         <Button
                           variant="secondary"
@@ -491,7 +520,7 @@ function IcalFeeds({ property, rooms }: { property: Property; rooms: Room[] }) {
                           busy={busy}
                           onClick={() => act(async () => { await rpc('add_ical_feed', { p_room: r.id, p_direction: 'export' }); await feeds.reload(); })}
                         >
-                          Créer
+                          {tr('Créer', 'Create')}
                         </Button>
                       )}
                     </td>
@@ -502,13 +531,13 @@ function IcalFeeds({ property, rooms }: { property: Property; rooms: Room[] }) {
           )}
 
           <div className="flex items-center justify-between mt-5 mb-2">
-            <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Import depuis les plateformes</h4>
-            <Button variant="secondary" icon={Plus} disabled={!rooms.length} onClick={() => setImporting(true)}>Ajouter un calendrier</Button>
+            <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">{tr('Import depuis les plateformes', 'Import from platforms')}</h4>
+            <Button variant="secondary" icon={Plus} disabled={!rooms.length} onClick={() => setImporting(true)}>{tr('Ajouter un calendrier', 'Add a calendar')}</Button>
           </div>
           {imports.length === 0 ? (
-            <Empty>Aucun calendrier importé.</Empty>
+            <Empty>{tr('Aucun calendrier importé.', 'No imported calendars.')}</Empty>
           ) : (
-            <Table head={['Chambre', 'Plateforme', 'Dernière synchro', 'État', '']}>
+            <Table head={[tr('Chambre', 'Room'), tr('Plateforme', 'Platform'), tr('Dernière synchro', 'Last sync'), tr('État', 'Status'), '']}>
               {imports.map((f) => (
                 <tr key={f.id}>
                   <td className="p-3 font-mono font-bold">{roomNumber.get(f.room_id) ?? '?'}</td>
@@ -516,9 +545,9 @@ function IcalFeeds({ property, rooms }: { property: Property; rooms: Room[] }) {
                     {f.label ?? SOURCE_LABELS[f.source]}
                     <span className="block text-[10px] text-slate-400 font-mono truncate max-w-[18rem]">{f.url}</span>
                   </td>
-                  <td className="p-3 whitespace-nowrap">{f.last_synced_at ? new Date(f.last_synced_at).toLocaleString('fr-FR') : 'En attente'}</td>
+                  <td className="p-3 whitespace-nowrap">{f.last_synced_at ? new Date(f.last_synced_at).toLocaleString(tr('fr-FR', 'en-GB')) : tr('En attente', 'Pending')}</td>
                   <td className="p-3">
-                    {!f.active ? <Badge>Suspendu</Badge> : f.last_error ? <Badge tone="red">{f.last_error}</Badge> : <Badge tone="green">OK</Badge>}
+                    {!f.active ? <Badge>{tr('Suspendu', 'Paused')}</Badge> : f.last_error ? <Badge tone="red">{f.last_error}</Badge> : <Badge tone="green">OK</Badge>}
                   </td>
                   <td className="p-3 text-right whitespace-nowrap">
                     <Button
@@ -526,14 +555,14 @@ function IcalFeeds({ property, rooms }: { property: Property; rooms: Room[] }) {
                       busy={busy}
                       onClick={() => act(async () => { await run(supabase.from('ical_feeds').update({ active: !f.active }).eq('id', f.id).select('id')); await feeds.reload(); })}
                     >
-                      {f.active ? 'Suspendre' : 'Reprendre'}
+                      {f.active ? tr('Suspendre', 'Pause') : tr('Reprendre', 'Resume')}
                     </Button>
                     <Button
                       variant="ghost"
                       icon={Trash2}
-                      aria-label="Supprimer"
+                      aria-label={tr('Supprimer', 'Delete')}
                       busy={busy}
-                      onClick={() => confirm('Supprimer ce calendrier ? Les séjours déjà importés restent dans le planning.') && act(async () => { await run(supabase.from('ical_feeds').delete().eq('id', f.id).select('id')); await feeds.reload(); })}
+                      onClick={() => confirm(tr('Supprimer ce calendrier ? Les séjours déjà importés restent dans le planning.', 'Delete this calendar? Stays already imported remain in the room rack.')) && act(async () => { await run(supabase.from('ical_feeds').delete().eq('id', f.id).select('id')); await feeds.reload(); })}
                     />
                   </td>
                 </tr>
@@ -560,13 +589,14 @@ function IcalFeeds({ property, rooms }: { property: Property; rooms: Room[] }) {
 function IcalImportModal({
   rooms, onClose, onSubmit,
 }: { rooms: Room[]; onClose: () => void; onSubmit: (roomId: string, url: string, source: BookingSource, label: string) => Promise<void> }) {
+  const { tr } = useI18n();
   const [roomId, setRoomId] = useState(rooms[0]?.id ?? '');
   const [url, setUrl] = useState('');
   const [source, setSource] = useState<BookingSource>('airbnb');
   const [label, setLabel] = useState('');
   const { busy, error, run: act } = useAction();
   return (
-    <Modal title="Importer un calendrier" subtitle="Airbnb : Calendrier → Disponibilités → Exporter le calendrier. Booking.com : Tarifs et disponibilités → Synchroniser les calendriers." onClose={onClose}>
+    <Modal title={tr('Importer un calendrier', 'Import a calendar')} subtitle={tr('Airbnb : Calendrier → Disponibilités → Exporter le calendrier. Booking.com : Tarifs et disponibilités → Synchroniser les calendriers.', 'Airbnb: Calendar → Availability → Export calendar. Booking.com: Rates & availability → Sync calendars.')} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -576,23 +606,23 @@ function IcalImportModal({
         }}
       >
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Chambre">
+          <Field label={tr('Chambre', 'Room')}>
             <Select value={roomId} onChange={(e) => setRoomId(e.target.value)}>
               {rooms.map((r) => <option key={r.id} value={r.id}>{r.number} · {r.category}</option>)}
             </Select>
           </Field>
-          <Field label="Plateforme">
+          <Field label={tr('Plateforme', 'Platform')}>
             <Select value={source} onChange={(e) => setSource(e.target.value as BookingSource)}>
               {ICAL_SOURCES.map((s) => <option key={s} value={s}>{SOURCE_LABELS[s]}</option>)}
             </Select>
           </Field>
         </div>
-        <Field label="Adresse iCal (https://…ics)"><Input type="url" required pattern="https://.+" value={url} onChange={(e) => setUrl(e.target.value)} /></Field>
-        <Field label="Libellé (facultatif)"><Input maxLength={60} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Airbnb – annonce Bungalow" /></Field>
+        <Field label={tr('Adresse iCal (https://…ics)', 'iCal URL (https://…ics)')}><Input type="url" required pattern="https://.+" value={url} onChange={(e) => setUrl(e.target.value)} /></Field>
+        <Field label={tr('Libellé (facultatif)', 'Label (optional)')}><Input maxLength={60} value={label} onChange={(e) => setLabel(e.target.value)} placeholder={tr('Airbnb – annonce Bungalow', 'Airbnb – Bungalow listing')} /></Field>
         <ErrorNote message={error} />
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Fermer</Button>
-          <Button type="submit" busy={busy}>Ajouter</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{tr('Fermer', 'Close')}</Button>
+          <Button type="submit" busy={busy}>{tr('Ajouter', 'Add')}</Button>
         </div>
       </form>
     </Modal>
