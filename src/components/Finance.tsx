@@ -9,6 +9,7 @@ import { addDays, formatDate, formatMoney } from '../lib/dates';
 import { downloadCsv, toCsv } from '../lib/csv';
 import { Badge, Button, Card, Empty, ErrorNote, Field, Input, Loading, Modal, PageHeader, Stat, Table, Tabs, useAction } from './ui';
 import InvoicePrint, { type InvoiceDoc } from './reservations/InvoicePrint';
+import { useI18n } from '../lib/i18n';
 
 interface Props {
   property: Property;
@@ -34,12 +35,13 @@ interface Session {
 }
 
 export default function Finance({ property, role, userId, today, onChanged }: Props) {
+  const { tr } = useI18n();
   const finance = ['owner', 'general_manager', 'accountant', 'auditor'].includes(role);
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'cash', label: 'Caisse' },
-    ...(finance ? [{ id: 'payments' as Tab, label: 'Paiements' }, { id: 'invoices' as Tab, label: 'Factures et avoirs' }] : []),
-    { id: 'night', label: 'Audit de nuit' },
-    ...(finance ? [{ id: 'exports' as Tab, label: 'Exports comptables' }] : []),
+    { id: 'cash', label: tr('Caisse', 'Cash register') },
+    ...(finance ? [{ id: 'payments' as Tab, label: tr('Paiements', 'Payments') }, { id: 'invoices' as Tab, label: tr('Factures et avoirs', 'Invoices and credit notes') }] : []),
+    { id: 'night', label: tr('Audit de nuit', 'Night audit') },
+    ...(finance ? [{ id: 'exports' as Tab, label: tr('Exports comptables', 'Accounting exports') }] : []),
   ];
   const [tab, setTab] = useState<Tab>('cash');
   const [from, setFrom] = useState(`${today.slice(0, 7)}-01`);
@@ -47,12 +49,12 @@ export default function Finance({ property, role, userId, today, onChanged }: Pr
 
   return (
     <div className="fade-in-up">
-      <PageHeader title="Caisse & Finance" subtitle={`Encaissements, facturation et clôtures de ${property.name}.`} />
+      <PageHeader title={tr('Caisse & Finance', 'Cashier & finance')} subtitle={tr(`Encaissements, facturation et clôtures de ${property.name}.`, `Payments, invoicing and closings for ${property.name}.`)} />
       <Tabs<Tab> value={tab} onChange={setTab} tabs={tabs} />
       {(tab === 'payments' || tab === 'invoices' || tab === 'exports') && (
         <div className="flex flex-wrap gap-3 mb-4">
-          <Field label="Du"><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
-          <Field label="Au"><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+          <Field label={tr('Du', 'From')}><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+          <Field label={tr('Au', 'To')}><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
         </div>
       )}
       {tab === 'cash' && <CashTab property={property} role={role} userId={userId} onChanged={onChanged} />}
@@ -69,6 +71,7 @@ const endOfDay = (d: string) => `${addDays(d, 1)}T00:00:00`;
 // ── Caisse ─────────────────────────────────────────────────────────────────
 
 function CashTab({ property, role, userId, onChanged }: { property: Property; role: AppRole; userId: string; onChanged: () => void }) {
+  const { tr } = useI18n();
   const canValidate = ['owner', 'general_manager', 'accountant'].includes(role);
   const [closing, setClosing] = useState<Session | null>(null);
   const [float, setFloat] = useState(0);
@@ -105,15 +108,15 @@ function CashTab({ property, role, userId, onChanged }: { property: Property; ro
   return (
     <div className="space-y-4">
       <ErrorNote message={error ?? data.error} />
-      <Card title="Ma caisse">
+      <Card title={tr('Ma caisse', 'My cash register')}>
         {d?.mine ? (
           <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
             <div className="grid grid-cols-3 gap-6 text-xs">
-              <div><p className="text-slate-400">Ouverte le</p><p className="font-bold">{new Date(d.mine.opened_at).toLocaleString('fr-FR')}</p></div>
-              <div><p className="text-slate-400">Fonds de caisse</p><p className="font-bold font-mono">{formatMoney(d.mine.opening_float)}</p></div>
-              <div><p className="text-slate-400">Espèces attendues</p><p className="font-bold font-mono">{formatMoney(d.mine.opening_float + d.cashIn)}</p></div>
+              <div><p className="text-slate-400">{tr('Ouverte le', 'Opened on')}</p><p className="font-bold">{new Date(d.mine.opened_at).toLocaleString('fr-FR')}</p></div>
+              <div><p className="text-slate-400">{tr('Fonds de caisse', 'Opening float')}</p><p className="font-bold font-mono">{formatMoney(d.mine.opening_float)}</p></div>
+              <div><p className="text-slate-400">{tr('Espèces attendues', 'Expected cash')}</p><p className="font-bold font-mono">{formatMoney(d.mine.opening_float + d.cashIn)}</p></div>
             </div>
-            <Button icon={Lock} onClick={() => setClosing(d.mine!)}>Fermer ma caisse</Button>
+            <Button icon={Lock} onClick={() => setClosing(d.mine!)}>{tr('Fermer ma caisse', 'Close my cash register')}</Button>
           </div>
         ) : (
           <form
@@ -126,35 +129,35 @@ function CashTab({ property, role, userId, onChanged }: { property: Property; ro
               });
             }}
           >
-            <Field label="Fonds de caisse (FCFA)"><Input type="number" min={0} value={float} onChange={(e) => setFloat(Math.max(0, Math.trunc(Number(e.target.value))))} /></Field>
-            <Button type="submit" icon={Unlock} busy={busy}>Ouvrir ma caisse</Button>
-            <p className="text-[11px] text-slate-400 w-full">Les encaissements en espèces exigent une caisse ouverte à votre nom.</p>
+            <Field label={tr('Fonds de caisse (FCFA)', 'Opening float (FCFA)')}><Input type="number" min={0} value={float} onChange={(e) => setFloat(Math.max(0, Math.trunc(Number(e.target.value))))} /></Field>
+            <Button type="submit" icon={Unlock} busy={busy}>{tr('Ouvrir ma caisse', 'Open my cash register')}</Button>
+            <p className="text-[11px] text-slate-400 w-full">{tr('Les encaissements en espèces exigent une caisse ouverte à votre nom.', 'Cash payments require a cash register opened in your name.')}</p>
           </form>
         )}
       </Card>
 
-      <Card title="Clôtures">
+      <Card title={tr('Clôtures', 'Closings')}>
         {!d?.sessions.length ? (
-          <Empty>Aucune caisse.</Empty>
+          <Empty>{tr('Aucune caisse.', 'No cash register sessions.')}</Empty>
         ) : (
-          <Table head={['Caissier', 'Ouverture', 'Fermeture', 'Attendu', 'Compté', 'Écart', 'Validation']}>
+          <Table head={[tr('Caissier', 'Cashier'), tr('Ouverture', 'Opened'), tr('Fermeture', 'Closed'), tr('Attendu', 'Expected'), tr('Compté', 'Counted'), tr('Écart', 'Variance'), tr('Validation', 'Validation')]}>
             {d.sessions.map((s) => {
               const gap = s.counted_cash !== null && s.expected_cash !== null ? s.counted_cash - s.expected_cash : null;
               return (
                 <tr key={s.id}>
                   <td className="p-3 font-semibold">{d.names.get(s.opened_by) ?? '—'}</td>
                   <td className="p-3">{new Date(s.opened_at).toLocaleString('fr-FR')}</td>
-                  <td className="p-3">{s.closed_at ? new Date(s.closed_at).toLocaleString('fr-FR') : <Badge tone="amber">Ouverte</Badge>}</td>
+                  <td className="p-3">{s.closed_at ? new Date(s.closed_at).toLocaleString('fr-FR') : <Badge tone="amber">{tr('Ouverte', 'Open')}</Badge>}</td>
                   <td className="p-3 font-mono">{s.expected_cash !== null ? formatMoney(s.expected_cash) : '—'}</td>
                   <td className="p-3 font-mono">{s.counted_cash !== null ? formatMoney(s.counted_cash) : '—'}</td>
                   <td className={`p-3 font-mono font-bold ${gap ? 'text-red-600' : 'text-emerald-600'}`} title={s.closing_note ?? undefined}>{gap !== null ? formatMoney(gap) : '—'}</td>
                   <td className="p-3">
                     {s.validated_at ? (
-                      <Badge tone="green">Validée par {d.names.get(s.validated_by!) ?? '—'}</Badge>
+                      <Badge tone="green">{tr('Validée par', 'Validated by')} {d.names.get(s.validated_by!) ?? '—'}</Badge>
                     ) : s.closed_at && canValidate && s.opened_by !== userId ? (
-                      <Button variant="secondary" icon={ShieldCheck} busy={busy} onClick={() => act(async () => { await rpc('validate_cash_session', { p_session: s.id }); await refresh(); })}>Valider</Button>
+                      <Button variant="secondary" icon={ShieldCheck} busy={busy} onClick={() => act(async () => { await rpc('validate_cash_session', { p_session: s.id }); await refresh(); })}>{tr('Valider', 'Validate')}</Button>
                     ) : s.closed_at ? (
-                      <span className="text-[10px] text-slate-400">En attente (par une autre personne)</span>
+                      <span className="text-[10px] text-slate-400">{tr('En attente (par une autre personne)', 'Pending (by another person)')}</span>
                     ) : null}
                   </td>
                 </tr>
@@ -180,18 +183,19 @@ function CashTab({ property, role, userId, onChanged }: { property: Property; ro
 }
 
 function CloseModal({ expected, onClose, onSubmit }: { expected: number; onClose: () => void; onSubmit: (counted: number, note: string) => Promise<number> }) {
+  const { tr } = useI18n();
   const [counted, setCounted] = useState(expected);
   const [note, setNote] = useState('');
   const [gap, setGap] = useState<number | null>(null);
   const { busy, error, run: act } = useAction();
   return (
-    <Modal title="Fermeture de caisse" subtitle={`Espèces attendues : ${formatMoney(expected)}`} onClose={onClose}>
+    <Modal title={tr('Fermeture de caisse', 'Cash register closing')} subtitle={tr(`Espèces attendues : ${formatMoney(expected)}`, `Expected cash: ${formatMoney(expected)}`)} onClose={onClose}>
       {gap !== null ? (
         <div className="space-y-3">
           <p className={`text-sm font-bold ${gap === 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-            Caisse fermée. Écart : {formatMoney(gap)}. Elle doit maintenant être validée par une autre personne.
+            {tr(`Caisse fermée. Écart : ${formatMoney(gap)}. Elle doit maintenant être validée par une autre personne.`, `Cash register closed. Variance: ${formatMoney(gap)}. It must now be validated by another person.`)}
           </p>
-          <div className="flex justify-end"><Button onClick={onClose}>Terminé</Button></div>
+          <div className="flex justify-end"><Button onClick={onClose}>{tr('Terminé', 'Done')}</Button></div>
         </div>
       ) : (
         <form
@@ -202,12 +206,12 @@ function CloseModal({ expected, onClose, onSubmit }: { expected: number; onClose
             if (g !== undefined) setGap(g);
           }}
         >
-          <Field label="Espèces comptées (FCFA)"><Input type="number" min={0} value={counted} onChange={(e) => setCounted(Math.max(0, Math.trunc(Number(e.target.value))))} /></Field>
-          <Field label="Commentaire (obligatoire en cas d’écart)"><Input value={note} onChange={(e) => setNote(e.target.value)} required={counted !== expected} /></Field>
+          <Field label={tr('Espèces comptées (FCFA)', 'Counted cash (FCFA)')}><Input type="number" min={0} value={counted} onChange={(e) => setCounted(Math.max(0, Math.trunc(Number(e.target.value))))} /></Field>
+          <Field label={tr('Commentaire (obligatoire en cas d’écart)', 'Comment (required if there is a variance)')}><Input value={note} onChange={(e) => setNote(e.target.value)} required={counted !== expected} /></Field>
           <ErrorNote message={error} />
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>Annuler</Button>
-            <Button type="submit" busy={busy}>Fermer la caisse</Button>
+            <Button type="button" variant="secondary" onClick={onClose}>{tr('Annuler', 'Cancel')}</Button>
+            <Button type="submit" busy={busy}>{tr('Fermer la caisse', 'Close the cash register')}</Button>
           </div>
         </form>
       )}
@@ -243,6 +247,7 @@ function usePayments(propertyId: string, from: string, to: string) {
 }
 
 function PaymentsTab({ property, from, to }: { property: Property; from: string; to: string }) {
+  const { tr } = useI18n();
   const payments = usePayments(property.id, from, to);
   const { error, run: act } = useAction();
   const byMethod = useMemo(() => {
@@ -270,8 +275,8 @@ function PaymentsTab({ property, from, to }: { property: Property; from: string;
             amount: p.amount,
           })),
           [
-            { key: 'date', label: 'Date' }, { key: 'code', label: 'Réservation' }, { key: 'guest', label: 'Client' },
-            { key: 'method', label: 'Moyen' }, { key: 'reference', label: 'Référence' }, { key: 'amount', label: 'Montant' },
+            { key: 'date', label: tr('Date', 'Date') }, { key: 'code', label: tr('Réservation', 'Reservation') }, { key: 'guest', label: tr('Client', 'Guest') },
+            { key: 'method', label: tr('Moyen', 'Method') }, { key: 'reference', label: tr('Référence', 'Reference') }, { key: 'amount', label: tr('Montant', 'Amount') },
           ],
         ),
       );
@@ -281,14 +286,14 @@ function PaymentsTab({ property, from, to }: { property: Property; from: string;
     <div className="space-y-4">
       <ErrorNote message={error ?? payments.error} />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <Stat label="Total encaissé" value={formatMoney(total)} hint={`${rows.length} opérations`} />
+        <Stat label={tr('Total encaissé', 'Total collected')} value={formatMoney(total)} hint={tr(`${rows.length} opérations`, `${rows.length} transactions`)} />
         {byMethod.slice(0, 3).map(([m, v]) => <Stat key={m} label={PAYMENT_METHOD_LABELS[m]} value={formatMoney(v)} />)}
       </div>
-      <Card title="Journal des paiements" actions={<Button variant="secondary" icon={Download} onClick={exportCsv}>Exporter</Button>}>
+      <Card title={tr('Journal des paiements', 'Payment log')} actions={<Button variant="secondary" icon={Download} onClick={exportCsv}>{tr('Exporter', 'Export')}</Button>}>
         {rows.length === 0 ? (
-          <Empty>Aucun paiement sur la période.</Empty>
+          <Empty>{tr('Aucun paiement sur la période.', 'No payments in this period.')}</Empty>
         ) : (
-          <Table head={['Date', 'Réservation', 'Client', 'Moyen', 'Référence', 'Montant']}>
+          <Table head={[tr('Date', 'Date'), tr('Réservation', 'Reservation'), tr('Client', 'Guest'), tr('Moyen', 'Method'), tr('Référence', 'Reference'), tr('Montant', 'Amount')]}>
             {rows.map((p) => (
               <tr key={p.id}>
                 <td className="p-3 whitespace-nowrap">{new Date(p.created_at).toLocaleString('fr-FR')}</td>
@@ -330,6 +335,7 @@ function useInvoices(propertyId: string, from: string, to: string) {
 }
 
 function InvoicesTab({ property, role, from, to }: { property: Property; role: AppRole; from: string; to: string }) {
+  const { tr } = useI18n();
   const invoices = useInvoices(property.id, from, to);
   const canCredit = ['owner', 'general_manager', 'accountant'].includes(role);
   const [printing, setPrinting] = useState<InvoiceLine | null>(null);
@@ -341,21 +347,21 @@ function InvoicesTab({ property, role, from, to }: { property: Property; role: A
     <div className="space-y-4">
       <ErrorNote message={error ?? invoices.error} />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <Stat label="Chiffre d’affaires TTC" value={formatMoney(live.reduce((s, i) => s + i.total, 0))} hint="Hors factures annulées" />
-        <Stat label="TVA collectée" value={formatMoney(live.reduce((s, i) => s + i.vat_amount, 0))} />
-        <Stat label="Taxe de séjour" value={formatMoney(live.reduce((s, i) => s + i.tourist_tax, 0))} />
-        <Stat label="Avoirs" value={String(rows.length - live.length)} />
+        <Stat label={tr('Chiffre d’affaires TTC', 'Revenue incl. tax')} value={formatMoney(live.reduce((s, i) => s + i.total, 0))} hint={tr('Hors factures annulées', 'Excluding cancelled invoices')} />
+        <Stat label={tr('TVA collectée', 'VAT collected')} value={formatMoney(live.reduce((s, i) => s + i.vat_amount, 0))} />
+        <Stat label={tr('Taxe de séjour', 'Tourist tax')} value={formatMoney(live.reduce((s, i) => s + i.tourist_tax, 0))} />
+        <Stat label={tr('Avoirs', 'Credit notes')} value={String(rows.length - live.length)} />
       </div>
-      <Card title="Factures">
+      <Card title={tr('Factures', 'Invoices')}>
         {rows.length === 0 ? (
-          <Empty>Aucune facture sur la période.</Empty>
+          <Empty>{tr('Aucune facture sur la période.', 'No invoices in this period.')}</Empty>
         ) : (
-          <Table head={['Numéro', 'Date', 'Réservation', 'Client', 'HT', 'TVA', 'TTC', '']}>
+          <Table head={[tr('Numéro', 'Number'), tr('Date', 'Date'), tr('Réservation', 'Reservation'), tr('Client', 'Guest'), tr('HT', 'Excl. tax'), tr('TVA', 'VAT'), tr('TTC', 'Incl. tax'), '']}>
             {rows.map((i) => (
               <tr key={i.id} className={i.credit_notes.length ? 'opacity-60' : ''}>
                 <td className="p-3 font-mono font-bold">
                   {i.display_number}
-                  {i.credit_notes[0] && <span className="block text-[9px] text-red-600">Avoir {i.credit_notes[0].display_number}</span>}
+                  {i.credit_notes[0] && <span className="block text-[9px] text-red-600">{tr('Avoir', 'Credit note')} {i.credit_notes[0].display_number}</span>}
                 </td>
                 <td className="p-3">{formatDate(i.issued_at.slice(0, 10))}</td>
                 <td className="p-3 font-mono">{i.reservation?.code}</td>
@@ -364,15 +370,15 @@ function InvoicesTab({ property, role, from, to }: { property: Property; role: A
                 <td className="p-3 font-mono text-right">{formatMoney(i.vat_amount)}</td>
                 <td className="p-3 font-mono text-right font-bold">{formatMoney(i.total)}</td>
                 <td className="p-3 text-right whitespace-nowrap">
-                  <Button variant="ghost" icon={Printer} onClick={() => setPrinting(i)} aria-label="Imprimer" />
+                  <Button variant="ghost" icon={Printer} onClick={() => setPrinting(i)} aria-label={tr('Imprimer', 'Print')} />
                   {canCredit && !i.credit_notes.length && (
                     <Button
                       variant="ghost"
                       icon={Undo2}
                       busy={busy}
-                      aria-label="Émettre un avoir"
+                      aria-label={tr('Émettre un avoir', 'Issue a credit note')}
                       onClick={() => {
-                        const reason = prompt(`Motif de l’avoir sur ${i.display_number} :`);
+                        const reason = prompt(tr(`Motif de l’avoir sur ${i.display_number} :`, `Reason for the credit note on ${i.display_number}:`));
                         if (reason) act(async () => { await rpc('issue_credit_note', { p_invoice: i.id, p_reason: reason }); await invoices.reload(); });
                       }}
                     />
@@ -415,6 +421,7 @@ interface Audit {
 }
 
 function NightAuditTab({ property, role, today, onChanged }: { property: Property; role: AppRole; today: string; onChanged: () => void }) {
+  const { tr } = useI18n();
   const canRun = ['owner', 'general_manager', 'reservation_manager', 'front_desk'].includes(role);
   const audits = useQuery(
     async () => (await run(supabase.from('night_audits').select('*').eq('property_id', property.id).order('business_date', { ascending: false }).limit(60))) as Audit[],
@@ -426,19 +433,21 @@ function NightAuditTab({ property, role, today, onChanged }: { property: Propert
 
   return (
     <div className="space-y-4">
-      <Card title="Clôture de journée">
+      <Card title={tr('Clôture de journée', 'End of day')}>
         <p className="text-xs text-slate-600 mb-3">
-          L’audit de nuit passe automatiquement chaque nuit à 2 h 30 (heure de Dakar). Il clôt la journée, déclare
-          no-show les arrivées non présentées et fige les indicateurs. Vous pouvez le lancer à la main pour la veille.
+          {tr(
+            'L’audit de nuit passe automatiquement chaque nuit à 2 h 30 (heure de Dakar). Il clôt la journée, déclare no-show les arrivées non présentées et fige les indicateurs. Vous pouvez le lancer à la main pour la veille.',
+            'The night audit runs automatically every night at 2:30 a.m. (Dakar time). It closes the day, marks arrivals that did not show up as no-shows and freezes the indicators. You can run it manually for the previous day.',
+          )}
         </p>
         {done ? (
-          <Badge tone="green">Journée du {formatDate(yesterday)} clôturée</Badge>
+          <Badge tone="green">{tr(`Journée du ${formatDate(yesterday)} clôturée`, `Day of ${formatDate(yesterday)} closed`)}</Badge>
         ) : canRun ? (
           <Button
             icon={Moon}
             busy={busy}
             onClick={() =>
-              confirm(`Clôturer la journée du ${formatDate(yesterday)} ? Les arrivées non présentées passeront en no-show.`) &&
+              confirm(tr(`Clôturer la journée du ${formatDate(yesterday)} ? Les arrivées non présentées passeront en no-show.`, `Close the day of ${formatDate(yesterday)}? Arrivals that did not show up will be marked as no-shows.`)) &&
               act(async () => {
                 await rpc('run_night_audit', { p_property: property.id, p_date: yesterday });
                 await audits.reload();
@@ -446,19 +455,19 @@ function NightAuditTab({ property, role, today, onChanged }: { property: Propert
               })
             }
           >
-            Clôturer la journée du {formatDate(yesterday)}
+            {tr(`Clôturer la journée du ${formatDate(yesterday)}`, `Close the day of ${formatDate(yesterday)}`)}
           </Button>
         ) : null}
         <div className="mt-3"><ErrorNote message={error ?? audits.error} /></div>
       </Card>
-      <Card title="Historique">
+      <Card title={tr('Historique', 'History')}>
         {!audits.data?.length ? (
-          <Empty>Aucun audit de nuit.</Empty>
+          <Empty>{tr('Aucun audit de nuit.', 'No night audits.')}</Empty>
         ) : (
-          <Table head={['Journée', 'Occupation', 'Arrivées', 'Départs', 'No-show', 'CA hébergement', 'Extras', 'Encaissé']}>
+          <Table head={[tr('Journée', 'Day'), tr('Occupation', 'Occupancy'), tr('Arrivées', 'Arrivals'), tr('Départs', 'Departures'), tr('No-show', 'No-show'), tr('CA hébergement', 'Room revenue'), tr('Extras', 'Extras'), tr('Encaissé', 'Collected')]}>
             {audits.data.map((a) => (
               <tr key={a.id}>
-                <td className="p-3 font-bold">{formatDate(a.business_date)}{!a.run_by && <span className="block text-[9px] text-slate-400">automatique</span>}</td>
+                <td className="p-3 font-bold">{formatDate(a.business_date)}{!a.run_by && <span className="block text-[9px] text-slate-400">{tr('automatique', 'automatic')}</span>}</td>
                 <td className="p-3 font-mono">{a.rooms_occupied}/{a.rooms_total} ({a.rooms_total ? Math.round((a.rooms_occupied / a.rooms_total) * 100) : 0} %)</td>
                 <td className="p-3 font-mono">{a.arrivals}</td>
                 <td className="p-3 font-mono">{a.departures}</td>
@@ -499,6 +508,7 @@ const PAYMENT_ACCOUNT: Record<PaymentMethod, string> = {
 };
 
 function ExportsTab({ property, from, to }: { property: Property; from: string; to: string }) {
+  const { tr } = useI18n();
   const invoices = useInvoices(property.id, from, to);
   const payments = usePayments(property.id, from, to);
   const { busy, error, run: act } = useAction();
@@ -541,9 +551,9 @@ function ExportsTab({ property, from, to }: { property: Property; from: string; 
       downloadCsv(
         `journal-${property.code}-${from}-${to}.csv`,
         toCsv(lines, [
-          { key: 'date', label: 'Date' }, { key: 'journal', label: 'Journal' }, { key: 'piece', label: 'Pièce' },
-          { key: 'account', label: 'Compte' }, { key: 'label', label: 'Libellé' }, { key: 'debit', label: 'Débit' },
-          { key: 'credit', label: 'Crédit' },
+          { key: 'date', label: tr('Date', 'Date') }, { key: 'journal', label: tr('Journal', 'Journal') }, { key: 'piece', label: tr('Pièce', 'Document') },
+          { key: 'account', label: tr('Compte', 'Account') }, { key: 'label', label: tr('Libellé', 'Description') }, { key: 'debit', label: tr('Débit', 'Debit') },
+          { key: 'credit', label: tr('Crédit', 'Credit') },
         ]),
       );
     });
@@ -561,9 +571,9 @@ function ExportsTab({ property, from, to }: { property: Property; from: string; 
             total: i.total, credit: i.credit_notes[0]?.display_number ?? '',
           })),
           [
-            { key: 'number', label: 'Numéro' }, { key: 'date', label: 'Date' }, { key: 'reservation', label: 'Réservation' },
-            { key: 'guest', label: 'Client' }, { key: 'subtotal', label: 'HT' }, { key: 'vat', label: 'TVA' },
-            { key: 'tax', label: 'Taxe de séjour' }, { key: 'total', label: 'TTC' }, { key: 'credit', label: 'Avoir' },
+            { key: 'number', label: tr('Numéro', 'Number') }, { key: 'date', label: tr('Date', 'Date') }, { key: 'reservation', label: tr('Réservation', 'Reservation') },
+            { key: 'guest', label: tr('Client', 'Guest') }, { key: 'subtotal', label: tr('HT', 'Excl. tax') }, { key: 'vat', label: tr('TVA', 'VAT') },
+            { key: 'tax', label: tr('Taxe de séjour', 'Tourist tax') }, { key: 'total', label: tr('TTC', 'Incl. tax') }, { key: 'credit', label: tr('Avoir', 'Credit note') },
           ],
         ),
       );
@@ -573,16 +583,16 @@ function ExportsTab({ property, from, to }: { property: Property; from: string; 
   return (
     <div className="space-y-4">
       <ErrorNote message={error ?? invoices.error ?? payments.error} />
-      <Card title="Journal comptable (SYSCOHADA)">
+      <Card title={tr('Journal comptable (SYSCOHADA)', 'Accounting journal (SYSCOHADA)')}>
         <p className="text-xs text-slate-600 mb-3">
-          Écritures de ventes (journal VT) et de trésorerie (journal TR) de la période, au format CSV. Comptes par défaut :
-          clients {ACCOUNTS.customers}, ventes {ACCOUNTS.sales}, TVA collectée {ACCOUNTS.vat}, taxe de séjour {ACCOUNTS.touristTax},
-          caisse {ACCOUNTS.cash}, banque {ACCOUNTS.bank}, mobile money {ACCOUNTS.mobile}. Faites-les valider par votre
-          expert-comptable.
+          {tr(
+            `Écritures de ventes (journal VT) et de trésorerie (journal TR) de la période, au format CSV. Comptes par défaut : clients ${ACCOUNTS.customers}, ventes ${ACCOUNTS.sales}, TVA collectée ${ACCOUNTS.vat}, taxe de séjour ${ACCOUNTS.touristTax}, caisse ${ACCOUNTS.cash}, banque ${ACCOUNTS.bank}, mobile money ${ACCOUNTS.mobile}. Faites-les valider par votre expert-comptable.`,
+            `Sales entries (VT journal) and cash entries (TR journal) for the period, in CSV format. Default accounts: customers ${ACCOUNTS.customers}, sales ${ACCOUNTS.sales}, VAT collected ${ACCOUNTS.vat}, tourist tax ${ACCOUNTS.touristTax}, cash ${ACCOUNTS.cash}, bank ${ACCOUNTS.bank}, mobile money ${ACCOUNTS.mobile}. Have them validated by your chartered accountant.`,
+          )}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button icon={Download} busy={busy} onClick={journal}>Journal comptable</Button>
-          <Button variant="secondary" icon={Download} busy={busy} onClick={invoicesCsv}>Registre des factures</Button>
+          <Button icon={Download} busy={busy} onClick={journal}>{tr('Journal comptable', 'Accounting journal')}</Button>
+          <Button variant="secondary" icon={Download} busy={busy} onClick={invoicesCsv}>{tr('Registre des factures', 'Invoice register')}</Button>
         </div>
       </Card>
     </div>

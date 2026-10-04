@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
+import { useI18n } from '../lib/i18n';
 
 export interface RevenuePoint {
   month: string;
@@ -8,6 +9,7 @@ export interface RevenuePoint {
 
 // Encaissements réels par mois (table payments), six derniers mois.
 export default function RevenueChart({ data }: { data: RevenuePoint[] }) {
+  const { tr } = useI18n();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [containerWidth, setContainerWidth] = useState(500);
@@ -95,19 +97,19 @@ export default function RevenueChart({ data }: { data: RevenuePoint[] }) {
       {/* Header Info */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h4 className="text-sm font-bold text-slate-900 tracking-tight">Revenus</h4>
-          <p className="text-[11px] text-slate-400 font-medium">Encaissements enregistrés (hors taxe de séjour)</p>
+          <h4 className="text-sm font-bold text-slate-900 tracking-tight">{tr('Revenus', 'Revenue')}</h4>
+          <p className="text-[11px] text-slate-400 font-medium">{tr('Encaissements enregistrés (hors taxe de séjour)', 'Recorded payments (excluding tourist tax)')}</p>
         </div>
 
         <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-600 rounded-lg">
           <Calendar className="w-3.5 h-3.5" />
-          6 derniers mois
+          {tr('6 derniers mois', 'Last 6 months')}
         </span>
       </div>
 
       {/* Target and Total */}
       <div className="flex items-baseline gap-2 mb-4">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Total encaissé</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{tr('Total encaissé', 'Total collected')}</span>
         <span className="text-2xl font-extrabold text-[#09153D] tracking-tight font-mono">{formatCurrency(total)}</span>
       </div>
 

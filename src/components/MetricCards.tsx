@@ -1,5 +1,6 @@
 import { Wallet, CalendarDays, ArrowUpRight, ArrowDownRight, BedDouble } from 'lucide-react';
 import { formatMoney } from '../lib/dates';
+import { useI18n } from '../lib/i18n';
 
 export interface DashboardStats {
   monthRevenue: number | null; // null : rôle sans accès aux données financières
@@ -14,35 +15,36 @@ export interface DashboardStats {
 // Indicateurs du jour calculés depuis la base. Pas de tendance inventée :
 // une variation n'apparaîtra que lorsqu'elle sera calculée sur des données.
 export default function MetricCards({ stats }: { stats: DashboardStats }) {
+  const { tr } = useI18n();
   const cards = [
     stats.monthRevenue !== null && {
-      label: 'Encaissé ce mois',
+      label: tr('Encaissé ce mois', 'Collected this month'),
       value: formatMoney(stats.monthRevenue),
-      hint: 'Paiements enregistrés depuis le 1er',
+      hint: tr('Paiements enregistrés depuis le 1er', 'Payments recorded since the 1st'),
       icon: Wallet,
     },
     {
-      label: 'Réservations créées',
+      label: tr('Réservations créées', 'Reservations created'),
       value: String(stats.newReservations7d),
-      hint: 'Sur les 7 derniers jours',
+      hint: tr('Sur les 7 derniers jours', 'Over the last 7 days'),
       icon: CalendarDays,
     },
     {
-      label: 'Arrivées du jour',
+      label: tr('Arrivées du jour', 'Today\'s arrivals'),
       value: `${stats.arrivalsDone} / ${stats.arrivalsExpected}`,
-      hint: 'Enregistrées / attendues',
+      hint: tr('Enregistrées / attendues', 'Checked in / expected'),
       icon: ArrowUpRight,
     },
     {
-      label: 'Départs du jour',
+      label: tr('Départs du jour', 'Today\'s departures'),
       value: `${stats.departuresDone} / ${stats.departuresExpected}`,
-      hint: 'Effectués / prévus',
+      hint: tr('Effectués / prévus', 'Checked out / due'),
       icon: ArrowDownRight,
     },
     {
-      label: 'Occupation',
+      label: tr('Occupation', 'Occupancy'),
       value: `${stats.occupancyRate} %`,
-      hint: 'Chambres occupées ce soir',
+      hint: tr('Chambres occupées ce soir', 'Rooms occupied tonight'),
       icon: BedDouble,
     },
   ].filter(Boolean) as { label: string; value: string; hint: string; icon: typeof Wallet }[];

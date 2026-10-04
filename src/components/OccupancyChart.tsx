@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CalendarRange } from 'lucide-react';
+import { useI18n } from '../lib/i18n';
 
 export interface OccupancyPoint {
   day: string;
@@ -14,6 +15,7 @@ interface OccupancyChartProps {
 
 // Nuitées occupées par jour, calculées depuis les réservations.
 export default function OccupancyChart({ data, totalCapacity: capacity }: OccupancyChartProps) {
+  const { tr } = useI18n();
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
   const totalCapacity = Math.max(capacity, 1);
 
@@ -22,26 +24,26 @@ export default function OccupancyChart({ data, totalCapacity: capacity }: Occupa
       {/* Header section */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h4 className="text-sm font-bold text-slate-900 tracking-tight">Tendance d'Occupation</h4>
-          <p className="text-[11px] text-slate-400 font-medium">Indicateurs journaliers du flux de clients</p>
+          <h4 className="text-sm font-bold text-slate-900 tracking-tight">{tr("Tendance d'Occupation", 'Occupancy trend')}</h4>
+          <p className="text-[11px] text-slate-400 font-medium">{tr('Indicateurs journaliers du flux de clients', 'Daily guest flow indicators')}</p>
         </div>
 
         <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-600 rounded-lg">
           <CalendarRange className="w-3.5 h-3.5" />
-          7 derniers jours
+          {tr('7 derniers jours', 'Last 7 days')}
         </span>
       </div>
 
       {/* Interactive Legend block */}
       <div className="flex items-center gap-4 mb-6">
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Légende :</label>
+        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{tr('Légende :', 'Legend:')}</label>
         <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
           <span className="w-3 h-3 rounded bg-orange-500 inline-block"></span>
-          <span>Occupé</span>
+          <span>{tr('Occupé', 'Occupied')}</span>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
           <span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 inline-block"></span>
-          <span>Disponible</span>
+          <span>{tr('Disponible', 'Available')}</span>
         </div>
       </div>
 
@@ -91,10 +93,10 @@ export default function OccupancyChart({ data, totalCapacity: capacity }: Occupa
                 <div className="absolute bottom-16 bg-[#09153D] text-white p-2.5 rounded-xl text-center shadow-lg border border-slate-700/60 z-10 w-32 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
                   <p className="text-[10px] font-bold text-orange-400">{item.day}</p>
                   <p className="text-xs font-bold font-mono mt-0.5">
-                    {item.occupied} Occ. ({Math.round(occupiedPercent)}%)
+                    {item.occupied} {tr('Occ.', 'Occ.')} ({Math.round(occupiedPercent)}%)
                   </p>
                   <p className="text-[9px] text-slate-300 font-medium mt-0.5">
-                    {item.available} Libres ({Math.round(availablePercent)}%)
+                    {item.available} {tr('Libres', 'Free')} ({Math.round(availablePercent)}%)
                   </p>
                 </div>
               )}

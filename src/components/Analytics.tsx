@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
 import { addDays, formatMoney, nightsBetween } from '../lib/dates';
 import { Card, Empty, ErrorNote, Field, Input, Loading, PageHeader, Stat, Table } from './ui';
+import { useI18n } from '../lib/i18n';
 
 interface Res {
   status: ReservationStatus;
@@ -26,6 +27,7 @@ interface Props {
 // Indicateurs hôteliers calculés sur les nuitées de la période :
 // TO (taux d'occupation), PMC (prix moyen chambre, ADR) et RevPAR.
 export default function Analytics({ property, roomCount, today }: Props) {
+  const { tr } = useI18n();
   const [from, setFrom] = useState(`${today.slice(0, 7)}-01`);
   const [to, setTo] = useState(today);
 
@@ -84,10 +86,10 @@ export default function Analytics({ property, roomCount, today }: Props) {
 
   return (
     <div className="fade-in-up">
-      <PageHeader title="Statistiques" subtitle="Indicateurs calculés à partir des réservations (nuitées vendues sur la période)." />
+      <PageHeader title={tr('Statistiques', 'Analytics')} subtitle={tr('Indicateurs calculés à partir des réservations (nuitées vendues sur la période).', 'Indicators computed from reservations (room nights sold over the period).')} />
       <div className="flex flex-wrap gap-3 mb-6">
-        <Field label="Du"><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
-        <Field label="Au"><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+        <Field label={tr('Du', 'From')}><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+        <Field label={tr('Au', 'To')}><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
       </div>
       <ErrorNote message={data.error} />
       {data.loading && !data.data ? (
@@ -95,15 +97,15 @@ export default function Analytics({ property, roomCount, today }: Props) {
       ) : (
         <>
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-            <Stat label="Taux d’occupation" value={`${kpi.occupancy.toLocaleString('fr-FR')} %`} hint={`${kpi.roomNights} nuitées vendues`} />
-            <Stat label="Prix moyen chambre (PMC)" value={formatMoney(kpi.adr)} />
-            <Stat label="RevPAR" value={formatMoney(kpi.revpar)} hint="Revenu hébergement par chambre disponible" />
-            <Stat label="CA hébergement" value={formatMoney(kpi.roomRevenue)} hint={`+ ${formatMoney(data.data?.extras ?? 0)} d’extras`} />
+            <Stat label={tr('Taux d’occupation', 'Occupancy rate')} value={`${kpi.occupancy.toLocaleString('fr-FR')} %`} hint={tr(`${kpi.roomNights} nuitées vendues`, `${kpi.roomNights} room nights sold`)} />
+            <Stat label={tr('Prix moyen chambre (PMC)', 'Average daily rate (ADR)')} value={formatMoney(kpi.adr)} />
+            <Stat label="RevPAR" value={formatMoney(kpi.revpar)} hint={tr('Revenu hébergement par chambre disponible', 'Room revenue per available room')} />
+            <Stat label={tr('CA hébergement', 'Room revenue')} value={formatMoney(kpi.roomRevenue)} hint={tr(`+ ${formatMoney(data.data?.extras ?? 0)} d’extras`, `+ ${formatMoney(data.data?.extras ?? 0)} in extras`)} />
           </div>
           <div className="grid xl:grid-cols-2 gap-4">
-            <Card title="Par provenance">
-              {kpi.bySource.length === 0 ? <Empty>Aucune donnée.</Empty> : (
-                <Table head={['Provenance', 'Nuitées', 'CA', 'Part']}>
+            <Card title={tr('Par provenance', 'By source')}>
+              {kpi.bySource.length === 0 ? <Empty>{tr('Aucune donnée.', 'No data.')}</Empty> : (
+                <Table head={[tr('Provenance', 'Source'), tr('Nuitées', 'Room nights'), tr('CA', 'Revenue'), tr('Part', 'Share')]}>
                   {kpi.bySource.map(([s, v]) => (
                     <tr key={s}>
                       <td className="p-3 font-semibold">{SOURCE_LABELS[s]}</td>
@@ -115,9 +117,9 @@ export default function Analytics({ property, roomCount, today }: Props) {
                 </Table>
               )}
             </Card>
-            <Card title="Par type de chambre">
-              {kpi.byType.length === 0 ? <Empty>Aucune donnée.</Empty> : (
-                <Table head={['Type', 'Nuitées', 'CA', 'PMC']}>
+            <Card title={tr('Par type de chambre', 'By room type')}>
+              {kpi.byType.length === 0 ? <Empty>{tr('Aucune donnée.', 'No data.')}</Empty> : (
+                <Table head={[tr('Type', 'Type'), tr('Nuitées', 'Room nights'), tr('CA', 'Revenue'), tr('PMC', 'ADR')]}>
                   {kpi.byType.map(([t, v]) => (
                     <tr key={t}>
                       <td className="p-3 font-semibold">{t}</td>
@@ -129,12 +131,12 @@ export default function Analytics({ property, roomCount, today }: Props) {
                 </Table>
               )}
             </Card>
-            <Card title="Réservations de la période">
+            <Card title={tr('Réservations de la période', 'Reservations in the period')}>
               <dl className="grid grid-cols-2 gap-2 text-xs">
-                <dt className="text-slate-500">Créées</dt><dd className="font-mono font-bold">{kpi.createdCount}</dd>
-                <dt className="text-slate-500">Annulées</dt><dd className="font-mono font-bold">{kpi.cancellations}</dd>
-                <dt className="text-slate-500">No-show</dt><dd className="font-mono font-bold">{kpi.noShows}</dd>
-                <dt className="text-slate-500">Chambres en service</dt><dd className="font-mono font-bold">{roomCount}</dd>
+                <dt className="text-slate-500">{tr('Créées', 'Created')}</dt><dd className="font-mono font-bold">{kpi.createdCount}</dd>
+                <dt className="text-slate-500">{tr('Annulées', 'Cancelled')}</dt><dd className="font-mono font-bold">{kpi.cancellations}</dd>
+                <dt className="text-slate-500">{tr('No-show', 'No-show')}</dt><dd className="font-mono font-bold">{kpi.noShows}</dd>
+                <dt className="text-slate-500">{tr('Chambres en service', 'Rooms in service')}</dt><dd className="font-mono font-bold">{roomCount}</dd>
               </dl>
             </Card>
           </div>
