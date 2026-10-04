@@ -1,3 +1,4 @@
+import { bilingual } from './i18n';
 import type { RBACRole } from '../types';
 
 // Rôles tels que stockés en base (public.app_role).
@@ -12,17 +13,17 @@ export type AppRole =
   | 'accountant'
   | 'auditor';
 
-export const APP_ROLE_LABELS: Record<AppRole, string> = {
-  owner: 'Propriétaire',
-  general_manager: 'Directeur général',
-  reservation_manager: 'Responsable réservations',
-  front_desk: 'Réception',
-  housekeeping_manager: 'Gouvernante',
-  housekeeper: 'Femme / valet de chambre',
-  maintenance: 'Maintenance',
-  accountant: 'Comptabilité',
-  auditor: 'Auditeur',
-};
+export const APP_ROLE_LABELS = bilingual<AppRole>({
+  owner: ['Propriétaire', 'Owner'],
+  general_manager: ['Directeur général', 'General manager'],
+  reservation_manager: ['Responsable réservations', 'Reservations manager'],
+  front_desk: ['Réception', 'Front desk'],
+  housekeeping_manager: ['Gouvernante', 'Head housekeeper'],
+  housekeeper: ['Femme / valet de chambre', 'Room attendant'],
+  maintenance: ['Maintenance', 'Maintenance'],
+  accountant: ['Comptabilité', 'Accounting'],
+  auditor: ['Auditeur', 'Auditor'],
+});
 
 // Les écrans existants raisonnent sur quatre profils. Le rôle serveur décide
 // du profil d'affichage ; les droits réels sont appliqués par la RLS et les

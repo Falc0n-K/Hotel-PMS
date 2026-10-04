@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, errorMessage } from './supabase';
 import { addDays, todayIn } from './dates';
+import { bilingual } from './i18n';
 import type { Property } from './auth';
 import type { Room, RoomStatus } from '../types';
 
@@ -13,51 +14,51 @@ export type BookingSource =
 export type ChargeCategory =
   | 'room' | 'breakfast' | 'restaurant' | 'bar' | 'minibar' | 'laundry' | 'transport' | 'spa' | 'tourist_tax' | 'other';
 
-export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: 'Espèces',
-  card: 'Carte (TPE)',
-  wave: 'Wave',
-  orange_money: 'Orange Money',
-  bank_transfer: 'Virement',
-  other: 'Autre',
-};
+export const PAYMENT_METHOD_LABELS = bilingual<PaymentMethod>({
+  cash: ['Espèces', 'Cash'],
+  card: ['Carte (TPE)', 'Card (terminal)'],
+  wave: ['Wave', 'Wave'],
+  orange_money: ['Orange Money', 'Orange Money'],
+  bank_transfer: ['Virement', 'Bank transfer'],
+  other: ['Autre', 'Other'],
+});
 
-export const SOURCE_LABELS: Record<BookingSource, string> = {
-  direct: 'Direct',
-  phone: 'Téléphone',
-  walk_in: 'Sans réservation',
-  email: 'E-mail',
-  booking_com: 'Booking.com',
-  expedia: 'Expedia',
-  airbnb: 'Airbnb',
-  tour_operator: 'Tour-opérateur',
-  corporate: 'Entreprise',
-  other: 'Autre',
-  website: 'Site (en ligne)',
-  api: 'API partenaire',
-};
+export const SOURCE_LABELS = bilingual<BookingSource>({
+  direct: ['Direct', 'Direct'],
+  phone: ['Téléphone', 'Phone'],
+  walk_in: ['Sans réservation', 'Walk-in'],
+  email: ['E-mail', 'Email'],
+  booking_com: ['Booking.com', 'Booking.com'],
+  expedia: ['Expedia', 'Expedia'],
+  airbnb: ['Airbnb', 'Airbnb'],
+  tour_operator: ['Tour-opérateur', 'Tour operator'],
+  corporate: ['Entreprise', 'Corporate'],
+  other: ['Autre', 'Other'],
+  website: ['Site (en ligne)', 'Website (online)'],
+  api: ['API partenaire', 'Partner API'],
+});
 
-export const CHARGE_LABELS: Record<ChargeCategory, string> = {
-  room: 'Hébergement',
-  breakfast: 'Petit-déjeuner',
-  restaurant: 'Restaurant',
-  bar: 'Bar',
-  minibar: 'Minibar',
-  laundry: 'Blanchisserie',
-  transport: 'Transport',
-  spa: 'Spa',
-  tourist_tax: 'Taxe de séjour',
-  other: 'Autre',
-};
+export const CHARGE_LABELS = bilingual<ChargeCategory>({
+  room: ['Hébergement', 'Accommodation'],
+  breakfast: ['Petit-déjeuner', 'Breakfast'],
+  restaurant: ['Restaurant', 'Restaurant'],
+  bar: ['Bar', 'Bar'],
+  minibar: ['Minibar', 'Minibar'],
+  laundry: ['Blanchisserie', 'Laundry'],
+  transport: ['Transport', 'Transport'],
+  spa: ['Spa', 'Spa'],
+  tourist_tax: ['Taxe de séjour', 'Tourist tax'],
+  other: ['Autre', 'Other'],
+});
 
-export const STATUS_LABELS: Record<ReservationStatus, string> = {
-  option: 'Option',
-  confirmed: 'Confirmée',
-  checked_in: 'En séjour',
-  checked_out: 'Partie',
-  cancelled: 'Annulée',
-  no_show: 'No-show',
-};
+export const STATUS_LABELS = bilingual<ReservationStatus>({
+  option: ['Option', 'Option'],
+  confirmed: ['Confirmée', 'Confirmed'],
+  checked_in: ['En séjour', 'In house'],
+  checked_out: ['Partie', 'Checked out'],
+  cancelled: ['Annulée', 'Cancelled'],
+  no_show: ['No-show', 'No-show'],
+});
 
 export interface RoomTypeRow {
   id: string;

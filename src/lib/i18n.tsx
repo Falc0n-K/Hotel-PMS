@@ -2,8 +2,8 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
 
 export type Lang = 'fr' | 'en';
 
-// Libellés de l'ossature (menu, en-tête, connexion, compte). Les écrans métier
-// restent en français pour l'instant ; ajouter une clé ici suffit pour les traduire.
+// Libellés de l'ossature (menu, en-tête, connexion, compte), par clé.
+// Les écrans métier traduisent en ligne : tr('Réservations', 'Reservations').
 const dict = {
   'nav.reception': { fr: 'Console Réception', en: 'Front desk' },
   'nav.dashboard': { fr: 'Tableau de bord', en: 'Dashboard' },
@@ -55,6 +55,23 @@ interface I18n {
   lang: Lang;
   setLang: (l: Lang) => void;
   t: (key: MessageKey) => string;
+  // Traduction en ligne : le français d'abord, l'anglais ensuite.
+  tr: (fr: string, en: string) => string;
+}
+
+// Langue courante, lisible hors des composants (libellés, messages d'erreur).
+let current: Lang = 'fr';
+export const currentLang = (): Lang => current;
+export const tr = (fr: string, en: string): string => (current === 'en' ? en : fr);
+
+// Table de libellés bilingue dont la lecture suit la langue courante :
+// STATUS_LABELS[status] renvoie le français ou l'anglais selon le choix.
+export function bilingual<K extends string>(labels: Record<K, readonly [fr: string, en: string]>): Record<K, string> {
+  const out = {} as Record<K, string>;
+  for (const key of Object.keys(labels) as K[]) {
+    Object.defineProperty(out, key, { enumerable: true, get: () => labels[key][current === 'en' ? 1 : 0] });
+  }
+  return out;
 }
 
 const I18nContext = createContext<I18n | null>(null);
@@ -70,8 +87,9 @@ function initialLang(): Lang {
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(initialLang);
+  const [lang, setLangState] = useState<Lang>(() => (current = initialLang()));
   const setLang = useCallback((l: Lang) => {
+    current = l;
     setLangState(l);
     document.documentElement.lang = l;
     try {
@@ -80,8 +98,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       /* stockage indisponible */
     }
   }, []);
+  current = lang;
   const t = useCallback((key: MessageKey) => dict[key][lang], [lang]);
-  return <I18nContext.Provider value={{ lang, setLang, t }}>{children}</I18nContext.Provider>;
+  const trLang = useCallback((fr: string, en: string) => (lang === 'en' ? en : fr), [lang]);
+  // App lit ce contexte : un changement de langue redessine tout l'arbre,
+  // y compris les composants qui n'utilisent que les tables de libellés.
+  return <I18nContext.Provider value={{ lang, setLang, t, tr: trLang }}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n(): I18n {
