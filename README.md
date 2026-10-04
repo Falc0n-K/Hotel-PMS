@@ -27,12 +27,21 @@ fonctions SQL), l'interface ne fait que refléter ce que le serveur autorise.
 - **Pilotage** : tableau de bord, statistiques (TO, PMC, RevPAR, provenance), exports CSV
   journalisés, journal comptable SYSCOHADA, journal d'audit.
 - **Communications** : confirmation, annulation et rappel J-1 par e-mail, SMS, WhatsApp.
+- **Distribution** : page de réservation publique `/reserver/<adresse>` (FR/EN, captcha,
+  paiement en ligne, option bloquée le temps du paiement), API partenaires avec clés et
+  portées ([docs/api.md](docs/api.md)), webhooks signés, synchronisation iCal avec Airbnb,
+  Booking.com et autres plateformes.
 - **Technique** : application installable (PWA), copie hors ligne en lecture seule, Sentry
-  optionnel, interface FR/EN pour l'ossature.
+  optionnel, interface entièrement disponible en français et en anglais.
 
-Pas encore fait : channel manager (Cloudbeds), moteur de réservation public, API publique.
+Pas encore fait : channel manager temps réel (Cloudbeds : accès partenaire API à obtenir).
 
-Variables et secrets à renseigner : [docs/configuration.md](docs/configuration.md).
+Documentation :
+
+- variables et secrets à renseigner : [docs/configuration.md](docs/configuration.md) ;
+- revue de sécurité : [docs/securite.md](docs/securite.md) ;
+- tests de charge : [docs/charge.md](docs/charge.md) ;
+- conformité données personnelles (CDP), projets à valider : [docs/conformite/](docs/conformite/README.md).
 
 ## Démarrer en local
 
@@ -57,6 +66,7 @@ sur un Postgres local :
 
 ```bash
 DATABASE_URL=postgres://postgres@localhost:5432/postgres npm run test:db
+DATABASE_URL=postgres://postgres@localhost:5432/postgres npm run test:load   # concurrence et charge (pgbench)
 ```
 
 Les Edge Functions (`supabase/functions/`) se vérifient avec Deno :
