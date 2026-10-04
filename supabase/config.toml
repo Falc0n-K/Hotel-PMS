@@ -1,0 +1,17 @@
+# Configuration Supabase CLI (déploiement des fonctions depuis la CI).
+project_id = "gqbztdprvqwewivzebsa"
+
+# Appelée par pg_cron avec x-cron-secret, pas par un utilisateur.
+[functions.send-notifications]
+verify_jwt = false
+
+# Appelée depuis l'application avec le jeton de l'utilisateur.
+[functions.create-payment-link]
+verify_jwt = true
+
+# Appelées par Stripe et PayDunya : authentifiées par signature, pas par JWT.
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.paydunya-ipn]
+verify_jwt = false
