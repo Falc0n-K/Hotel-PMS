@@ -8,7 +8,8 @@ export type HousekeepingStatus = 'clean' | 'dirty' | 'inspected' | 'out_of_order
 export type ReservationStatus = 'option' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show';
 export type PaymentMethod = 'cash' | 'card' | 'wave' | 'orange_money' | 'bank_transfer' | 'other';
 export type BookingSource =
-  | 'direct' | 'phone' | 'walk_in' | 'email' | 'booking_com' | 'expedia' | 'airbnb' | 'tour_operator' | 'corporate' | 'other';
+  | 'direct' | 'phone' | 'walk_in' | 'email' | 'booking_com' | 'expedia' | 'airbnb' | 'tour_operator' | 'corporate' | 'other'
+  | 'website' | 'api';
 export type ChargeCategory =
   | 'room' | 'breakfast' | 'restaurant' | 'bar' | 'minibar' | 'laundry' | 'transport' | 'spa' | 'tourist_tax' | 'other';
 
@@ -32,6 +33,8 @@ export const SOURCE_LABELS: Record<BookingSource, string> = {
   tour_operator: 'Tour-opérateur',
   corporate: 'Entreprise',
   other: 'Autre',
+  website: 'Site (en ligne)',
+  api: 'API partenaire',
 };
 
 export const CHARGE_LABELS: Record<ChargeCategory, string> = {

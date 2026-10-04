@@ -328,6 +328,7 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
             property={property}
             roomTypes={data.roomTypes}
             ratePlans={data.ratePlans}
+            rooms={data.rooms}
             aal2={aal === 'aal2'}
             onChanged={async () => {
               await refreshMemberships();

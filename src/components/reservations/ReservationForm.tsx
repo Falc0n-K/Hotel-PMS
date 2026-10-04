@@ -222,7 +222,7 @@ export default function ReservationForm({
           </Field>
           <Field label="Provenance">
             <Select value={source} onChange={(e) => setSource(e.target.value as BookingSource)}>
-              {(Object.keys(SOURCE_LABELS) as BookingSource[]).map((s) => (
+              {(Object.keys(SOURCE_LABELS) as BookingSource[]).filter((s) => s === source || (s !== 'website' && s !== 'api')).map((s) => (
                 <option key={s} value={s}>{SOURCE_LABELS[s]}</option>
               ))}
             </Select>

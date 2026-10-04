@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { Plus, Save, Trash2, Lock } from 'lucide-react';
 import type { Property } from '../lib/auth';
 import { run, type RatePlanRow, type RoomTypeRow } from '../lib/pmsData';
 import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
 import { formatDate, formatMoney } from '../lib/dates';
+import type { Room } from '../types';
 import {
   Badge, Button, Card, Checkbox, Empty, ErrorNote, Field, Input, Loading, Modal, PageHeader, Select, Table, Tabs, useAction,
 } from './ui';
@@ -13,13 +14,16 @@ interface Props {
   property: Property;
   roomTypes: RoomTypeRow[];
   ratePlans: RatePlanRow[];
+  rooms: Room[];
   aal2: boolean;
   onChanged: () => Promise<void> | void;
 }
 
-type Tab = 'property' | 'types' | 'rates' | 'security';
+type Tab = 'property' | 'types' | 'rates' | 'distribution' | 'security';
 
-export default function Settings({ property, roomTypes, ratePlans, aal2, onChanged }: Props) {
+const Distribution = lazy(() => import('./Distribution'));
+
+export default function Settings({ property, roomTypes, ratePlans, rooms, aal2, onChanged }: Props) {
   const [tab, setTab] = useState<Tab>('property');
   return (
     <div className="fade-in-up">
@@ -31,12 +35,18 @@ export default function Settings({ property, roomTypes, ratePlans, aal2, onChang
           { id: 'property', label: 'Établissement' },
           { id: 'types', label: 'Types de chambre' },
           { id: 'rates', label: 'Tarifs' },
+          { id: 'distribution', label: 'Distribution' },
           { id: 'security', label: 'Notifications et sécurité' },
         ]}
       />
       {tab === 'property' && <PropertyForm property={property} onChanged={onChanged} />}
       {tab === 'types' && <RoomTypes property={property} roomTypes={roomTypes} onChanged={onChanged} />}
       {tab === 'rates' && <Rates property={property} roomTypes={roomTypes} ratePlans={ratePlans} onChanged={onChanged} />}
+      {tab === 'distribution' && (
+        <Suspense fallback={<Loading />}>
+          <Distribution property={property} rooms={rooms} onChanged={onChanged} />
+        </Suspense>
+      )}
       {tab === 'security' && <Security property={property} aal2={aal2} onChanged={onChanged} />}
     </div>
   );

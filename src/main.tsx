@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App.tsx';
@@ -29,13 +29,23 @@ function Crash() {
   );
 }
 
+// Page publique de réservation : servie sans authentification ni données internes.
+const PublicBooking = lazy(() => import('./components/PublicBooking'));
+const publicSlug = window.location.pathname.match(/^\/reserver\/([a-z0-9-]{3,40})\/?$/)?.[1];
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Sentry.ErrorBoundary fallback={<Crash />}>
       <I18nProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        {publicSlug ? (
+          <Suspense fallback={null}>
+            <PublicBooking slug={publicSlug} />
+          </Suspense>
+        ) : (
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        )}
       </I18nProvider>
     </Sentry.ErrorBoundary>
   </StrictMode>,

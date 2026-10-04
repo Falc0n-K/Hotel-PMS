@@ -27,6 +27,11 @@ export interface Property {
   notify_sms: boolean;
   notify_whatsapp: boolean;
   guest_retention_months: number;
+  booking_enabled: boolean;
+  booking_slug: string | null;
+  booking_hold_minutes: number;
+  booking_provider: 'stripe' | 'paydunya';
+  public_description: string | null;
 }
 
 export interface Membership {
