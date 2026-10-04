@@ -42,6 +42,7 @@ Redéployer après tout ajout (les `VITE_` sont lues à la compilation).
 |---|---|
 | `VITE_SENTRY_DSN` | sentry.io → projet → Settings → Client Keys (DSN). Public par conception. |
 | `VITE_APP_ENV` | `production` en Production, `preview` en Preview (étiquette dans Sentry et bandeau « Préproduction ») |
+| `VITE_TURNSTILE_SITE_KEY` | dash.cloudflare.com → Turnstile → Add widget (domaine Vercel) → Site Key. Public par conception. Requis pour la réservation en ligne. |
 
 ### Réglages Vercel (pas des variables)
 
@@ -115,6 +116,7 @@ automatiquement : ne pas les créer.
 | `TWILIO_AUTH_TOKEN` | idem | idem |
 | `TWILIO_SMS_FROM` | numéro ou Sender ID Twilio | SMS |
 | `TWILIO_WHATSAPP_FROM` | ex. `whatsapp:+14155238886` (sandbox) puis votre numéro validé | WhatsApp |
+| `TURNSTILE_SECRET_KEY` | dash.cloudflare.com → Turnstile → votre widget → Secret Key | Réservation en ligne (anti-robots) |
 | `CLOUDBEDS_CLIENT_ID` | Cloudbeds → programme partenaire API | Plus tard : intégration non développée |
 | `CLOUDBEDS_CLIENT_SECRET` | idem | idem |
 
@@ -125,6 +127,8 @@ automatiquement : ne pas les créer.
 | Stripe | Webhook endpoint (événements `checkout.session.completed`, `charge.refunded`) | `https://gqbztdprvqwewivzebsa.supabase.co/functions/v1/stripe-webhook` |
 | PayDunya | URL de notification (IPN) | `https://gqbztdprvqwewivzebsa.supabase.co/functions/v1/paydunya-ipn` |
 | Twilio | Aucune (envoi seulement) | |
+| Partenaires (API) | Base de l'API publique | `https://gqbztdprvqwewivzebsa.supabase.co/functions/v1/api/v1` (voir `docs/api.md`) |
+| Airbnb, Booking.com… | Export iCal d'une chambre | URL copiée depuis Paramètres → Distribution |
 
 ### 3.3 Coffre (Vault) pour les tâches planifiées
 
@@ -135,7 +139,8 @@ select vault.create_secret('https://gqbztdprvqwewivzebsa.supabase.co', 'project_
 select vault.create_secret('<même valeur que CRON_SECRET>', 'cron_secret');
 ```
 
-pg_cron lit ces deux valeurs pour appeler les fonctions d'envoi de rappels. L'audit de
+pg_cron lit ces deux valeurs pour appeler les fonctions d'envoi de rappels, de webhooks
+et de synchronisation iCal. L'audit de
 nuit, lui, tourne entièrement en SQL et n'a besoin de rien.
 
 ### 3.4 Authentification
@@ -193,9 +198,9 @@ Créer un second projet Supabase « Hotel PMS Staging » dans la même région, 
 
 | Où | Obligatoire | Facultatif (active une fonction) |
 |---|---|---|
-| Vercel | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | `VITE_SENTRY_DSN`, `VITE_APP_ENV` |
+| Vercel | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | `VITE_SENTRY_DSN`, `VITE_APP_ENV`, `VITE_TURNSTILE_SITE_KEY` |
 | GitHub secrets | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` | `SENTRY_AUTH_TOKEN` |
 | GitHub variables | `SUPABASE_PROJECT_REF` | `SENTRY_ORG`, `SENTRY_PROJECT` |
-| Supabase secrets | `APP_URL`, `CRON_SECRET` | `PAYDUNYA_*` (4), `STRIPE_*` (2), `RESEND_API_KEY`, `MAIL_FROM`, `TWILIO_*` (4), `CLOUDBEDS_*` (2) |
+| Supabase secrets | `APP_URL`, `CRON_SECRET` | `PAYDUNYA_*` (4), `STRIPE_*` (2), `RESEND_API_KEY`, `MAIL_FROM`, `TWILIO_*` (4), `TURNSTILE_SECRET_KEY`, `CLOUDBEDS_*` (2) |
 | Supabase Vault | `project_url`, `cron_secret` | |
 | Supabase Auth | Site URL, Redirect URLs, MFA TOTP | SMTP Resend |

@@ -39,7 +39,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://lh3.googleusercontent.com; connect-src 'self' https://gqbztdprvqwewivzebsa.supabase.co wss://gqbztdprvqwewivzebsa.supabase.co https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://fonts.googleapis.com https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://lh3.googleusercontent.com; connect-src 'self' https://gqbztdprvqwewivzebsa.supabase.co wss://gqbztdprvqwewivzebsa.supabase.co https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://fonts.googleapis.com https://fonts.gstatic.com https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'"
         }
       ]
     },

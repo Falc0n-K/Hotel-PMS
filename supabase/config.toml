@@ -15,3 +15,20 @@ verify_jwt = false
 
 [functions.paydunya-ipn]
 verify_jwt = false
+
+# Distribution : appelées sans session, authentifiées autrement
+# (captcha et limitation de débit, clé d'API, jeton iCal, secret de tâche).
+[functions.public-booking]
+verify_jwt = false
+
+[functions.api]
+verify_jwt = false
+
+[functions.deliver-webhooks]
+verify_jwt = false
+
+[functions.ical]
+verify_jwt = false
+
+[functions.ical-sync]
+verify_jwt = false
