@@ -23,7 +23,7 @@ export default function Sidebar({
   items, roleLabel, activeConsole, onConsoleSelect, onLockSession, onSignOut,
   properties, currentPropertyId, onPropertyChange, userName, userEmail,
 }: SidebarProps) {
-  const { t } = useI18n();
+  const { t, tr } = useI18n();
   const [logoFailed, setLogoFailed] = useState(false);
   const initials = userName.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
 
@@ -64,7 +64,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <nav className="px-4 py-3 flex-grow overflow-y-auto space-y-0.5" aria-label="Navigation principale">
+      <nav className="px-4 py-3 flex-grow overflow-y-auto space-y-0.5" aria-label={tr('Navigation principale', 'Main navigation')}>
         {items.map((item) => {
           const Icon = item.icon;
           const active = activeConsole === item.id;

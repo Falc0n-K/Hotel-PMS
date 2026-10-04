@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, Loader2, X } from 'lucide-react';
+import { useI18n } from '../lib/i18n';
 
 // Briques d'interface communes aux écrans, dans le style existant
 // (cartes arrondies, orange #ea580c, bleu nuit #09153D).
@@ -97,6 +98,7 @@ export function Checkbox({ label, ...props }: React.InputHTMLAttributes<HTMLInpu
 export function Modal({
   title, subtitle, onClose, children, wide,
 }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+  const { tr } = useI18n();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -110,7 +112,7 @@ export function Modal({
             <h3 className="font-extrabold text-[#09153D]">{title}</h3>
             {subtitle && <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p>}
           </div>
-          <button onClick={onClose} aria-label="Fermer" className="text-slate-400 hover:text-slate-700 cursor-pointer p-1">
+          <button onClick={onClose} aria-label={tr('Fermer', 'Close')} className="text-slate-400 hover:text-slate-700 cursor-pointer p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -132,9 +134,10 @@ export function ErrorNote({ message }: { message: string | null }) {
 }
 
 export function Loading() {
+  const { tr } = useI18n();
   return (
     <div className="py-16 flex items-center justify-center text-slate-400">
-      <Loader2 className="w-6 h-6 animate-spin" aria-label="Chargement" />
+      <Loader2 className="w-6 h-6 animate-spin" aria-label={tr('Chargement', 'Loading')} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, errorMessage } from './supabase';
 import { addDays, todayIn } from './dates';
-import { bilingual } from './i18n';
+import { bilingual, tr } from './i18n';
 import type { Property } from './auth';
 import type { Room, RoomStatus } from '../types';
 
@@ -312,7 +312,7 @@ export function usePropertyData(property: Property | null, withFinance: boolean)
       }
     } catch (e) {
       const message = (e as Error).message;
-      if (!navigator.onLine || message.startsWith('Serveur injoignable')) {
+      if (!navigator.onLine || message.startsWith(tr('Serveur injoignable', 'Server unreachable'))) {
         try {
           const raw = localStorage.getItem(SNAPSHOT_KEY(property.id));
           if (raw) {
@@ -355,7 +355,7 @@ export function usePropertyData(property: Property | null, withFinance: boolean)
   // toujours ce que la base a accepté, jamais une supposition locale.
   const act = useCallback(
     async <T,>(fn: () => Promise<T>): Promise<T> => {
-      if (!navigator.onLine) throw new Error('Hors ligne : action impossible tant que la connexion n’est pas revenue.');
+      if (!navigator.onLine) throw new Error(tr('Hors ligne : action impossible tant que la connexion n’est pas revenue.', 'Offline: action unavailable until the connection is back.'));
       const result = await fn();
       await reload();
       return result;

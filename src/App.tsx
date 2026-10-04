@@ -39,9 +39,10 @@ const APP_VERSION = '0.6.0';
 const APP_ENV = import.meta.env.VITE_APP_ENV;
 
 function FullPageLoader() {
+  const { tr } = useI18n();
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400">
-      <Loader2 className="w-6 h-6 animate-spin" aria-label="Chargement" />
+      <Loader2 className="w-6 h-6 animate-spin" aria-label={tr('Chargement', 'Loading')} />
     </div>
   );
 }
@@ -69,7 +70,7 @@ function readStoredProperty(): string | null {
 
 function Workspace({ memberships }: { memberships: Membership[] }) {
   const { session, profile, signOut: authSignOut, refreshMemberships, aal } = useAuth();
-  const { t } = useI18n();
+  const { t, tr } = useI18n();
   // À la déconnexion, la copie hors ligne (données clients) est effacée du poste.
   const signOut = useCallback(async () => {
     clearSnapshots();
@@ -110,7 +111,7 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
   const [notifications, setNotifications] = useState<PMSNotification[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const userName = profile?.full_name || session?.user.email || 'Utilisateur';
+  const userName = profile?.full_name || session?.user.email || tr('Utilisateur', 'User');
   const userEmail = session?.user.email ?? '';
   const navItem = navItems.find((c) => c.id === activeConsole);
   const consoleLabel = navItem ? t(navItem.label) : '';
@@ -157,38 +158,38 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
 
       if (next === 'occupied') {
         if (room.status !== 'reserved' || !room.reservationId) {
-          setActionError('Une chambre ne passe « occupée » que par le check-in d’une réservation.');
+          setActionError(tr('Une chambre ne passe « occupée » que par le check-in d’une réservation.', 'A room only becomes “occupied” through a reservation check-in.'));
           return;
         }
         runAction(() => actions.checkIn(room.reservationId!)).then(
-          (ok) => ok && handleAddNotification('Arrivée enregistrée', `${room.guestName} — chambre ${room.number}.`, 'réservation'),
+          (ok) => ok && handleAddNotification(tr('Arrivée enregistrée', 'Check-in recorded'), tr(`${room.guestName} — chambre ${room.number}.`, `${room.guestName} — room ${room.number}.`), 'réservation'),
         );
         return;
       }
       if (room.status === 'occupied' && room.reservationId) {
         runAction(() => actions.checkOut(room.reservationId!)).then(
-          (ok) => ok && handleAddNotification('Départ enregistré', `Chambre ${room.number} transmise au ménage.`, 'info'),
+          (ok) => ok && handleAddNotification(tr('Départ enregistré', 'Check-out recorded'), tr(`Chambre ${room.number} transmise au ménage.`, `Room ${room.number} sent to housekeeping.`), 'info'),
         );
         return;
       }
       if (room.status === 'reserved' && room.reservationId && next === 'available') {
-        if (!confirm(`Annuler la réservation de ${room.guestName} (chambre ${room.number}) ?`)) return;
+        if (!confirm(tr(`Annuler la réservation de ${room.guestName} (chambre ${room.number}) ?`, `Cancel the reservation of ${room.guestName} (room ${room.number})?`))) return;
         runAction(() => actions.cancel(room.reservationId!));
         return;
       }
       if (next === 'reserved') {
-        setActionError('Les réservations se créent depuis le Guichet Réservations.');
+        setActionError(tr('Les réservations se créent depuis le Guichet Réservations.', 'Reservations are created from the Reservations desk.'));
         return;
       }
       if (next === 'maintenance') {
-        const reason = prompt(`Motif de mise hors service de la chambre ${room.number} :`);
+        const reason = prompt(tr(`Motif de mise hors service de la chambre ${room.number} :`, `Reason for taking room ${room.number} out of service:`));
         if (reason === null) return;
         runAction(() => actions.setHousekeeping(room.id, 'out_of_order', reason));
         return;
       }
       runAction(() => actions.setHousekeeping(room.id, next === 'not-ready' ? 'dirty' : 'clean'));
     },
-    [rooms, actions, runAction, handleAddNotification],
+    [rooms, actions, runAction, handleAddNotification, tr],
   );
 
   // ── Indicateurs du tableau de bord, tous dérivés des réservations ──────
@@ -262,10 +263,12 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
               ) : (
                 <div className="bg-slate-100/50 p-6 rounded-2xl border border-dashed border-slate-200 flex-1 flex flex-col items-center justify-center text-center py-12 min-h-[260px]">
                   <Shield className="w-10 h-10 text-slate-400 mb-3" />
-                  <h5 className="font-bold text-slate-700">Données financières non accessibles</h5>
+                  <h5 className="font-bold text-slate-700">{tr('Données financières non accessibles', 'Financial data not accessible')}</h5>
                   <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
-                    Votre rôle ({APP_ROLE_LABELS[appRole]}) ne donne pas accès aux encaissements. Ce masquage est appliqué par
-                    le serveur.
+                    {tr(
+                      `Votre rôle (${APP_ROLE_LABELS[appRole]}) ne donne pas accès aux encaissements. Ce masquage est appliqué par le serveur.`,
+                      `Your role (${APP_ROLE_LABELS[appRole]}) does not give access to payments. This restriction is enforced by the server.`,
+                    )}
                   </p>
                 </div>
               )}
@@ -380,8 +383,8 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
 
         <div className="p-8 flex-grow flex flex-col max-w-[1600px] w-full mx-auto">
           {data.error && (
-            <Banner tone="red" onClose={data.reload} closeLabel="Réessayer">
-              Impossible de charger les données : {data.error}
+            <Banner tone="red" onClose={data.reload} closeLabel={tr('Réessayer', 'Retry')}>
+              {tr('Impossible de charger les données :', 'Unable to load data:')} {data.error}
             </Banner>
           )}
           {actionError && (
@@ -390,30 +393,35 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
             </Banner>
           )}
           {APP_ENV && APP_ENV !== 'production' && (
-            <Banner tone="amber">{t('shell.staging')} : environnement de test.</Banner>
+            <Banner tone="amber">{t('shell.staging')}{tr(' : environnement de test.', ': test environment.')}</Banner>
           )}
           {data.offline && <Banner tone="amber">{t('shell.offline')}</Banner>}
           {property.require_mfa && aal !== 'aal2' && ['owner', 'general_manager', 'accountant'].includes(appRole) && (
             <Banner tone="red">
-              Cet établissement exige la double authentification pour votre rôle : activez-la dans « Mon compte », puis
-              reconnectez-vous.
+              {tr(
+                'Cet établissement exige la double authentification pour votre rôle : activez-la dans « Mon compte », puis reconnectez-vous.',
+                'This property requires two-factor authentication for your role: enable it in “My account”, then sign in again.',
+              )}
             </Banner>
           )}
           {unpaidInHouse > 0 && (activeConsole === 'bookings-desk' || activeConsole === 'reception-desk') && canManageReservations(appRole) && (
             <Banner tone="amber">
-              {unpaidInHouse} séjour{unpaidInHouse > 1 ? 's' : ''} en cours avec un solde à encaisser avant le départ.
+              {tr(
+                `${unpaidInHouse} séjour${unpaidInHouse > 1 ? 's' : ''} en cours avec un solde à encaisser avant le départ.`,
+                `${unpaidInHouse} in-house stay${unpaidInHouse > 1 ? 's' : ''} with a balance to collect before departure.`,
+              )}
             </Banner>
           )}
 
           {data.loading ? (
             <div className="flex-grow flex items-center justify-center text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin" aria-label="Chargement" />
+              <Loader2 className="w-6 h-6 animate-spin" aria-label={tr('Chargement', 'Loading')} />
             </div>
           ) : (
             <Suspense
               fallback={
                 <div className="flex-grow flex items-center justify-center text-slate-400">
-                  <Loader2 className="w-6 h-6 animate-spin" aria-label="Chargement" />
+                  <Loader2 className="w-6 h-6 animate-spin" aria-label={tr('Chargement', 'Loading')} />
                 </div>
               }
             >
@@ -455,6 +463,7 @@ function Banner({
   closeLabel?: string;
   icon?: 'demo';
 }) {
+  const { tr } = useI18n();
   const styles = tone === 'red' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-800';
   const Icon = icon === 'demo' ? FlaskConical : AlertTriangle;
   return (
@@ -464,7 +473,7 @@ function Banner({
         <span className="font-semibold leading-relaxed">{children}</span>
       </div>
       {onClose && (
-        <button onClick={onClose} className="font-bold shrink-0 flex items-center gap-1 cursor-pointer" aria-label={closeLabel ?? 'Fermer'}>
+        <button onClick={onClose} className="font-bold shrink-0 flex items-center gap-1 cursor-pointer" aria-label={closeLabel ?? tr('Fermer', 'Close')}>
           {closeLabel ?? <X className="w-4 h-4" />}
         </button>
       )}

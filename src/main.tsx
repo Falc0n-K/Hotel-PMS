@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App.tsx';
 import { AuthProvider } from './lib/auth';
-import { I18nProvider } from './lib/i18n';
+import { I18nProvider, tr } from './lib/i18n';
 import './index.css';
 
 // Suivi des erreurs, actif seulement si un DSN est configuré (Vercel).
@@ -22,8 +22,8 @@ function Crash() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 text-center font-sans">
       <div>
-        <p className="font-bold text-slate-800">Une erreur inattendue s’est produite.</p>
-        <button onClick={() => window.location.reload()} className="mt-3 text-sm font-bold text-orange-600 cursor-pointer">Recharger</button>
+        <p className="font-bold text-slate-800">{tr('Une erreur inattendue s’est produite.', 'An unexpected error occurred.')}</p>
+        <button onClick={() => window.location.reload()} className="mt-3 text-sm font-bold text-orange-600 cursor-pointer">{tr('Recharger', 'Reload')}</button>
       </div>
     </div>
   );
