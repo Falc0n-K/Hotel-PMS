@@ -1,32 +1,21 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { LayoutDashboard, Building2, BedDouble, CalendarDays, Users, Wallet, MapPin, Compass, Megaphone, LogOut, ShieldCheck, ChevronRight, MessageSquare, TrendingUp, Contact, MessageCircle, Settings, MonitorCheck } from 'lucide-react';
+import { LayoutDashboard, Building2, BedDouble, CalendarDays, Users, Wallet, MapPin, Compass, Megaphone, LogOut, Lock, ShieldCheck, ChevronRight, MessageSquare, TrendingUp, Contact, MessageCircle, Settings, MonitorCheck, KeyRound } from 'lucide-react';
 import { RBACRole, ROLE_CONSOLES_MAPPING } from '../types';
 
 interface SidebarProps {
   currentRole: RBACRole;
-  onRoleChange: (role: RBACRole) => void;
+  roleLabel: string;
   activeConsole: string;
   onConsoleSelect: (console: string) => void;
   onLockSession: () => void;
-  currentHotel: string;
-  onHotelChange: (hotel: string) => void;
+  onSignOut: () => void;
+  properties: { id: string; name: string }[];
+  currentPropertyId: string;
+  onPropertyChange: (propertyId: string) => void;
+  userName: string;
+  userEmail: string;
 }
 
-export default function Sidebar({
-  currentRole,
-  onRoleChange,
-  activeConsole,
-  onConsoleSelect,
-  onLockSession,
-  currentHotel,
-  onHotelChange
-}: SidebarProps) {
-  
-  const consoles = [
+export const CONSOLES = [
     { id: 'reception-desk', label: 'Console Réception', icon: MonitorCheck },
     { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
     { id: 'hotels-hub', label: 'Hub Hôtels', icon: Building2 },
@@ -41,15 +30,40 @@ export default function Sidebar({
     { id: 'deep-analytics', label: 'Deep Analytics', icon: TrendingUp },
     { id: 'staff-directory', label: 'Annuaire Staff', icon: Contact },
     { id: 'messages-inbox', label: 'Messagerie', icon: MessageCircle },
+    { id: 'team-access', label: 'Équipe & Accès', icon: KeyRound },
     { id: 'global-settings', label: 'Paramètres', icon: Settings }
-  ];
+];
 
-  const roles: RBACRole[] = [
-    'Propriétaire d\'Hôtel',
-    'Réceptionniste (Front Desk)',
-    'Directeur Financier',
-    'Responsable Ménage'
-  ];
+// Modules encore alimentés par des données de démonstration (non enregistrées).
+export const DEMO_CONSOLES = new Set([
+  'hotels-hub',
+  'guests-crm',
+  'payments-finance',
+  'event-venues',
+  'experiences-market',
+  'marketing-packages',
+  'guest-feedbacks',
+  'deep-analytics',
+  'staff-directory',
+  'messages-inbox',
+  'global-settings',
+]);
+
+export default function Sidebar({
+  currentRole,
+  roleLabel,
+  activeConsole,
+  onConsoleSelect,
+  onLockSession,
+  onSignOut,
+  properties,
+  currentPropertyId,
+  onPropertyChange,
+  userName,
+  userEmail
+}: SidebarProps) {
+  const consoles = CONSOLES;
+  const initials = userName.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
 
   return (
     <aside className="w-72 bg-white border-r border-slate-100 flex flex-col h-screen fixed top-0 left-0 z-20 shrink-0">
@@ -83,13 +97,15 @@ export default function Sidebar({
           </label>
           <div className="relative">
             <select
-              value={currentHotel}
-              onChange={(e) => onHotelChange(e.target.value)}
-              className="w-full bg-slate-50/50 hover:bg-slate-100/60 border border-slate-200/50 text-[#09153D] font-bold text-[11px] py-2 pl-8.5 pr-7.5 rounded-xl appearance-none focus:outline-none focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500 transition-all cursor-pointer"
+              aria-label="Établissement actif"
+              value={currentPropertyId}
+              onChange={(e) => onPropertyChange(e.target.value)}
+              disabled={properties.length < 2}
+              className="w-full bg-slate-50/50 hover:bg-slate-100/60 border border-slate-200/50 text-[#09153D] font-bold text-[11px] py-2 pl-8.5 pr-7.5 rounded-xl appearance-none focus:outline-none focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500 transition-all cursor-pointer disabled:cursor-default"
             >
-              <option value="Royal Saly">🏢 Royal Saly</option>
-              <option value="Nema Kadior">🌴 Nema Kadior</option>
-              <option value="Les Pélicans du Saloum">🦤 Les Pélicans</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
             </select>
             <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-orange-600 pointer-events-none">
               <Building2 className="w-3.5 h-3.5" />
@@ -101,34 +117,13 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* RBAC Simulation Section */}
+      {/* Rôle serveur de l'utilisateur pour cet établissement */}
       <div className="p-4 mx-4 my-3 bg-slate-50 rounded-2xl border border-slate-100/80">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-          <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
-            Niveau de Régulation Actif
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-lg text-slate-700 text-xs font-semibold shadow-sm mb-3">
+        <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase mb-2">Votre rôle</p>
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-lg text-slate-700 text-xs font-semibold shadow-sm">
           <ShieldCheck className="w-4.5 h-4.5 text-orange-600" />
-          <span className="truncate">{currentRole}</span>
+          <span className="truncate">{roleLabel}</span>
         </div>
-
-        <label className="block text-[10px] font-bold text-slate-400 tracking-tight uppercase mb-1">
-          Simuler les vues RBAC :
-        </label>
-        <select
-          value={currentRole}
-          onChange={(e) => onRoleChange(e.target.value as RBACRole)}
-          className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium py-1.5 px-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors cursor-pointer"
-        >
-          {roles.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* System Consoles Section */}
@@ -161,6 +156,9 @@ export default function Sidebar({
                   <div className="flex items-center gap-3">
                     <IconComponent className={`w-4.5 h-4.5 shrink-0 ${IsActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
                     <span>{item.label}</span>
+                    {DEMO_CONSOLES.has(item.id) && (
+                      <span className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded ${IsActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>Démo</span>
+                    )}
                   </div>
                   {IsActive && <ChevronRight className="w-3.5 h-3.5 text-orange-200" />}
                 </button>
@@ -173,21 +171,30 @@ export default function Sidebar({
       <div className="p-4 border-t border-slate-50 mt-auto bg-slate-50/60 flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center font-bold text-xs text-orange-700 font-mono shrink-0">
-            MD
+            {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="text-xs font-bold text-slate-800 truncate">Mamadou Diallo</h4>
-            <p className="text-[10px] text-slate-400 font-mono truncate">mamadou.d@senegalhotels.sn</p>
+            <h4 className="text-xs font-bold text-slate-800 truncate">{userName}</h4>
+            <p className="text-[10px] text-slate-400 font-mono truncate">{userEmail}</p>
           </div>
         </div>
 
-        <button
-          onClick={onLockSession}
-          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 rounded-xl text-xs font-semibold transition-colors border border-red-100/50"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Fermer la session PMS</span>
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={onLockSession}
+            className="flex items-center justify-center gap-1.5 py-2 px-2 bg-white hover:bg-slate-100 text-slate-600 rounded-xl text-[11px] font-semibold transition-colors border border-slate-200 cursor-pointer"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Verrouiller</span>
+          </button>
+          <button
+            onClick={onSignOut}
+            className="flex items-center justify-center gap-1.5 py-2 px-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-[11px] font-semibold transition-colors border border-red-100/50 cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Déconnexion</span>
+          </button>
+        </div>
       </div>
     </aside>
   );

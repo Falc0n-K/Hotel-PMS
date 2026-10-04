@@ -1,43 +1,53 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useMemo } from 'react';
-import { 
-  Calendar, 
-  CalendarDays, 
-  User, 
-  Phone, 
-  Mail, 
-  BedDouble, 
-  Clock, 
-  Plus, 
-  Search, 
-  Check, 
-  Sparkles, 
-  Trash2, 
-  UserCheck, 
-  Signpost, 
-  ArrowRightLeft, 
-  Coffee, 
-  DollarSign, 
-  CalendarCheck2, 
+import {
+  Calendar,
+  CalendarDays,
+  User,
+  Phone,
+  Mail,
+  Clock,
+  Search,
+  Sparkles,
+  Trash2,
+  UserCheck,
+  Signpost,
+  Coffee,
+  DollarSign,
+  CalendarCheck2,
   UserPlus,
-  AlertTriangle 
+  AlertTriangle,
+  Wallet,
+  FileText,
+  Loader2
 } from 'lucide-react';
-import { Room, RoomStatus, RBACRole } from '../types';
+import { Room } from '../types';
+import type { AppRole } from '../lib/roles';
+import { canManageReservations } from '../lib/roles';
+import {
+  paidAmount,
+  PAYMENT_METHOD_LABELS,
+  type PaymentMethod,
+  type PropertyData,
+  type ReservationRow
+} from '../lib/pmsData';
+import { addDays, formatDate, nightsBetween } from '../lib/dates';
 
 interface BookingsDeskProps {
   rooms: Room[];
+  reservations: ReservationRow[];
+  today: string;
+  breakfastPrice: number;
   currentHotel: string;
-  currentRole: RBACRole;
-  onUpdateRoomStatusAndGuest: (roomNumber: string, status: RoomStatus, guestName?: string, checkIn?: string, checkOut?: string) => void;
+  appRole: AppRole;
+  actions: PropertyData['actions'];
   onAddNotification: (title: string, message: string, type: 'réservation' | 'paiement' | 'alerte' | 'info') => void;
 }
 
+type DisplayStatus = 'Confirmé' | 'Arrivé' | 'Terminé' | 'Annulé' | 'No-show';
+
 interface ReservationItem {
   id: string;
+  code: string;
   guestName: string;
   guestEmail: string;
   guestPhone: string;
@@ -48,326 +58,227 @@ interface ReservationItem {
   durationNights: number;
   breakfastIncluded: boolean;
   totalAmount: number;
-  status: 'Confirmé' | 'Arrivé' | 'Terminé' | 'Annulé';
+  paid: number;
+  invoiceNumber?: string;
+  status: DisplayStatus;
   paymentStatus: 'Payé' | 'Acompte' | 'Non Payé';
-  hotelName: string;
   notes?: string;
 }
 
+const STATUS_LABEL: Record<ReservationRow['status'], DisplayStatus> = {
+  option: 'Confirmé',
+  confirmed: 'Confirmé',
+  checked_in: 'Arrivé',
+  checked_out: 'Terminé',
+  cancelled: 'Annulé',
+  no_show: 'No-show'
+};
+
 export default function BookingsDesk({
   rooms,
+  reservations,
+  today,
+  breakfastPrice,
   currentHotel,
-  currentRole,
-  onUpdateRoomStatusAndGuest,
+  appRole,
+  actions,
   onAddNotification
 }: BookingsDeskProps) {
-  // Local state holding the list of reservations across the group
-  const [reservations, setReservations] = useState<ReservationItem[]>([
-    {
-      id: 'RES-RS-206',
-      guestName: 'Alastair Cook',
-      guestEmail: 'a.cook@cricket.uk',
-      guestPhone: '+44 7911 123456',
-      roomNo: '104',
-      roomType: 'Suite Royale Swim-up',
-      checkIn: '2026-05-18',
-      checkOut: '2026-05-24',
-      durationNights: 6,
-      breakfastIncluded: true,
-      totalAmount: 510000,
-      status: 'Arrivé',
-      paymentStatus: 'Payé',
-      hotelName: 'Royal Saly',
-      notes: 'Navette aéroport requise.'
-    },
-    {
-      id: 'RES-NK-102',
-      guestName: 'Sokhna Diagne',
-      guestEmail: 'sokhna.diagne@gmail.com',
-      guestPhone: '+221 77 654 32 10',
-      roomNo: '102',
-      roomType: 'Chambre Confort Balcon',
-      checkIn: '2026-05-19',
-      checkOut: '2026-05-23',
-      durationNights: 4,
-      breakfastIncluded: false,
-      totalAmount: 220000,
-      status: 'Arrivé',
-      paymentStatus: 'Payé',
-      hotelName: 'Nema Kadior',
-      notes: 'Demande chambre proche ascenseur.'
-    },
-    {
-      id: 'RES-PS-305',
-      guestName: 'Elena Rostova',
-      guestEmail: 'elena.rostova@yandex.ru',
-      guestPhone: '+7 901 234 5678',
-      roomNo: '201',
-      roomType: 'Bungalow Piloti Premium',
-      checkIn: '2026-05-20',
-      checkOut: '2026-05-26',
-      durationNights: 6,
-      breakfastIncluded: true,
-      totalAmount: 591000,
-      status: 'Confirmé',
-      paymentStatus: 'Acompte',
-      hotelName: 'Les Pélicans du Saloum'
-    },
-    {
-      id: 'RES-RS-112',
-      guestName: 'Marcus Aurel',
-      guestEmail: 'm.aurel@rome.it',
-      guestPhone: '+39 06 1234567',
-      roomNo: '112',
-      roomType: 'Chambre Standard',
-      checkIn: '2026-05-22',
-      checkOut: '2026-05-25',
-      durationNights: 3,
-      breakfastIncluded: true,
-      totalAmount: 250500,
-      status: 'Confirmé',
-      paymentStatus: 'Non Payé',
-      hotelName: 'Royal Saly',
-      notes: 'Check-in tardif.'
-    },
-    {
-      id: 'RES-NK-115',
-      guestName: 'Jean-Pierre Durand',
-      guestEmail: 'jp.durand@wanadoo.fr',
-      guestPhone: '+33 6 1234 5678',
-      roomNo: '204',
-      roomType: 'Chambre Confort Balcon',
-      checkIn: '2026-05-10',
-      checkOut: '2026-05-15',
-      durationNights: 5,
-      breakfastIncluded: true,
-      totalAmount: 317500,
-      status: 'Terminé',
-      paymentStatus: 'Payé',
-      hotelName: 'Nema Kadior'
-    }
-  ]);
+  const canWrite = canManageReservations(appRole);
+  const canRefund = ['owner', 'general_manager', 'accountant'].includes(appRole);
+
+  // Vue de la base : la liste ne contient que ce que le serveur a enregistré.
+  const hotelReservations: ReservationItem[] = useMemo(() => {
+    const byId = new Map(rooms.map(r => [r.id, r]));
+    return reservations.map(r => {
+      const room = byId.get(r.room_id);
+      const paid = paidAmount(r);
+      return {
+        id: r.id,
+        code: r.code,
+        guestName: r.guest?.full_name ?? 'Client',
+        guestEmail: r.guest?.email ?? '',
+        guestPhone: r.guest?.phone ?? '',
+        roomNo: room?.number ?? '?',
+        roomType: room?.category ?? '',
+        checkIn: r.check_in,
+        checkOut: r.check_out,
+        durationNights: nightsBetween(r.check_in, r.check_out),
+        breakfastIncluded: r.breakfast,
+        totalAmount: r.total_amount,
+        paid,
+        invoiceNumber: r.invoices[0]?.display_number,
+        status: STATUS_LABEL[r.status],
+        paymentStatus: paid >= r.total_amount ? 'Payé' : paid > 0 ? 'Acompte' : 'Non Payé',
+        notes: r.notes ?? undefined
+      };
+    });
+  }, [reservations, rooms]);
 
   // UI state controllers
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('Tous');
   const [showAddFormModal, setShowAddFormModal] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // New Booking form dynamic states
   const [formGuestName, setFormGuestName] = useState('');
   const [formGuestEmail, setFormGuestEmail] = useState('');
   const [formGuestPhone, setFormGuestPhone] = useState('');
   const [formRoomNo, setFormRoomNo] = useState('');
-  const [formCheckIn, setFormCheckIn] = useState('2026-07-22');
-  const [formCheckOut, setFormCheckOut] = useState('2026-07-25');
-  const [formBreakfast, setFormBreakfast] = useState(true);
-  const [formPaymentStatus, setFormPaymentStatus] = useState<'Payé' | 'Acompte' | 'Non Payé'>('Non Payé');
+  const [formCheckIn, setFormCheckIn] = useState(today);
+  const [formCheckOut, setFormCheckOut] = useState(addDays(today, 1));
+  const [formAdults, setFormAdults] = useState(2);
+  const [formChildren, setFormChildren] = useState(0);
+  const [formBreakfast, setFormBreakfast] = useState(false);
   const [formNotes, setFormNotes] = useState('');
+
+  // Encaissement
+  const [paymentFor, setPaymentFor] = useState<ReservationItem | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [paymentRef, setPaymentRef] = useState('');
 
   const triggerToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 4000);
   };
 
-  // Compute stay length — only positive if checkOut is after checkIn
-  const formNightsCount = useMemo(() => {
+  // Exécute une opération serveur et affiche son refus éventuel tel quel.
+  const run = async (fn: () => Promise<unknown>, success: string) => {
+    setBusy(true);
     try {
-      const start = new Date(formCheckIn);
-      const end = new Date(formCheckOut);
-      const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? diffDays : 0;
-    } catch {
-      return 0;
+      await fn();
+      triggerToast(success);
+      return true;
+    } catch (e) {
+      triggerToast((e as Error).message);
+      return false;
+    } finally {
+      setBusy(false);
     }
-  }, [formCheckIn, formCheckOut]);
+  };
 
-  // Selected room rate details
+  const formNightsCount = useMemo(() => nightsBetween(formCheckIn, formCheckOut), [formCheckIn, formCheckOut]);
+
   const selectedRoomDetails = useMemo(() => {
     if (!formRoomNo) return null;
     return rooms.find(r => r.number === formRoomNo) || null;
   }, [formRoomNo, rooms]);
 
-  // Compute price inline
+  // Estimation affichée ; le montant enregistré est recalculé par le serveur.
   const computedTotalAmount = useMemo(() => {
     if (!selectedRoomDetails) return 0;
     const roomCost = selectedRoomDetails.nightlyRate * formNightsCount;
-    const breakfastCost = formBreakfast ? (8500 * formNightsCount * 2) : 0; // 8500 per person, assume double
+    const breakfastCost = formBreakfast ? breakfastPrice * (formAdults + formChildren) * formNightsCount : 0;
     return roomCost + breakfastCost;
-  }, [selectedRoomDetails, formNightsCount, formBreakfast]);
+  }, [selectedRoomDetails, formNightsCount, formBreakfast, breakfastPrice, formAdults, formChildren]);
 
-  // List of active reservations belonging strictly to the selected hotel property
-  const hotelReservations = useMemo(() => {
-    return reservations.filter(res => res.hotelName === currentHotel);
-  }, [reservations, currentHotel]);
-
-  // Search and filter operations
   const filteredBookings = useMemo(() => {
+    const q = searchQuery.toLowerCase();
     return hotelReservations.filter(res => {
-      const matchesSearch = res.guestName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            res.roomNo.includes(searchQuery) || 
-                            res.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            res.roomType.toLowerCase().includes(searchQuery.toLowerCase());
-      
+      const matchesSearch = res.guestName.toLowerCase().includes(q) ||
+                            res.roomNo.includes(searchQuery) ||
+                            res.code.toLowerCase().includes(q) ||
+                            res.roomType.toLowerCase().includes(q);
       const matchesStatus = statusFilter === 'Tous' || res.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [hotelReservations, searchQuery, statusFilter]);
 
-  // Save New reservation record
-  const handleCreateReservation = (e: React.FormEvent) => {
+  const handleCreateReservation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formGuestName.trim() || !formRoomNo) {
-      triggerToast("Veuillez renseigner le nom du client principal et le numéro de chambre.");
+    setFormError(null);
+    if (!formGuestName.trim() || !selectedRoomDetails) {
+      setFormError('Renseignez le nom du client et la chambre.');
       return;
     }
     if (formNightsCount <= 0) {
-      triggerToast("La date de départ doit être postérieure à la date d'arrivée.");
+      setFormError("La date de départ doit être postérieure à la date d'arrivée.");
       return;
     }
-
-    const matchedRoom = rooms.find(r => r.number === formRoomNo);
-    if (!matchedRoom) return;
-
-    const reservationPrefix = currentHotel === 'Royal Saly' ? 'RS' : currentHotel === 'Nema Kadior' ? 'NK' : 'PS';
-    const uniqueResId = `RES-${reservationPrefix}-${100 + Math.floor(Math.random() * 900)}`;
-
-    const newResItem: ReservationItem = {
-      id: uniqueResId,
-      guestName: formGuestName,
-      guestEmail: formGuestEmail || 'clients@senegalhotels.sn',
-      guestPhone: formGuestPhone || '+221 33 000 00 00',
-      roomNo: formRoomNo,
-      roomType: matchedRoom.category,
-      checkIn: formCheckIn,
-      checkOut: formCheckOut,
-      durationNights: formNightsCount,
-      breakfastIncluded: formBreakfast,
-      totalAmount: computedTotalAmount,
-      status: 'Confirmé', // default state
-      paymentStatus: formPaymentStatus,
-      hotelName: currentHotel,
-      notes: formNotes
-    };
-
-    // Add reservation item
-    setReservations(prev => [newResItem, ...prev]);
-    
-    // Update the room state in our master data to 'reserved' (synchronized behavior)
-    onUpdateRoomStatusAndGuest(formRoomNo, 'reserved', formGuestName, formCheckIn, formCheckOut);
-
-    // Notify the user
-    onAddNotification(
-      "Nouvelle réservation",
-      `Réservation enregistrée pour ${formGuestName} en chambre ${formRoomNo}. Total: ${computedTotalAmount.toLocaleString('fr-FR')} FCFA.`,
-      'réservation'
-    );
-
-    setShowAddFormModal(false);
-    // Reset inputs
-    setFormGuestName('');
-    setFormGuestEmail('');
-    setFormGuestPhone('');
-    setFormNotes('');
-    triggerToast(`Réservation ${uniqueResId} enregistrée en Chambre ${formRoomNo} !`);
+    setBusy(true);
+    try {
+      await actions.createReservation({
+        roomId: selectedRoomDetails.id,
+        checkIn: formCheckIn,
+        checkOut: formCheckOut,
+        guestName: formGuestName,
+        guestEmail: formGuestEmail,
+        guestPhone: formGuestPhone,
+        adults: formAdults,
+        children: formChildren,
+        breakfast: formBreakfast,
+        notes: formNotes
+      });
+      onAddNotification('Nouvelle réservation', `${formGuestName}, chambre ${formRoomNo}, du ${formatDate(formCheckIn)} au ${formatDate(formCheckOut)}.`, 'réservation');
+      setShowAddFormModal(false);
+      setFormGuestName('');
+      setFormGuestEmail('');
+      setFormGuestPhone('');
+      setFormNotes('');
+      triggerToast(`Réservation enregistrée, chambre ${formRoomNo}.`);
+    } catch (err) {
+      setFormError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  // CheckIn Operation (Arrival transition)
-  const handleCheckIn = (resId: string, roomNo: string, guestName: string, checkIn: string, checkOut: string) => {
-    if (currentRole === 'Responsable Ménage') {
-      triggerToast("Permissions insuffisantes : Le Responsable Ménage ne peut pas modifier l'état des séjours.");
-      return;
-    }
-
-    // Check if the chamber is already clean and ready
-    const targetedRoom = rooms.find(r => r.number === roomNo);
+  const handleCheckIn = (res: ReservationItem) => {
+    const targetedRoom = rooms.find(r => r.number === res.roomNo);
     if (targetedRoom && targetedRoom.status === 'not-ready') {
-      if (!confirm(`Attention : La chambre ${roomNo} est actuellement classée sale / en ménage. Voulez-vous forcer l'enregistrement du client ?`)) {
-        return;
-      }
+      if (!confirm(`La chambre ${res.roomNo} est signalée sale. Enregistrer quand même l'arrivée ?`)) return;
     }
-
-    setReservations(prev => prev.map(res => {
-      if (res.id === resId) {
-        return { ...res, status: 'Arrivé' };
-      }
-      return res;
-    }));
-
-    // Cascade update to room state -> occupied
-    onUpdateRoomStatusAndGuest(roomNo, 'occupied', guestName, checkIn, checkOut);
-
-    onAddNotification(
-      "Arrivée Client",
-      `${guestName} est arrivé et occupe désormais la chambre ${roomNo}.`,
-      'info'
-    );
-    triggerToast(`Check-In enregistré pour ${guestName} (Ch. ${roomNo}).`);
+    run(() => actions.checkIn(res.id), `Arrivée enregistrée : ${res.guestName} (ch. ${res.roomNo}).`);
   };
 
-  // CheckOut Operation (Departure transition)
-  const handleCheckOut = (resId: string, roomNo: string, guestName: string) => {
-    if (currentRole === 'Responsable Ménage') {
-      triggerToast("Permissions insuffisantes.");
-      return;
-    }
-
-    setReservations(prev => prev.map(res => {
-      if (res.id === resId) {
-        return { ...res, status: 'Terminé' };
-      }
-      return res;
-    }));
-
-    // Cascade update to room state -> 'not-ready' for laundry workflow, removing guest assignment
-    onUpdateRoomStatusAndGuest(roomNo, 'not-ready', undefined);
-
-    onAddNotification(
-      "Départ Client",
-      `${guestName} a quitté la chambre ${roomNo}. Chambre libérée et transmise au ménage.`,
-      'info'
-    );
-    triggerToast(`Départ enregistré. Chambre ${roomNo} libérée pour ménage.`);
+  const handleCheckOut = (res: ReservationItem) => {
+    run(() => actions.checkOut(res.id), `Départ enregistré. Chambre ${res.roomNo} transmise au ménage.`);
   };
 
-  // Cancel reservation
-  const handleCancelBooking = (resId: string, roomNo: string, guestName: string, originalStatus: string) => {
-    if (currentRole === 'Responsable Ménage' || currentRole === 'Directeur Financier') {
-      triggerToast("Niveau d'administration insuffisant pour annuler.");
-      return;
-    }
-
-    if (!confirm(`Confirmez-vous l'annulation complète de la réservation de ${guestName} ?`)) {
-      return;
-    }
-
-    setReservations(prev => prev.map(res => {
-      if (res.id === resId) {
-        return { ...res, status: 'Annulé' };
-      }
-      return res;
-    }));
-
-    // Release room if it was reserved/occupied under this guest's name
-    if (originalStatus === 'Confirmé' || originalStatus === 'Arrivé') {
-      onUpdateRoomStatusAndGuest(roomNo, 'available', undefined);
-    }
-
-    onAddNotification(
-      "Annulation Réservation",
-      `La réservation de ${guestName} (Ch. ${roomNo}) a été annulée.`,
-      'alerte'
-    );
-    triggerToast(`Réservation ${resId} annulée.`);
+  const handleCancelBooking = (res: ReservationItem) => {
+    const reason = prompt(`Motif d'annulation de la réservation de ${res.guestName} :`);
+    if (reason === null) return;
+    run(() => actions.cancel(res.id, reason), `Réservation ${res.code} annulée.`);
   };
 
-  // Analytics for the selected active hotel bookings
+  const handleNoShow = (res: ReservationItem) => {
+    if (!confirm(`Déclarer ${res.guestName} en no-show ? La chambre sera libérée.`)) return;
+    run(() => actions.markNoShow(res.id), `No-show enregistré pour ${res.code}.`);
+  };
+
+  const handleInvoice = (res: ReservationItem) => {
+    run(() => actions.issueInvoice(res.id), `Facture émise pour ${res.code}.`);
+  };
+
+  const openPayment = (res: ReservationItem) => {
+    setPaymentFor(res);
+    setPaymentAmount(Math.max(res.totalAmount - res.paid, 0));
+    setPaymentMethod('cash');
+    setPaymentRef('');
+  };
+
+  const submitPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentFor) return;
+    const ok = await run(
+      () => actions.recordPayment(paymentFor.id, paymentAmount, paymentMethod, paymentRef),
+      `${paymentAmount.toLocaleString('fr-FR')} FCFA ${paymentAmount < 0 ? 'remboursés' : 'encaissés'} (${PAYMENT_METHOD_LABELS[paymentMethod]}).`
+    );
+    if (ok) {
+      onAddNotification('Paiement enregistré', `${paymentFor.code} : ${paymentAmount.toLocaleString('fr-FR')} FCFA.`, 'paiement');
+      setPaymentFor(null);
+    }
+  };
+
   const bookingsAnalytics = useMemo(() => {
     const totalBookings = hotelReservations.length;
     const currentInStay = hotelReservations.filter(r => r.status === 'Arrivé').length;
     const pendingArrivals = hotelReservations.filter(r => r.status === 'Confirmé').length;
-    const cumulativeValue = hotelReservations.reduce((acc, curr) => curr.status !== 'Annulé' ? acc + curr.totalAmount : acc, 0);
-
+    const cumulativeValue = hotelReservations.reduce((acc, curr) => curr.status !== 'Annulé' && curr.status !== 'No-show' ? acc + curr.totalAmount : acc, 0);
     return { totalBookings, currentInStay, pendingArrivals, cumulativeValue };
   }, [hotelReservations]);
 
@@ -390,27 +301,27 @@ export default function BookingsDesk({
         </div>
 
         <div>
-          {currentRole !== 'Responsable Ménage' ? (
+          {canWrite ? (
             <button
+              disabled={rooms.length === 0}
+              title={rooms.length === 0 ? "Ajoutez d'abord des chambres dans l'inventaire" : undefined}
               onClick={() => {
-                // Pre-populate with a free room
                 const freeRooms = rooms.filter(r => r.status === 'available');
-                if (freeRooms.length > 0) {
-                  setFormRoomNo(freeRooms[0].number);
-                } else if (rooms.length > 0) {
-                  setFormRoomNo(rooms[0].number);
-                }
+                setFormRoomNo(freeRooms[0]?.number ?? rooms[0]?.number ?? '');
+                setFormCheckIn(today);
+                setFormCheckOut(addDays(today, 1));
+                setFormError(null);
                 setShowAddFormModal(true);
               }}
               className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs px-4 py-3 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-orange-600/10 shrink-0"
             >
               <UserPlus className="w-4 h-4 stroke-[3]" />
-              <span>Réceptionner un Voyageur (Nouveau)</span>
+              <span>Nouvelle réservation</span>
             </button>
           ) : (
             <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200/50 rounded-xl text-[10px] font-bold text-slate-400">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-              <span>Réservations en lecture seule (Ménage)</span>
+              <span>Réservations en lecture seule pour votre rôle</span>
             </div>
           )}
         </div>
@@ -489,7 +400,7 @@ export default function BookingsDesk({
 
           {/* Status selector tabs */}
           <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl w-full md:w-auto overflow-x-auto select-none border border-slate-200/50">
-            {['Tous', 'Confirmé', 'Arrivé', 'Terminé', 'Annulé'].map(tab => (
+            {['Tous', 'Confirmé', 'Arrivé', 'Terminé', 'Annulé', 'No-show'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setStatusFilter(tab)}
@@ -526,12 +437,12 @@ export default function BookingsDesk({
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50/60 border-b border-slate-100 text-[9.5px] font-extrabold text-slate-400 uppercase tracking-wider">
-                <th className="p-4 text-left">RESERVATION REF</th>
+                <th className="p-4 text-left">RÉFÉRENCE</th>
                 <th className="p-4 text-left">NOM VOYAGEUR</th>
                 <th className="p-4 text-center">CHAMBRE N°</th>
                 <th className="p-4 text-left">DURÉE / NUITÉES</th>
                 <th className="p-4 text-left">DATES RETENUES</th>
-                <th className="p-4 text-center">KATERING PB</th>
+                <th className="p-4 text-center">PETIT-DÉJEUNER</th>
                 <th className="p-4 text-right">MONTANT TOTAL</th>
                 <th className="p-4 text-center">STATUT</th>
                 <th className="p-4 text-center">ACTIONS DESK</th>
@@ -556,7 +467,10 @@ export default function BookingsDesk({
                     >
                       {/* Ref ID */}
                       <td className="p-4 text-left font-bold font-mono text-[#09153D]">
-                        {res.id}
+                        {res.code}
+                        {res.invoiceNumber && (
+                          <span className="block text-[9px] text-emerald-600 font-bold mt-1">Facture {res.invoiceNumber}</span>
+                        )}
                       </td>
 
                       {/* Guest info card */}
@@ -589,11 +503,11 @@ export default function BookingsDesk({
                       <td className="p-4 text-left font-medium">
                         <div className="flex items-center gap-1 text-[11px] text-slate-650">
                           <Calendar className="w-3 h-3 text-orange-500 shrink-0" />
-                          <span>du {res.checkIn}</span>
+                          <span>du {formatDate(res.checkIn)}</span>
                         </div>
                         <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1">
                           <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span>au {res.checkOut}</span>
+                          <span>au {formatDate(res.checkOut)}</span>
                         </div>
                       </td>
 
@@ -621,6 +535,9 @@ export default function BookingsDesk({
                           }`}>
                             {res.paymentStatus.toUpperCase()}
                           </span>
+                          {res.paid > 0 && res.paid < res.totalAmount && (
+                            <span className="block text-[9px] text-slate-400 mt-0.5">Reste {(res.totalAmount - res.paid).toLocaleString('fr-FR')} F</span>
+                          )}
                         </div>
                       </td>
 
@@ -644,40 +561,79 @@ export default function BookingsDesk({
 
                       {/* ACTIONS TOOLBAR */}
                       <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {res.status === 'Confirmé' && (
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          {canWrite && res.status === 'Confirmé' && res.checkIn <= today && (
                             <button
-                              onClick={() => handleCheckIn(res.id, res.roomNo, res.guestName, res.checkIn, res.checkOut)}
-                              className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl transition-all hover:scale-102 cursor-pointer flex items-center gap-1"
-                              title="Déclarer l'arrivée physique"
+                              disabled={busy}
+                              onClick={() => handleCheckIn(res)}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                              title="Déclarer l'arrivée"
                             >
                               <UserCheck className="w-3.5 h-3.5 stroke-[2.5]" />
                               <span>Check-In</span>
                             </button>
                           )}
 
-                          {res.status === 'Arrivé' && (
+                          {canWrite && res.status === 'Arrivé' && (
                             <button
-                              onClick={() => handleCheckOut(res.id, res.roomNo, res.guestName)}
-                              className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl transition-all hover:scale-102 cursor-pointer flex items-center gap-1"
-                              title="Clôturer le séjour"
+                              disabled={busy}
+                              onClick={() => handleCheckOut(res)}
+                              className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                              title={res.paid < res.totalAmount ? 'Solde à encaisser avant le départ' : 'Clôturer le séjour'}
                             >
                               <Signpost className="w-3.5 h-3.5" />
                               <span>Check-Out</span>
                             </button>
                           )}
 
-                          {res.status !== 'Annulé' && res.status !== 'Terminé' && (
+                          {canWrite && (res.status === 'Confirmé' || res.status === 'Arrivé' || res.status === 'Terminé') && (res.paid < res.totalAmount || canRefund) && (
                             <button
-                              onClick={() => handleCancelBooking(res.id, res.roomNo, res.guestName, res.status)}
-                              className="bg-slate-100 hover:bg-red-50 border border-slate-200 text-slate-500 hover:text-red-600 p-2 rounded-xl transition-all cursor-pointer"
-                              title="Annuler le dossier"
+                              disabled={busy}
+                              onClick={() => openPayment(res)}
+                              className="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 p-2 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                              title="Encaisser"
+                              aria-label="Encaisser"
+                            >
+                              <Wallet className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          {canWrite && !res.invoiceNumber && (res.status === 'Arrivé' || res.status === 'Terminé') && (
+                            <button
+                              disabled={busy}
+                              onClick={() => handleInvoice(res)}
+                              className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 p-2 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                              title="Émettre la facture"
+                              aria-label="Émettre la facture"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          {canWrite && res.status === 'Confirmé' && res.checkIn < today && (
+                            <button
+                              disabled={busy}
+                              onClick={() => handleNoShow(res)}
+                              className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 text-[10px] font-bold px-2 py-1.5 rounded-xl cursor-pointer disabled:opacity-50"
+                              title="Client non présenté"
+                            >
+                              No-show
+                            </button>
+                          )}
+
+                          {canWrite && res.status === 'Confirmé' && (
+                            <button
+                              disabled={busy}
+                              onClick={() => handleCancelBooking(res)}
+                              className="bg-slate-100 hover:bg-red-50 border border-slate-200 text-slate-500 hover:text-red-600 p-2 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                              title="Annuler la réservation"
+                              aria-label="Annuler la réservation"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
 
-                          {(res.status === 'Annulé' || res.status === 'Terminé') && (
+                          {(res.status === 'Annulé' || res.status === 'No-show' || (res.status === 'Terminé' && res.invoiceNumber && res.paid >= res.totalAmount)) && (
                             <span className="text-[10px] text-slate-400 italic font-mono">Archivé</span>
                           )}
                         </div>
@@ -788,7 +744,7 @@ export default function BookingsDesk({
                     <option value="">Sélectionner</option>
                     {rooms.map(r => (
                       <option key={r.id} value={r.number}>
-                        N° {r.number} ({r.status === 'available' ? 'Libre' : r.status === 'not-ready' ? 'Sale' : 'Occupé'}) - {r.category}
+                        N° {r.number} ({r.status === 'available' ? 'Libre ce soir' : r.status === 'not-ready' ? 'À nettoyer' : r.status === 'maintenance' ? 'Hors service' : r.status === 'reserved' ? 'Arrivée prévue' : 'Occupée'}) - {r.category}
                       </option>
                     ))}
                   </select>
@@ -835,7 +791,7 @@ export default function BookingsDesk({
                     </div>
                     <div className="text-left">
                       <span className="text-[10.5px] font-extrabold text-slate-700 block">Petit déjeuner</span>
-                      <span className="text-[9.5px] text-slate-400 block">+17 000 FCFA / nuit (2 pers.)</span>
+                      <span className="text-[9.5px] text-slate-400 block">+{breakfastPrice.toLocaleString('fr-FR')} FCFA / pers. / nuit</span>
                     </div>
                   </div>
                   <input
@@ -846,20 +802,16 @@ export default function BookingsDesk({
                   />
                 </div>
 
-                {/* Initial Payment */}
-                <div className="space-y-1">
-                  <label className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest text-left">
-                    Règlement initial :
+                {/* Occupants */}
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="space-y-1 block">
+                    <span className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest text-left">Adultes</span>
+                    <input type="number" min={1} max={20} value={formAdults} onChange={(e) => setFormAdults(Math.max(1, Number(e.target.value)))} className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 p-2.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500" />
                   </label>
-                  <select
-                    value={formPaymentStatus}
-                    onChange={(e) => setFormPaymentStatus(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 p-2.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
-                  >
-                    <option value="Non Payé">Non Payé / Garantie carte</option>
-                    <option value="Acompte">Acompte versé (50%)</option>
-                    <option value="Payé">Totalement prépayé</option>
-                  </select>
+                  <label className="space-y-1 block">
+                    <span className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest text-left">Enfants</span>
+                    <input type="number" min={0} max={20} value={formChildren} onChange={(e) => setFormChildren(Math.max(0, Number(e.target.value)))} className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 p-2.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500" />
+                  </label>
                 </div>
 
               </div>
@@ -882,18 +834,25 @@ export default function BookingsDesk({
                 <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center justify-between text-left">
                   <div className="space-y-0.5">
                     <span className="block text-[9px] font-extrabold text-orange-850 uppercase tracking-wide">
-                      Simulation Facturation ({formNightsCount} N°):
+                      Estimation ({formNightsCount} nuit{formNightsCount > 1 ? 's' : ''}) :
                     </span>
                     <span className="text-[10px] font-bold text-slate-600">
                       Tarif chambre: {formatValue(selectedRoomDetails.nightlyRate)} / nuit
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="block text-[9px] font-medium text-slate-450">Somme Quotidienne</span>
+                    <span className="block text-[9px] font-medium text-slate-450">Total séjour (calculé par le serveur)</span>
                     <span className="text-lg font-black text-orange-950 font-mono">
                       {computedTotalAmount.toLocaleString('fr-FR')} F
                     </span>
                   </div>
+                </div>
+              )}
+
+              {formError && (
+                <div role="alert" className="flex gap-2 p-3 bg-red-50 text-red-600 text-[11px] font-bold rounded-xl">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{formError}</span>
                 </div>
               )}
 
@@ -908,15 +867,65 @@ export default function BookingsDesk({
                 </button>
                 <button
                   type="submit"
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs px-5 py-3 rounded-xl transition-colors cursor-pointer shadow-md shadow-orange-600/10"
+                  disabled={busy}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs px-5 py-3 rounded-xl transition-colors cursor-pointer shadow-md shadow-orange-600/10 flex items-center gap-2 disabled:opacity-50"
                 >
-                  Confirmer et Enregistrer la Réservation
+                  {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Enregistrer la réservation
                 </button>
               </div>
 
             </form>
 
           </div>
+        </div>
+      )}
+
+      {paymentFor && (
+        <div className="fixed inset-0 z-50 bg-[#09153D]/30 backdrop-blur-xs flex items-center justify-center p-4">
+          <form onSubmit={submitPayment} className="bg-white rounded-[28px] border border-slate-150/80 shadow-2xl max-w-md w-full p-6 space-y-4 text-left">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-[#09153D]">Encaissement · {paymentFor.code}</h3>
+                <p className="text-[11px] text-slate-500">
+                  {paymentFor.guestName} · total {paymentFor.totalAmount.toLocaleString('fr-FR')} F · déjà réglé {paymentFor.paid.toLocaleString('fr-FR')} F
+                </p>
+              </div>
+              <button type="button" onClick={() => setPaymentFor(null)} className="text-slate-400 font-bold cursor-pointer" aria-label="Fermer">✕</button>
+            </div>
+            <label className="block space-y-1">
+              <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Montant (FCFA)</span>
+              <input
+                type="number"
+                step={1}
+                min={canRefund ? undefined : 1}
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(Math.trunc(Number(e.target.value)))}
+                className="w-full bg-slate-50 border border-slate-200 text-sm font-bold p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500"
+                required
+              />
+              {canRefund && <span className="block text-[10px] text-slate-400">Un montant négatif enregistre un remboursement.</span>}
+            </label>
+            <label className="block space-y-1">
+              <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Moyen de paiement</span>
+              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)} className="w-full bg-slate-50 border border-slate-200 text-xs font-bold p-3 rounded-xl cursor-pointer">
+                {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map(m => (
+                  <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1">
+              <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Référence (n° de transaction, reçu…)</span>
+              <input value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} className="w-full bg-slate-50 border border-slate-200 text-xs p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500" />
+            </label>
+            <p className="text-[10px] text-slate-400">Un paiement enregistré ne peut plus être modifié ni supprimé ; une erreur se corrige par un remboursement.</p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setPaymentFor(null)} className="px-4 py-3 border border-slate-200 text-xs font-bold text-slate-600 rounded-xl cursor-pointer">Fermer</button>
+              <button type="submit" disabled={busy || paymentAmount === 0} className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs px-5 py-3 rounded-xl cursor-pointer disabled:opacity-50">
+                Enregistrer
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

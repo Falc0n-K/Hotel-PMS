@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 export type RoomStatus = 'occupied' | 'available' | 'reserved' | 'not-ready' | 'maintenance';
 
 export interface Room {
@@ -19,6 +14,8 @@ export interface Room {
   occupants?: number;
   maintenanceNote?: string;
   otaSynced?: boolean;
+  roomTypeId?: string;
+  reservationId?: string;
 }
 
 export interface Task {
@@ -73,6 +70,7 @@ export const ROLE_CONSOLES_MAPPING: Record<RBACRole, string[]> = {
     'deep-analytics',
     'staff-directory',
     'messages-inbox',
+    'team-access',
     'global-settings'
   ],
   'Directeur Financier': [

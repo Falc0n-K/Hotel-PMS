@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useMemo } from 'react';
 import { 
   BedDouble, 
@@ -34,8 +29,8 @@ interface RoomInventoryProps {
   currentRole: RBACRole;
   onUpdateRoomStatus: (roomId: string, newStatus: RoomStatus) => void;
   onUpdateRoomDetails: (roomId: string, updatedFields: Partial<Room>) => void;
-  onAddRoom: (newRoom: Room) => void;
-  onDeleteRoom: (roomId: string) => void;
+  onAddRoom: (newRoom: Room) => Promise<boolean>;
+  onDeleteRoom: (roomId: string) => Promise<boolean>;
 }
 
 export default function RoomInventory({
@@ -58,13 +53,11 @@ export default function RoomInventory({
   const [newRoomNo, setNewRoomNo] = useState('');
   const [newRoomFloor, setNewRoomFloor] = useState<number>(1);
   const [newRoomCategory, setNewRoomCategory] = useState('Chambre Standard');
-  const [newRoomStatus, setNewRoomStatus] = useState<RoomStatus>('available');
   const [newRoomRate, setNewRoomRate] = useState<number>(75000);
   
   // Edit states
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editedRate, setEditedRate] = useState<number>(0);
-  const [editedGuest, setEditedGuest] = useState('');
   const [editedStatus, setEditedStatus] = useState<RoomStatus>('available');
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -86,7 +79,7 @@ export default function RoomInventory({
   }, [rooms]);
 
   // Handle adding room
-  const handleAddNewRoomSubmit = (e: React.FormEvent) => {
+  const handleAddNewRoomSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoomNo.trim()) return;
 
@@ -102,33 +95,23 @@ export default function RoomInventory({
       number: newRoomNo,
       floor: newRoomFloor,
       category: newRoomCategory,
-      status: newRoomStatus,
+      status: 'available',
       nightlyRate: newRoomRate,
       occupants: 2
     };
 
-    onAddRoom(createdRoom);
+    if (!(await onAddRoom(createdRoom))) return;
     setShowAddModal(false);
     setNewRoomNo('');
-    triggerToast(`Chambre ${newRoomNo} créée à l'établissement ${currentHotel} !`);
+    triggerToast(`Chambre ${newRoomNo} créée à ${currentHotel}.`);
   };
 
   // Trigger inline editing save
   const handleSaveInlineEdit = (roomId: string) => {
-    if (currentRole === 'Responsable Ménage' && editedStatus !== 'available' && editedStatus !== 'not-ready') {
-      triggerToast("Accès restreint : Le Responsable Ménage peut uniquement changer le statut Ménage ('Disponible' ou 'En Nettoyage').");
-      return;
-    }
-
-    const updates: Partial<Room> = {
-      nightlyRate: editedRate,
-      status: editedStatus,
-      guestName: editedGuest ? editedGuest : undefined
-    };
-
-    onUpdateRoomDetails(roomId, updates);
+    // Le tarif est porté par le type de chambre ; le statut suit les règles
+    // du serveur (occupé et réservé ne s'obtiennent que par une réservation).
+    onUpdateRoomDetails(roomId, { nightlyRate: editedRate, status: editedStatus });
     setEditingRoomId(null);
-    triggerToast("Chambre mise à jour avec succès.");
   };
 
   const formatValue = (val: number) => `${val.toLocaleString('fr-FR')} FCFA`;
@@ -183,7 +166,7 @@ export default function RoomInventory({
 
         <div className="flex items-center gap-2.5">
           {/* Add Unit Button */}
-          {currentRole !== 'Directeur Financier' ? (
+          {currentRole === "Propriétaire d'Hôtel" ? (
             <button
               onClick={() => setShowAddModal(true)}
               className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-md shadow-orange-600/10"
@@ -194,7 +177,7 @@ export default function RoomInventory({
           ) : (
             <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-100/75 border border-slate-200/50 rounded-xl text-[10.5px] font-bold text-slate-500">
               <Lock className="w-3.5 h-3.5" />
-              <span>Inventaire bloqué (Dir. Financier)</span>
+              <span>Inventaire en lecture seule pour votre rôle</span>
             </div>
           )}
         </div>
@@ -396,9 +379,10 @@ export default function RoomInventory({
                             onChange={(e) => setEditedStatus(e.target.value as RoomStatus)}
                             className="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-orange-500"
                           >
-                            <option value="available">Disponible</option>
-                            <option value="occupied">Occupé</option>
-                            <option value="reserved">Réservé</option>
+                            <option value="available">Propre / disponible</option>
+                            {(room.status === 'occupied' || room.status === 'reserved') && (
+                              <option value={room.status} disabled>{room.status === 'occupied' ? 'Occupé (via réservation)' : 'Réservé (via réservation)'}</option>
+                            )}
                             <option value="not-ready">Sale / En Ménage</option>
                             <option value="maintenance">Maintenance (Stop Service)</option>
                           </select>
@@ -428,18 +412,7 @@ export default function RoomInventory({
 
                       {/* Current Guest registered details */}
                       <td className="p-4 text-left">
-                        {isEditing ? (
-                          <div className="relative w-40">
-                            <User className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input
-                              type="text"
-                              value={editedGuest}
-                              onChange={(e) => setEditedGuest(e.target.value)}
-                              placeholder="Aucun client..."
-                              className="w-full bg-white border border-slate-200 text-xs text-slate-700 rounded pl-7 pr-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                            />
-                          </div>
-                        ) : room.guestName ? (
+                        {room.guestName ? (
                           <span className="font-extrabold text-slate-800 flex items-center gap-1">
                             <span className="text-slate-400 font-mono text-[9px] font-normal">👤</span>
                             {room.guestName}
@@ -493,7 +466,6 @@ export default function RoomInventory({
                                 onClick={() => {
                                   setEditingRoomId(room.id);
                                   setEditedRate(room.nightlyRate);
-                                  setEditedGuest(room.guestName || '');
                                   setEditedStatus(room.status);
                                 }}
                                 className="bg-slate-50 hover:bg-orange-50 border border-slate-200/60 text-slate-600 hover:text-orange-600 p-1.5 rounded-lg transition-all cursor-pointer"
@@ -507,7 +479,6 @@ export default function RoomInventory({
                                 <button
                                   onClick={() => {
                                     onUpdateRoomStatus(room.id, 'available');
-                                    triggerToast(`Chambre ${room.number} marquée comme propre.`);
                                   }}
                                   className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 p-1.5 rounded-lg border border-emerald-100/50 transition-colors cursor-pointer"
                                   title="Approuver le ménage"
@@ -522,7 +493,6 @@ export default function RoomInventory({
                                   <button
                                     onClick={() => {
                                       onUpdateRoomStatus(room.id, 'available');
-                                      triggerToast(`Chambre ${room.number} : maintenance levée, chambre disponible.`);
                                     }}
                                     className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 p-1.5 rounded-lg border border-emerald-100 transition-colors cursor-pointer"
                                     title="Lever la maintenance"
@@ -533,7 +503,6 @@ export default function RoomInventory({
                                   <button
                                     onClick={() => {
                                       onUpdateRoomStatus(room.id, 'maintenance');
-                                      triggerToast(`Chambre ${room.number} mise en maintenance (Stop Service).`);
                                     }}
                                     className="bg-red-50 hover:bg-red-100 text-red-500 p-1.5 rounded-lg border border-red-100 transition-colors cursor-pointer"
                                     title="Stop Service / Maintenance"
@@ -548,8 +517,7 @@ export default function RoomInventory({
                                 <button
                                   onClick={() => {
                                     if (confirm(`Êtes-vous certain de vouloir supprimer la chambre ${room.number} de l'inventaire ?`)) {
-                                      onDeleteRoom(room.id);
-                                      triggerToast(`Chambre ${room.number} supprimée.`);
+                                      onDeleteRoom(room.id).then(ok => ok && triggerToast(`Chambre ${room.number} retirée de l'inventaire.`));
                                     }
                                   }}
                                   className="bg-red-50 hover:bg-red-105 border border-red-100 text-red-500 hover:text-red-650 p-1.5 rounded-lg transition-all cursor-pointer"
@@ -619,10 +587,10 @@ export default function RoomInventory({
                   </label>
                   <input
                     type="number"
-                    min={1}
-                    max={5}
+                    min={0}
+                    max={200}
                     value={newRoomFloor}
-                    onChange={(e) => setNewRoomFloor(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setNewRoomFloor(parseInt(e.target.value) || 0)}
                     className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500"
                     required
                   />
@@ -634,21 +602,23 @@ export default function RoomInventory({
                 <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
                   Type de Chambre / Catégorie :
                 </label>
-                <select
+                <input
+                  list="room-categories"
                   value={newRoomCategory}
-                  onChange={(e) => setNewRoomCategory(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
-                >
-                  <option value="Chambre Standard">Chambre Standard</option>
-                  <option value="Chambre Supérieure">Chambre Supérieure</option>
-                  <option value="Chambre Deluxe Océan">Chambre Deluxe Océan</option>
-                  <option value="Suite Royale Swim-up">Suite Royale Swim-up</option>
-                  <option value="Bungalow Jardin">Bungalow Jardin</option>
-                  <option value="Bungalow Vue Saloum">Bungalow Vue Saloum</option>
-                  <option value="Bungalow Piloti Premium">Bungalow Piloti Premium</option>
-                  <option value="Suite Fleuve Casamance">Suite Fleuve Casamance</option>
-                  <option value="Chambre Confort Balcon">Chambre Confort Balcon</option>
-                </select>
+                  onChange={(e) => {
+                    setNewRoomCategory(e.target.value);
+                    const existing = rooms.find(r => r.category === e.target.value);
+                    if (existing) setNewRoomRate(existing.nightlyRate);
+                  }}
+                  placeholder="Ex : Chambre Standard"
+                  className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  required
+                  minLength={2}
+                />
+                <datalist id="room-categories">
+                  {distinctCategories.filter(c => c !== 'Tous').map(c => <option key={c} value={c} />)}
+                </datalist>
+                <p className="text-[10px] text-slate-400">Un nouveau nom crée un type de chambre ; le tarif s’applique à toutes les chambres du type.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -659,8 +629,8 @@ export default function RoomInventory({
                   </label>
                   <input
                     type="number"
-                    min={1000}
-                    step={1000}
+                    min={0}
+                    step={500}
                     value={newRoomRate}
                     onChange={(e) => setNewRoomRate(parseInt(e.target.value) || 75000)}
                     className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-[#09153D] p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500"
@@ -668,21 +638,6 @@ export default function RoomInventory({
                   />
                 </div>
 
-                {/* Status initial */}
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                    Statut de Départ :
-                  </label>
-                  <select
-                    value={newRoomStatus}
-                    onChange={(e) => setNewRoomStatus(e.target.value as RoomStatus)}
-                    className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
-                  >
-                    <option value="available">Disponible (Propre)</option>
-                    <option value="not-ready">Sale (En Nettoyage)</option>
-                    <option value="reserved">Réservée</option>
-                  </select>
-                </div>
               </div>
 
               {/* Action submit button footer */}

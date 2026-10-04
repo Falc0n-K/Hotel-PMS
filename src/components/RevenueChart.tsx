@@ -1,15 +1,13 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, ChevronDown, CheckCircle2 } from 'lucide-react';
-import { revenueGraphData } from '../data';
+import { Calendar } from 'lucide-react';
 
-export default function RevenueChart() {
-  const [timeframe, setTimeframe] = useState('6 Derniers Mois');
-  const [showDropdown, setShowDropdown] = useState(false);
+export interface RevenuePoint {
+  month: string;
+  revenue: number;
+}
+
+// Encaissements réels par mois (table payments), six derniers mois.
+export default function RevenueChart({ data }: { data: RevenuePoint[] }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [containerWidth, setContainerWidth] = useState(500);
@@ -28,15 +26,15 @@ export default function RevenueChart() {
   }, []);
 
   // Data mapping
-  const data = revenueGraphData;
   const paddingX = 40;
   const paddingY = 30;
   const height = 180;
   const width = Math.max(containerWidth, 200);
 
   // Min and max formulas
-  const maxRevenue = 350000;
-  const minRevenue = 150000;
+  const total = data.reduce((sum, d) => sum + d.revenue, 0);
+  const minRevenue = 0;
+  const maxRevenue = Math.max(...data.map((d) => d.revenue), 1) * 1.15;
 
   // Coordinate converter
   const getCoordinates = () => {
@@ -98,46 +96,19 @@ export default function RevenueChart() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-sm font-bold text-slate-900 tracking-tight">Revenus</h4>
-          <p className="text-[11px] text-slate-400 font-medium">Répartition des rentrées financières</p>
+          <p className="text-[11px] text-slate-400 font-medium">Encaissements enregistrés (hors taxe de séjour)</p>
         </div>
 
-        {/* Dynamic Timeframe Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-[11px] font-bold text-slate-600 rounded-lg cursor-pointer transition-colors"
-          >
-            <span>{timeframe}</span>
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-          
-          {showDropdown && (
-            <div className="absolute right-0 mt-1.5 w-36 bg-white border border-slate-100 rounded-lg shadow-lg py-1.5 z-30">
-              {['Ce Mois', '3 Derniers Mois', '6 Derniers Mois', 'Cette Année'].map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => {
-                    setTimeframe(opt);
-                    setShowDropdown(false);
-                  }}
-                  className="w-full text-left px-3 py-1.5 text-[11px] text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer"
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-600 rounded-lg">
+          <Calendar className="w-3.5 h-3.5" />
+          6 derniers mois
+        </span>
       </div>
 
       {/* Target and Total */}
       <div className="flex items-baseline gap-2 mb-4">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Revenu Total</span>
-        <span className="text-2xl font-extrabold text-[#09153D] tracking-tight font-mono">315 060 FCFA</span>
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 pl-1.5 border-l border-slate-200">
-          <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-          Objectif de juin atteint
-        </span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Total encaissé</span>
+        <span className="text-2xl font-extrabold text-[#09153D] tracking-tight font-mono">{formatCurrency(total)}</span>
       </div>
 
       {/* Actual Chart SVG Block */}
@@ -183,7 +154,7 @@ export default function RevenueChart() {
                   textAnchor="end"
                   className="font-mono text-[9px] font-semibold fill-slate-300"
                 >
-                  {i === 0 ? '0000' : `${Math.round(gridVal / 1000)}k`}
+                  {i === 0 ? '0' : `${Math.round(gridVal / 1000)}k`}
                 </text>
               </g>
             );
@@ -262,10 +233,6 @@ export default function RevenueChart() {
           >
             <p className="text-[10px] font-semibold text-orange-400 capitalize">{pts[hoveredIndex].month} 2026</p>
             <p className="text-xs font-bold font-mono mt-0.5">{formatCurrency(pts[hoveredIndex].revenue)}</p>
-            <div className="flex items-center gap-1 mt-1 text-[9px] text-slate-300 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <span>Cible: {formatCurrency(pts[hoveredIndex].target)}</span>
-            </div>
           </div>
         )}
       </div>

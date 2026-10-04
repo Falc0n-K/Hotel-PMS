@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { useState } from 'react';
 import { Sparkles, Bed, Info, User, Check, X, Phone, Calendar, LogIn, LogOut, RefreshCw } from 'lucide-react';
 import { Room, RoomStatus } from '../types';
@@ -17,7 +12,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
   // Group rooms by floor (Floor 4, 3, 2, 1) for hierarchical display
-  const floors = [4, 3, 2, 1];
+  const floors = Array.from(new Set(rooms.map(r => r.floor))).sort((a, b) => b - a);
 
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -78,7 +73,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
         </div>
 
         <div className="text-right flex items-baseline gap-2">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">TOTAL ALL ROOMS</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">TOTAL CHAMBRES</span>
           <span className="text-3xl font-extrabold text-[#09153D] tracking-tight font-mono">{rooms.length}</span>
         </div>
       </div>
@@ -96,7 +91,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                     Étage {floorNum}
                   </span>
                   <span className="text-[9px] font-mono text-slate-300">
-                    Chambres {floorNum}01 à {floorNum}30
+                    {floorRooms.length} chambre{floorRooms.length > 1 ? 's' : ''}
                   </span>
                 </div>
                 
@@ -244,7 +239,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                     onClick={() => onUpdateRoomStatus(selectedRoom.id, 'available')}
                     className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-1.5 px-2.5 rounded-xl text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer"
                   >
-                    <span>Annuler</span>
+                    <span>Annuler la réservation</span>
                   </button>
                 </div>
               )}
@@ -257,14 +252,6 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
                   >
                     <RefreshCw className="w-3 h-3" />
                     <span>Ménage requis</span>
-                  </button>
-                )}
-                {selectedRoom.status !== 'reserved' && selectedRoom.status !== 'occupied' && (
-                  <button
-                    onClick={() => onUpdateRoomStatus(selectedRoom.id, 'reserved')}
-                    className="flex-1 bg-amber-50 hover:bg-amber-100 border border-amber-200/50 text-amber-700 py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                  >
-                    <span>Réserver</span>
                   </button>
                 )}
               </div>

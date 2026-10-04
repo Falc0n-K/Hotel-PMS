@@ -1,74 +1,68 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState } from 'react';
-import { ShieldAlert, KeyRound, Unlock, AlertCircle } from 'lucide-react';
+import { ShieldAlert, KeyRound, Unlock, AlertCircle, LogOut } from 'lucide-react';
+import { supabase, errorMessage } from '../lib/supabase';
 
 interface LockScreenProps {
   isOpen: boolean;
   onUnlock: () => void;
+  onSignOut: () => void;
   userName: string;
+  email: string;
 }
 
-export function LockScreen({ isOpen, onUnlock, userName }: LockScreenProps) {
-  const [passcode, setPasscode] = useState('');
+// Verrouillage de poste : le déverrouillage revérifie le mot de passe du
+// compte auprès de Supabase (plus de code PIN écrit dans le code source).
+export function LockScreen({ isOpen, onUnlock, onSignOut, userName, email }: LockScreenProps) {
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [attempts, setAttempts] = useState(0);
+  const [busy, setBusy] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === '1234' || passcode.trim().toLowerCase() === 'admin') {
-      setErrorMsg('');
-      setPasscode('');
-      setAttempts(0);
-      onUnlock();
-    } else {
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-      if (newAttempts >= 3) {
-        setErrorMsg('Trop de tentatives incorrectes. Contactez votre administrateur système.');
-      } else {
-        setErrorMsg(`Code PIN incorrect. ${3 - newAttempts} tentative(s) restante(s).`);
-      }
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setBusy(false);
+    if (error) {
+      setErrorMsg(errorMessage(error));
+      return;
     }
+    setErrorMsg('');
+    setPassword('');
+    onUnlock();
   };
 
   return (
     <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl border border-slate-100 p-8 text-center animate-in zoom-in-95 duration-200">
-
+      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl border border-slate-100 p-8 text-center">
         <div className="w-14 h-14 bg-orange-100 border border-orange-200 text-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-inner">
-          <ShieldAlert className="w-7 h-7 animate-pulse" />
+          <ShieldAlert className="w-7 h-7" />
         </div>
 
-        <h3 className="text-lg font-extrabold text-slate-950 font-sans">Session PMS Verrouillée</h3>
+        <h3 className="text-lg font-extrabold text-slate-950 font-sans">Session verrouillée</h3>
         <p className="text-xs text-slate-500 font-medium mt-1.5 px-3">
           Opérateur : <span className="font-bold text-slate-800">{userName}</span>
         </p>
-        <p className="text-[11px] text-slate-400 mt-1">
-          Saisissez votre code PIN pour reprendre la session.
-        </p>
+        <p className="text-[11px] text-slate-400 mt-1">Saisissez votre mot de passe pour reprendre la session.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-3">
           <div className="relative">
             <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="password"
-              placeholder="••••  Code PIN"
-              value={passcode}
-              onChange={(e) => setPasscode(e.target.value)}
-              disabled={attempts >= 3}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors text-center font-mono text-slate-800 placeholder:text-slate-400 placeholder:font-sans disabled:opacity-50"
+              aria-label="Mot de passe"
+              placeholder="Mot de passe"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-800"
               autoFocus
             />
           </div>
 
           {errorMsg && (
-            <div className="flex items-start gap-1 p-2 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg text-left leading-normal">
+            <div role="alert" className="flex items-start gap-1 p-2 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg text-left leading-normal">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -76,17 +70,20 @@ export function LockScreen({ isOpen, onUnlock, userName }: LockScreenProps) {
 
           <button
             type="submit"
-            disabled={attempts >= 3}
-            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md shadow-orange-600/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={busy || !password}
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
           >
             <Unlock className="w-4 h-4" />
-            <span>Déverrouiller la Console</span>
+            <span>Déverrouiller</span>
           </button>
         </form>
 
-        <p className="text-[10px] text-slate-400 mt-4 border-t border-slate-100 pt-3">
-          En cas d'oubli, contactez votre administrateur PMS.
-        </p>
+        <button
+          onClick={onSignOut}
+          className="mt-4 w-full flex items-center justify-center gap-2 text-[11px] text-slate-500 border-t border-slate-100 pt-3 cursor-pointer"
+        >
+          <LogOut className="w-3.5 h-3.5" /> Changer d’utilisateur
+        </button>
       </div>
     </div>
   );

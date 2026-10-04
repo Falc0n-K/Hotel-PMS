@@ -1,524 +1,461 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { useState, useMemo } from 'react';
-import { RBACRole, Room, RoomStatus, Task, BookingSource, PMSNotification, ROLE_CONSOLES_MAPPING } from './types';
-import Sidebar from './components/Sidebar';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Loader2, AlertTriangle, Shield, X, FlaskConical } from 'lucide-react';
+import { RoomStatus, PMSNotification, ROLE_CONSOLES_MAPPING } from './types';
+import { useAuth, type Membership } from './lib/auth';
+import { usePropertyData, paidAmount } from './lib/pmsData';
+import { APP_ROLE_LABELS, canManageReservations, canSeeFinance, uiRoleFor } from './lib/roles';
+import { addDays } from './lib/dates';
+import Sidebar, { CONSOLES, DEMO_CONSOLES } from './components/Sidebar';
 import Header from './components/Header';
-import MetricCards from './components/MetricCards';
-import RevenueChart from './components/RevenueChart';
-import OccupancyChart from './components/OccupancyChart';
-import RoomGrid from './components/RoomGrid';
-import BottomSections from './components/BottomSections';
-import HotelsHub from './components/HotelsHub';
-import RoomInventory from './components/RoomInventory';
-import BookingsDesk from './components/BookingsDesk';
-import GuestsCRM from './components/GuestsCRM';
-import PaymentsFinance from './components/PaymentsFinance';
-import EventVenues from './components/EventVenues';
-import ExperiencesMarket from './components/ExperiencesMarket';
-import MarketingPackages from './components/MarketingPackages';
-import GuestFeedbacks from './components/GuestFeedbacks';
-import DeepAnalytics from './components/DeepAnalytics';
-import StaffDirectory from './components/StaffDirectory';
-import MessagesInbox from './components/MessagesInbox';
-import GlobalSettings from './components/GlobalSettings';
+import LoginScreen, { NewPasswordScreen } from './components/LoginScreen';
+import Onboarding from './components/Onboarding';
 import { LockScreen } from './components/Modals';
-import ReceptionistDashboard from './components/ReceptionistDashboard';
+import MetricCards, { type DashboardStats } from './components/MetricCards';
+import RevenueChart, { type RevenuePoint } from './components/RevenueChart';
+import OccupancyChart, { type OccupancyPoint } from './components/OccupancyChart';
+import RoomGrid from './components/RoomGrid';
+import DashboardOperations from './components/DashboardOperations';
 
-// Initial state data
-import {
-  generateRooms,
-  bookingSources,
-  guestReviews,
-  initialTasks,
-  initialNotifications
-} from './data';
-import { Shield, Sparkles, AlertTriangle, KeyRound, Award, Star, Activity, Plus } from 'lucide-react';
+// Écrans chargés à la demande : le bundle initial ne contient que le socle.
+const ReceptionistDashboard = lazy(() => import('./components/ReceptionistDashboard'));
+const RoomInventory = lazy(() => import('./components/RoomInventory'));
+const BookingsDesk = lazy(() => import('./components/BookingsDesk'));
+const TeamAccess = lazy(() => import('./components/TeamAccess'));
+const HotelsHub = lazy(() => import('./components/HotelsHub'));
+const GuestsCRM = lazy(() => import('./components/GuestsCRM'));
+const PaymentsFinance = lazy(() => import('./components/PaymentsFinance'));
+const EventVenues = lazy(() => import('./components/EventVenues'));
+const ExperiencesMarket = lazy(() => import('./components/ExperiencesMarket'));
+const MarketingPackages = lazy(() => import('./components/MarketingPackages'));
+const GuestFeedbacks = lazy(() => import('./components/GuestFeedbacks'));
+const DeepAnalytics = lazy(() => import('./components/DeepAnalytics'));
+const StaffDirectory = lazy(() => import('./components/StaffDirectory'));
+const MessagesInbox = lazy(() => import('./components/MessagesInbox'));
+const GlobalSettings = lazy(() => import('./components/GlobalSettings'));
 
-export default function App() {
-  // Simulator states
-  const [currentRole, setCurrentRole] = useState<RBACRole>('Propriétaire d\'Hôtel');
-  const [activeConsole, setActiveConsole] = useState<string>('dashboard');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [currentHotel, setCurrentHotel] = useState<string>('Royal Saly');
-  
-  // Real active local databases
-  const [rooms, setRooms] = useState<Room[]>(() => generateRooms());
-  const [tasks, setTasks] = useState<Task[]>(() => initialTasks);
-  const [notifications, setNotifications] = useState<PMSNotification[]>(() => initialNotifications);
-  const [isSessionLocked, setIsSessionLocked] = useState<boolean>(false);
+const APP_VERSION = '0.5.0';
 
-  // Growth-rates and standard metrics offset simulator
-  const [deltaEarnings, setDeltaEarnings] = useState<number>(0);
-  const [simulationAlert, setSimulationAlert] = useState<string | null>(
-    "Groupe Senegal Hotels PMS : Gestion centralisée multi-établissement active."
-  );
-
-  // Live active rooms compute for the selected hotel property
-  const hotelRooms = useMemo(() => {
-    if (currentHotel === 'Les Pélicans du Saloum') {
-      // Intimate eco-lodge: 40 cosy bungalows on 1st/2nd level, custom theme names
-      return rooms
-        .filter(r => r.floor <= 2 && parseInt(r.number) % 10 <= 8)
-        .map(r => ({
-          ...r,
-          category: r.category.includes('Suite') 
-            ? 'Bungalow Piloti Premium' 
-            : r.category.includes('Deluxe') 
-            ? 'Bungalow Vue Saloum' 
-            : 'Bungalow Jardin'
-        }));
-    }
-    if (currentHotel === 'Nema Kadior') {
-      // Mid-size riverfront: 72 rooms
-      return rooms
-        .filter(r => r.floor <= 3 && parseInt(r.number) % 10 <= 18)
-        .map(r => ({
-          ...r,
-          category: r.category.includes('Suite') 
-            ? 'Suite Fleuve Casamance' 
-            : r.category.includes('Deluxe') 
-            ? 'Chambre Confort Balcon' 
-            : r.category
-        }));
-    }
-    // Royal Saly: Full 120 rooms resort
-    return rooms;
-  }, [rooms, currentHotel]);
-
-  // Dynamic status counters based on physical local hotel room states
-  const currentStats = useMemo(() => {
-    const occupied = hotelRooms.filter(r => r.status === 'occupied').length;
-    const reserved = hotelRooms.filter(r => r.status === 'reserved').length;
-    const notReady = hotelRooms.filter(r => r.status === 'not-ready').length;
-    
-    // Scale baseline factors dynamically based on hotel tier
-    const multiplier = currentHotel === 'Royal Saly' ? 1.0 : currentHotel === 'Nema Kadior' ? 0.65 : 0.35;
-    
-    return {
-      totalRevenue: Math.round((58240 + deltaEarnings) * multiplier),
-      newReservations: Math.round((106 + reserved) * multiplier),
-      checkedIn: occupied,
-      checkedOut: notReady + 2,
-    };
-  }, [hotelRooms, deltaEarnings, currentHotel]);
-
-  // Handle room status updates from Inspector quick-actions
-  const handleUpdateRoomStatus = (roomId: string, newStatus: RoomStatus) => {
-    setRooms(prevRooms =>
-      prevRooms.map(room => {
-        if (room.id === roomId) {
-          const oldStatus = room.status;
-          
-          // Increment simulated earnings when checking guests in
-          if (oldStatus !== 'occupied' && newStatus === 'occupied') {
-            setDeltaEarnings(prev => prev + room.nightlyRate);
-            
-            // Push dynamic notification Alert
-            const newNotif: PMSNotification = {
-              id: `notif-${Date.now()}`,
-              title: 'Arrivée validée en temps réel',
-              message: `Arrivée du client enregistrée aujourd'hui en chambre ${room.number} (${room.category}).`,
-              time: 'À l\'instant',
-              type: 'réservation',
-              read: false
-            };
-            setNotifications(prev => [newNotif, ...prev]);
-          }
-
-          // Return room with updated values
-          const clearGuest = newStatus === 'available' || newStatus === 'not-ready';
-          return {
-            ...room,
-            status: newStatus,
-            guestName: clearGuest ? undefined : room.guestName,
-            phone: clearGuest ? undefined : room.phone,
-            checkInDate: clearGuest ? undefined : room.checkInDate,
-          };
-        }
-        return room;
-      })
-    );
-  };
-
-  const handleUpdateRoomStatusAndGuest = (
-    roomNumber: string,
-    status: RoomStatus,
-    guestName?: string,
-    checkIn?: string,
-    checkOut?: string
-  ) => {
-    setRooms(prevRooms =>
-      prevRooms.map(room => {
-        if (room.number === roomNumber) {
-          const oldStatus = room.status;
-          if (oldStatus !== 'occupied' && status === 'occupied') {
-            setDeltaEarnings(prev => prev + room.nightlyRate);
-          }
-          return {
-            ...room,
-            status,
-            guestName: guestName,
-            checkInDate: checkIn,
-            checkOutDate: checkOut,
-          };
-        }
-        return room;
-      })
-    );
-  };
-
-  const handleAddNotification = (
-    title: string,
-    message: string,
-    type: 'réservation' | 'paiement' | 'alerte' | 'info'
-  ) => {
-    const newNotif: PMSNotification = {
-      id: `notif-${Date.now()}`,
-      title,
-      message,
-      time: 'À l\'instant',
-      type,
-      read: false
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-  };
-
-  // Tasks handlers
-  const handleToggleTask = (id: string) => {
-    setTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
-  };
-
-  const handleAddTask = (text: string, priority: 'haute' | 'moyenne' | 'basse', category: string) => {
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      text,
-      completed: false,
-      priority,
-      category: category || 'Général'
-    };
-    setTasks(prev => [newTask, ...prev]);
-    
-    // Alert feedback
-    setSimulationAlert(`Nouvelle tâche ajoutée : "${text}"`);
-    setTimeout(() => setSimulationAlert(null), 3500);
-  };
-
-  const handleDeleteTask = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
-  };
-
-
-  // Notifications administration
-  const handleMarkNotificationRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const handleClearNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  const handleRoleChange = (role: RBACRole) => {
-    setCurrentRole(role);
-    const allowed = ROLE_CONSOLES_MAPPING[role] || [];
-    if (!allowed.includes(activeConsole)) {
-      setActiveConsole(role === 'Réceptionniste (Front Desk)' ? 'reception-desk' : 'dashboard');
-    }
-    setSimulationAlert(`Habilitation RBAC modifiée : Affichage ajusté pour le rôle "${role}".`);
-    setTimeout(() => setSimulationAlert(null), 4000);
-  };
-
+function FullPageLoader() {
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex">
-      
-      {/* 1. SIDEBAR NAVIGATION PANEL */}
-      <Sidebar
-        currentRole={currentRole}
-        onRoleChange={handleRoleChange}
-        activeConsole={activeConsole}
-        onConsoleSelect={setActiveConsole}
-        onLockSession={() => setIsSessionLocked(true)}
-        currentHotel={currentHotel}
-        onHotelChange={(h) => {
-          setCurrentHotel(h);
-          setSimulationAlert(`Établissement actif modifié : Affichage du tableau de bord de ${h}.`);
-          setTimeout(() => setSimulationAlert(null), 3500);
-        }}
-      />
-
-      {/* 2. MAIN LAYOUT CONTAINER */}
-      <main className="flex-grow pl-72 min-h-screen flex flex-col">
-        
-        {/* 3. CORE HEADER PANEL */}
-        <Header
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          notifications={notifications}
-          onMarkNotificationRead={handleMarkNotificationRead}
-          onClearNotification={handleClearNotification}
-        />
-
-        {/* 4. SCROLLABLE SCREEN CONTENTS */}
-        <div className="p-8 flex-grow flex flex-col max-w-[1600px] w-full mx-auto">
-          
-          {/* Simulation status flash messages */}
-          {simulationAlert && (
-            <div className="mb-6 p-4 bg-orange-50 border border-orange-200/60 rounded-2xl flex items-center justify-between text-xs text-orange-850 shadow-sm animate-in fade-in duration-300">
-              <div className="flex items-center gap-2.5">
-                <Sparkles className="w-4 h-4 text-orange-650 shrink-0" />
-                <span className="font-semibold">{simulationAlert}</span>
-              </div>
-              <button
-                onClick={() => setSimulationAlert(null)}
-                className="text-orange-500 hover:text-orange-700 font-bold ml-4 cursor-pointer"
-              >
-                Ignorer
-              </button>
-            </div>
-          )}
-
-          {/* RBAC Simulation Visual Warning Banner */}
-          {currentRole !== 'Propriétaire d\'Hôtel' && (
-            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-xs text-amber-850 animate-in fade-in slide-in-from-top-1 duration-200">
-              <AlertTriangle className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold">Vue restreinte ({currentRole})</p>
-                <p className="text-amber-700 font-medium mt-0.5">
-                  {currentRole === 'Réceptionniste (Front Desk)' && "Certains indicateurs financiers de haut niveau sont simplifiés. Votre tableau de bord se concentre sur les arrivées/départs et les fiches clients."}
-                  {currentRole === 'Directeur Financier' && "L'accès à l'inventaire physique des chambres et les modifications d'interrupteurs de ménage sont verrouillés pour préserver l'audit de facturation."}
-                  {currentRole === 'Responsable Ménage' && "Les données sensibles d'encaissement et de réservations sont masquées pour des raisons de conformité opérationnelle. Votre focus est l'entretien ménager (Chambres non prêtes)."}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* CONDITIONAL RENDER BY ACTIVE CONSOLE VIEW */}
-          {activeConsole === 'reception-desk' ? (
-            <ReceptionistDashboard
-              rooms={hotelRooms}
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onUpdateRoomStatus={handleUpdateRoomStatus}
-              onAddNotification={handleAddNotification}
-              onNavigate={setActiveConsole}
-            />
-          ) : activeConsole === 'dashboard' ? (
-            <div className="fade-in-up">
-              
-              {/* Core stat cards (KPI widgets) - Hides revenue if currentRole is housekeeping */}
-              {currentRole !== 'Responsable Ménage' ? (
-                <MetricCards stats={currentStats} />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  <div className="bg-white p-5 rounded-[24px] border border-slate-100 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="p-3.5 bg-red-50 text-red-650 rounded-xl">
-                      <Activity className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Chambres en cours de ménage</p>
-                      <h4 className="text-2xl font-black text-[#09153D]">{hotelRooms.filter(r => r.status === 'not-ready').length} Chambres</h4>
-                    </div>
-                  </div>
-                  <div className="bg-white p-5 rounded-[24px] border border-slate-100 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="p-3.5 bg-emerald-50 text-emerald-650 rounded-xl">
-                      <Award className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Chambres libres inspectées</p>
-                      <h4 className="text-2xl font-black text-[#09153D]">{hotelRooms.filter(r => r.status === 'available').length} Chambres</h4>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Big Charts Row: Revenue and Occupancy - Redacted/Modified based on simulated role permissions */}
-              <div className="flex flex-col xl:flex-row gap-6 mb-8 w-full">
-                {currentRole !== 'Responsable Ménage' ? (
-                  <RevenueChart />
-                ) : (
-                  <div className="bg-slate-100/50 p-6 rounded-2xl border border-dashed border-slate-200 flex-1 flex flex-col items-center justify-center text-center py-12 min-h-[260px]">
-                    <Shield className="w-10 h-10 text-slate-450 mb-3" />
-                    <h5 className="font-bold text-slate-700">Flux financiers confidentiels</h5>
-                    <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
-                      Les autorisations de votre profil ({currentRole}) limitent l'accès aux graphiques de rentrées financières.
-                    </p>
-                  </div>
-                )}
-                
-                <OccupancyChart rooms={hotelRooms} />
-              </div>
-
-              {/* Room Availability interactive board row */}
-              <RoomGrid
-                rooms={hotelRooms}
-                onUpdateRoomStatus={currentRole === 'Directeur Financier' ? () => alert("Simulation PMS : L'édition d'inventaire est bloquée sous le rôle de Directeur Financier.") : handleUpdateRoomStatus}
-                searchQuery={searchQuery}
-              />
-
-              {/* Bottom Row Information widgets */}
-              <BottomSections
-                sources={bookingSources}
-                reviews={guestReviews}
-                tasks={tasks}
-                onToggleTask={handleToggleTask}
-                onAddTask={handleAddTask}
-                onDeleteTask={handleDeleteTask}
-              />
-              
-            </div>
-          ) : activeConsole === 'hotels-hub' ? (
-            <HotelsHub
-              currentHotel={currentHotel}
-              onHotelChange={(h) => {
-                setCurrentHotel(h);
-                setSimulationAlert(`Établissement actif modifié : Affichage du tableau de bord de ${h}.`);
-                setTimeout(() => setSimulationAlert(null), 3500);
-              }}
-              currentRole={currentRole}
-            />
-          ) : activeConsole === 'rooms-inventory' ? (
-            <RoomInventory
-              rooms={hotelRooms}
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onUpdateRoomStatus={handleUpdateRoomStatus}
-              onUpdateRoomDetails={(roomId, updatedFields) => {
-                setRooms(prev => prev.map(r => r.id === roomId ? { ...r, ...updatedFields } : r));
-              }}
-              onAddRoom={(newRoom) => {
-                setRooms(prev => [...prev, newRoom]);
-              }}
-              onDeleteRoom={(roomId) => {
-                setRooms(prev => prev.filter(r => r.id !== roomId));
-              }}
-            />
-          ) : activeConsole === 'bookings-desk' ? (
-            <BookingsDesk
-              rooms={hotelRooms}
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onUpdateRoomStatusAndGuest={handleUpdateRoomStatusAndGuest}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'guests-crm' ? (
-            <GuestsCRM
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'payments-finance' ? (
-            <PaymentsFinance
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'event-venues' ? (
-            <EventVenues
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'experiences-market' ? (
-            <ExperiencesMarket
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'marketing-packages' ? (
-            <MarketingPackages
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'guest-feedbacks' ? (
-            <GuestFeedbacks
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'deep-analytics' ? (
-            <DeepAnalytics
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'staff-directory' ? (
-            <StaffDirectory
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'messages-inbox' ? (
-            <MessagesInbox
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : activeConsole === 'global-settings' ? (
-            <GlobalSettings
-              currentHotel={currentHotel}
-              currentRole={currentRole}
-              onAddNotification={handleAddNotification}
-            />
-          ) : (
-            // Polish styled sub-consoles drawers
-            <div className="flex-grow flex flex-col items-center justify-center text-center p-12 bg-white rounded-3xl border border-slate-100/80 my-auto shadow-inner py-20 fade-in-up">
-              <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-3xl flex items-center justify-center mb-6 shadow-sm">
-                <Shield className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-extrabold text-slate-950 font-sans">Console "{activeConsole.replace('-', ' ')}" en Service</h3>
-              <p className="text-xs text-slate-500 max-w-md mt-2 leading-relaxed">
-                Ce plateau interactif fait partie de l'écosystème unifié du PMS <strong>Senegal Hotels</strong>. 
-                Toutes les commandes opérationnelles centrales sont intégrées au <span className="font-semibold text-orange-650 cursor-pointer" onClick={() => setActiveConsole('dashboard')}>Tableau de bord principal</span>.
-              </p>
-              
-              <div className="mt-8 flex gap-3">
-                <button
-                  onClick={() => setActiveConsole('dashboard')}
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition-colors cursor-pointer"
-                >
-                  Retour au Tableau de Bord
-                </button>
-                <button
-                  onClick={() => alert('Simulateur PMS : Rapport d\'état synthétisé envoyé au propriétaire.')}
-                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 font-bold py-2.5 px-5 rounded-xl text-xs transition-colors cursor-pointer"
-                >
-                  Télécharger le rapport d'audit
-                </button>
-              </div>
-            </div>
-          )}
-
-        </div>
-
-        {/* 5. BRAND FOOTER WRAPPER */}
-        <footer className="h-14 border-t border-slate-50 flex items-center justify-between px-8 text-[11px] text-slate-400 bg-white/50">
-          <span>Senegal Hotels Workspace © 2026</span>
-          <div className="flex gap-4">
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-              <span>Serveur Multi-hôtels en ligne (Port 3000)</span>
-            </span>
-            <span>Version 4.2.0-orange</span>
-          </div>
-        </footer>
-
-      </main>
-
-      {/* 6. SECURITY LOCKSCREEN OVERLAY SCREEN */}
-      <LockScreen
-        isOpen={isSessionLocked}
-        onUnlock={() => setIsSessionLocked(false)}
-        userName="Mamadou Diallo"
-      />
-
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400">
+      <Loader2 className="w-6 h-6 animate-spin" aria-label="Chargement" />
     </div>
   );
 }
+
+export default function App() {
+  const auth = useAuth();
+
+  if (auth.loading) return <FullPageLoader />;
+  if (auth.passwordRecovery && auth.session) return <NewPasswordScreen onDone={auth.endPasswordRecovery} />;
+  if (!auth.session) return <LoginScreen />;
+  if (auth.memberships.length === 0) return <Onboarding />;
+  return <Workspace memberships={auth.memberships} />;
+}
+
+const STORAGE_KEY = 'pms.currentProperty';
+
+function readStoredProperty(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function Workspace({ memberships }: { memberships: Membership[] }) {
+  const { session, profile, signOut } = useAuth();
+
+  const [propertyId, setPropertyId] = useState<string>(() => {
+    const stored = readStoredProperty();
+    return memberships.some((m) => m.property.id === stored) ? stored! : memberships[0].property.id;
+  });
+  const membership = memberships.find((m) => m.property.id === propertyId) ?? memberships[0];
+  const property = membership.property;
+  const appRole = membership.role;
+  const currentRole = uiRoleFor(appRole);
+  const financeVisible = canSeeFinance(appRole);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, property.id);
+    } catch {
+      /* stockage indisponible : on garde le choix en mémoire */
+    }
+  }, [property.id]);
+
+  const data = usePropertyData(property, financeVisible);
+  const { rooms, reservations, today, actions } = data;
+
+  const allowedConsoles = ROLE_CONSOLES_MAPPING[currentRole];
+  const [activeConsole, setActiveConsole] = useState<string>(() =>
+    currentRole === 'Réceptionniste (Front Desk)' ? 'reception-desk' : 'dashboard',
+  );
+  useEffect(() => {
+    if (!allowedConsoles.includes(activeConsole)) setActiveConsole(allowedConsoles[0]);
+  }, [allowedConsoles, activeConsole]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSessionLocked, setIsSessionLocked] = useState(false);
+  const [notifications, setNotifications] = useState<PMSNotification[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const userName = profile?.full_name || session?.user.email || 'Utilisateur';
+  const userEmail = session?.user.email ?? '';
+  const consoleLabel = CONSOLES.find((c) => c.id === activeConsole)?.label ?? 'Tableau de Bord';
+
+  useEffect(() => {
+    document.title = `${consoleLabel} · ${property.name}`;
+  }, [consoleLabel, property.name]);
+
+  const handleAddNotification = useCallback(
+    (title: string, message: string, type: 'réservation' | 'paiement' | 'alerte' | 'info') => {
+      setNotifications((prev) => [
+        {
+          id: `notif-${Date.now()}`,
+          title,
+          message,
+          type,
+          read: false,
+          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        },
+        ...prev,
+      ]);
+    },
+    [],
+  );
+
+  const runAction = useCallback(async (fn: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await fn();
+      return true;
+    } catch (e) {
+      setActionError((e as Error).message);
+      return false;
+    }
+  }, []);
+
+  // Point d'entrée unique des changements de statut demandés par les écrans
+  // (grille, inventaire, console réception). Chaque transition est traduite
+  // en opération serveur : check-in, check-out, annulation ou statut ménage.
+  const handleUpdateRoomStatus = useCallback(
+    (roomId: string, next: RoomStatus) => {
+      const room = rooms.find((r) => r.id === roomId);
+      if (!room || room.status === next) return;
+
+      if (next === 'occupied') {
+        if (room.status !== 'reserved' || !room.reservationId) {
+          setActionError('Une chambre ne passe « occupée » que par le check-in d’une réservation.');
+          return;
+        }
+        runAction(() => actions.checkIn(room.reservationId!)).then(
+          (ok) => ok && handleAddNotification('Arrivée enregistrée', `${room.guestName} — chambre ${room.number}.`, 'réservation'),
+        );
+        return;
+      }
+      if (room.status === 'occupied' && room.reservationId) {
+        runAction(() => actions.checkOut(room.reservationId!)).then(
+          (ok) => ok && handleAddNotification('Départ enregistré', `Chambre ${room.number} transmise au ménage.`, 'info'),
+        );
+        return;
+      }
+      if (room.status === 'reserved' && room.reservationId && next === 'available') {
+        if (!confirm(`Annuler la réservation de ${room.guestName} (chambre ${room.number}) ?`)) return;
+        runAction(() => actions.cancel(room.reservationId!));
+        return;
+      }
+      if (next === 'reserved') {
+        setActionError('Les réservations se créent depuis le Guichet Réservations.');
+        return;
+      }
+      if (next === 'maintenance') {
+        const reason = prompt(`Motif de mise hors service de la chambre ${room.number} :`);
+        if (reason === null) return;
+        runAction(() => actions.setHousekeeping(room.id, 'out_of_order', reason));
+        return;
+      }
+      runAction(() => actions.setHousekeeping(room.id, next === 'not-ready' ? 'dirty' : 'clean'));
+    },
+    [rooms, actions, runAction, handleAddNotification],
+  );
+
+  // ── Indicateurs du tableau de bord, tous dérivés des réservations ──────
+  const stats: DashboardStats = useMemo(() => {
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const arrivals = reservations.filter((r) => r.check_in === today && r.status !== 'cancelled');
+    const departures = reservations.filter((r) => r.check_out === today && r.status !== 'cancelled');
+    const occupied = rooms.filter((r) => r.status === 'occupied').length;
+    return {
+      monthRevenue: financeVisible
+        ? data.payments.filter((p) => p.created_at.slice(0, 10) >= monthStart).reduce((s, p) => s + p.amount, 0)
+        : null,
+      newReservations7d: reservations.filter((r) => r.created_at.slice(0, 10) >= addDays(today, -6)).length,
+      arrivalsDone: arrivals.filter((r) => r.status === 'checked_in' || r.status === 'checked_out').length,
+      arrivalsExpected: arrivals.filter((r) => r.status !== 'no_show').length,
+      departuresDone: departures.filter((r) => r.status === 'checked_out').length,
+      departuresExpected: departures.filter((r) => r.status === 'checked_in' || r.status === 'checked_out').length,
+      occupancyRate: rooms.length ? Math.round((occupied / rooms.length) * 100) : 0,
+    };
+  }, [today, reservations, rooms, data.payments, financeVisible]);
+
+  const occupancyTrend: OccupancyPoint[] = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = addDays(today, i - 6);
+      const occupiedRooms = new Set(
+        reservations
+          .filter((r) => ['checked_in', 'checked_out'].includes(r.status) && r.check_in <= day && r.check_out > day)
+          .map((r) => r.room_id),
+      ).size;
+      const label = new Date(`${day}T00:00:00Z`)
+        .toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+        .replace('.', '');
+      return { day: label, occupied: occupiedRooms, available: Math.max(rooms.length - occupiedRooms, 0) };
+    });
+  }, [today, reservations, rooms.length]);
+
+  const revenueTrend: RevenuePoint[] = useMemo(() => {
+    const base = new Date(`${today.slice(0, 7)}-01T00:00:00Z`);
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(base);
+      d.setUTCMonth(d.getUTCMonth() - (5 - i));
+      const key = d.toISOString().slice(0, 7);
+      return {
+        month: d.toLocaleDateString('fr-FR', { month: 'short', timeZone: 'UTC' }).replace('.', ''),
+        revenue: data.payments.filter((p) => p.created_at.slice(0, 7) === key).reduce((s, p) => s + p.amount, 0),
+      };
+    });
+  }, [today, data.payments]);
+
+  const demoProps = { currentHotel: property.name, currentRole, onAddNotification: handleAddNotification };
+
+  const renderConsole = () => {
+    switch (activeConsole) {
+      case 'reception-desk':
+        return (
+          <ReceptionistDashboard
+            rooms={rooms}
+            today={today}
+            currentHotel={property.name}
+            currentRole={currentRole}
+            onUpdateRoomStatus={handleUpdateRoomStatus}
+            onAddNotification={handleAddNotification}
+            onNavigate={setActiveConsole}
+          />
+        );
+      case 'dashboard':
+        return (
+          <div className="fade-in-up">
+            <MetricCards stats={stats} />
+            <div className="flex flex-col xl:flex-row gap-6 mb-8 w-full">
+              {financeVisible ? (
+                <RevenueChart data={revenueTrend} />
+              ) : (
+                <div className="bg-slate-100/50 p-6 rounded-2xl border border-dashed border-slate-200 flex-1 flex flex-col items-center justify-center text-center py-12 min-h-[260px]">
+                  <Shield className="w-10 h-10 text-slate-400 mb-3" />
+                  <h5 className="font-bold text-slate-700">Données financières non accessibles</h5>
+                  <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
+                    Votre rôle ({APP_ROLE_LABELS[appRole]}) ne donne pas accès aux encaissements. Ce masquage est appliqué par
+                    le serveur.
+                  </p>
+                </div>
+              )}
+              <OccupancyChart data={occupancyTrend} totalCapacity={rooms.length} />
+            </div>
+            <RoomGrid rooms={rooms} onUpdateRoomStatus={handleUpdateRoomStatus} searchQuery={searchQuery} />
+            <DashboardOperations
+              today={today}
+              rooms={rooms}
+              reservations={reservations}
+              tasks={data.tasks}
+              showBalances={financeVisible || canManageReservations(appRole)}
+              canCompleteTasks={['owner', 'general_manager', 'housekeeping_manager', 'housekeeper'].includes(appRole)}
+              onCompleteTask={actions.completeTask}
+            />
+          </div>
+        );
+      case 'rooms-inventory':
+        return (
+          <RoomInventory
+            rooms={rooms}
+            currentHotel={property.name}
+            currentRole={currentRole}
+            onUpdateRoomStatus={handleUpdateRoomStatus}
+            onUpdateRoomDetails={(roomId, fields) => {
+              const room = rooms.find((r) => r.id === roomId);
+              if (!room) return;
+              if (fields.nightlyRate !== undefined && fields.nightlyRate !== room.nightlyRate && room.roomTypeId) {
+                runAction(() => actions.updateRoomTypeRate(room.roomTypeId!, fields.nightlyRate!));
+              }
+              if (fields.status && fields.status !== room.status) handleUpdateRoomStatus(roomId, fields.status);
+            }}
+            onAddRoom={(r) => runAction(() => actions.addRoom(r.number, r.floor, r.category, r.nightlyRate))}
+            onDeleteRoom={(roomId) => runAction(() => actions.deleteRoom(roomId))}
+          />
+        );
+      case 'bookings-desk':
+        return (
+          <BookingsDesk
+            rooms={rooms}
+            reservations={reservations}
+            today={today}
+            breakfastPrice={property.breakfast_price}
+            currentHotel={property.name}
+            appRole={appRole}
+            actions={actions}
+            onAddNotification={handleAddNotification}
+          />
+        );
+      case 'team-access':
+        return <TeamAccess property={property} myRole={appRole} myUserId={session!.user.id} />;
+      case 'hotels-hub':
+        return <HotelsHub currentHotel={property.name} onHotelChange={() => undefined} currentRole={currentRole} />;
+      case 'guests-crm':
+        return <GuestsCRM {...demoProps} />;
+      case 'payments-finance':
+        return <PaymentsFinance {...demoProps} />;
+      case 'event-venues':
+        return <EventVenues {...demoProps} />;
+      case 'experiences-market':
+        return <ExperiencesMarket {...demoProps} />;
+      case 'marketing-packages':
+        return <MarketingPackages {...demoProps} />;
+      case 'guest-feedbacks':
+        return <GuestFeedbacks {...demoProps} />;
+      case 'deep-analytics':
+        return <DeepAnalytics {...demoProps} />;
+      case 'staff-directory':
+        return <StaffDirectory {...demoProps} />;
+      case 'messages-inbox':
+        return <MessagesInbox {...demoProps} />;
+      case 'global-settings':
+        return <GlobalSettings {...demoProps} />;
+      default:
+        return null;
+    }
+  };
+
+  // Les réservations impayées en séjour alimentent le badge de notifications.
+  const unpaidInHouse = reservations.filter((r) => r.status === 'checked_in' && paidAmount(r) < r.total_amount).length;
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex">
+      <Sidebar
+        currentRole={currentRole}
+        roleLabel={APP_ROLE_LABELS[appRole]}
+        activeConsole={activeConsole}
+        onConsoleSelect={setActiveConsole}
+        onLockSession={() => setIsSessionLocked(true)}
+        onSignOut={signOut}
+        properties={memberships.map((m) => m.property)}
+        currentPropertyId={property.id}
+        onPropertyChange={(id) => {
+          setPropertyId(id);
+          setNotifications([]);
+          setActionError(null);
+        }}
+        userName={userName}
+        userEmail={userEmail}
+      />
+
+      <main className="flex-grow pl-72 min-h-screen flex flex-col">
+        <Header
+          title={consoleLabel}
+          userName={userName}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          notifications={notifications}
+          onMarkNotificationRead={(id) => setNotifications((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)))}
+          onClearNotification={(id) => setNotifications((p) => p.filter((n) => n.id !== id))}
+        />
+
+        <div className="p-8 flex-grow flex flex-col max-w-[1600px] w-full mx-auto">
+          {data.error && (
+            <Banner tone="red" onClose={data.reload} closeLabel="Réessayer">
+              Impossible de charger les données : {data.error}
+            </Banner>
+          )}
+          {actionError && (
+            <Banner tone="red" onClose={() => setActionError(null)}>
+              {actionError}
+            </Banner>
+          )}
+          {DEMO_CONSOLES.has(activeConsole) && (
+            <Banner tone="amber" icon="demo">
+              Module de démonstration : les données affichées sont fictives et rien n’est enregistré. Seuls le tableau de
+              bord, la console réception, l’inventaire, le guichet réservations et l’équipe sont reliés à la base.
+            </Banner>
+          )}
+          {unpaidInHouse > 0 && activeConsole === 'bookings-desk' && canManageReservations(appRole) && (
+            <Banner tone="amber">
+              {unpaidInHouse} séjour{unpaidInHouse > 1 ? 's' : ''} en cours avec un solde à encaisser avant le départ.
+            </Banner>
+          )}
+
+          {data.loading ? (
+            <div className="flex-grow flex items-center justify-center text-slate-400">
+              <Loader2 className="w-6 h-6 animate-spin" aria-label="Chargement" />
+            </div>
+          ) : (
+            <Suspense
+              fallback={
+                <div className="flex-grow flex items-center justify-center text-slate-400">
+                  <Loader2 className="w-6 h-6 animate-spin" aria-label="Chargement" />
+                </div>
+              }
+            >
+              {renderConsole()}
+            </Suspense>
+          )}
+        </div>
+
+        <footer className="h-14 border-t border-slate-100 flex items-center justify-between px-8 text-[11px] text-slate-400 bg-white/50">
+          <span>Senegal Hotels PMS © {today.slice(0, 4)}</span>
+          <span>Version {APP_VERSION}</span>
+        </footer>
+      </main>
+
+      <LockScreen
+        isOpen={isSessionLocked}
+        onUnlock={() => setIsSessionLocked(false)}
+        onSignOut={() => {
+          setIsSessionLocked(false);
+          signOut();
+        }}
+        userName={userName}
+        email={userEmail}
+      />
+    </div>
+  );
+}
+
+function Banner({
+  tone,
+  children,
+  onClose,
+  closeLabel,
+  icon,
+}: {
+  tone: 'red' | 'amber';
+  children: React.ReactNode;
+  onClose?: () => void;
+  closeLabel?: string;
+  icon?: 'demo';
+}) {
+  const styles = tone === 'red' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-800';
+  const Icon = icon === 'demo' ? FlaskConical : AlertTriangle;
+  return (
+    <div role={tone === 'red' ? 'alert' : 'status'} className={`mb-6 p-4 border rounded-2xl flex items-start justify-between gap-3 text-xs ${styles}`}>
+      <div className="flex items-start gap-2.5">
+        <Icon className="w-4 h-4 shrink-0 mt-0.5" />
+        <span className="font-semibold leading-relaxed">{children}</span>
+      </div>
+      {onClose && (
+        <button onClick={onClose} className="font-bold shrink-0 flex items-center gap-1 cursor-pointer" aria-label={closeLabel ?? 'Fermer'}>
+          {closeLabel ?? <X className="w-4 h-4" />}
+        </button>
+      )}
+    </div>
+  );
+}
+

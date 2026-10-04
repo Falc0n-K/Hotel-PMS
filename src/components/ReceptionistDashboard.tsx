@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useMemo, useState } from 'react';
 import {
   UserCheck,
@@ -24,9 +19,11 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { Room, RoomStatus, RBACRole } from '../types';
+import { formatDate } from '../lib/dates';
 
 interface ReceptionistDashboardProps {
   rooms: Room[];
+  today: string;
   currentHotel: string;
   currentRole: RBACRole;
   onUpdateRoomStatus: (roomId: string, newStatus: RoomStatus) => void;
@@ -34,16 +31,10 @@ interface ReceptionistDashboardProps {
   onNavigate: (console: string) => void;
 }
 
-const TODAY = '2026-07-20';
-
-function formatDate(d: string) {
-  if (!d) return '';
-  const [y, m, day] = d.split('-');
-  return `${day}/${m}/${y}`;
-}
 
 export default function ReceptionistDashboard({
   rooms,
+  today,
   currentHotel,
   currentRole,
   onUpdateRoomStatus,
@@ -59,14 +50,14 @@ export default function ReceptionistDashboard({
 
   // Compute today's arrivals: reserved rooms with checkInDate = today
   const todayArrivals = useMemo(() =>
-    rooms.filter(r => r.status === 'reserved' && r.checkInDate === TODAY),
-    [rooms]
+    rooms.filter(r => r.status === 'reserved' && (r.checkInDate ?? '') <= today),
+    [rooms, today]
   );
 
   // Compute today's departures: occupied rooms with checkOutDate = today
   const todayDepartures = useMemo(() =>
-    rooms.filter(r => r.status === 'occupied' && r.checkOutDate === TODAY),
-    [rooms]
+    rooms.filter(r => r.status === 'occupied' && (r.checkOutDate ?? '9999') <= today),
+    [rooms, today]
   );
 
   // Rooms needing attention
@@ -90,27 +81,11 @@ export default function ReceptionistDashboard({
     [rooms]
   );
 
-  // Quick check-in from reserved
-  const handleQuickCheckIn = (room: Room) => {
-    onUpdateRoomStatus(room.id, 'occupied');
-    onAddNotification(
-      'Check-In Rapide',
-      `${room.guestName ?? 'Client'} a été enregistré en chambre ${room.number}.`,
-      'réservation'
-    );
-    triggerToast(`✓ Check-In : ${room.guestName ?? 'Client'} — Chambre ${room.number}`);
-  };
+  // Le check-in passe par le serveur (App) qui affiche le résultat ou le refus.
+  const handleQuickCheckIn = (room: Room) => onUpdateRoomStatus(room.id, 'occupied');
 
-  // Quick check-out from occupied
-  const handleQuickCheckOut = (room: Room) => {
-    onUpdateRoomStatus(room.id, 'not-ready');
-    onAddNotification(
-      'Check-Out Rapide',
-      `Chambre ${room.number} libérée. Transmise au service ménage.`,
-      'info'
-    );
-    triggerToast(`✓ Check-Out : Chambre ${room.number} → Ménage`);
-  };
+  // Le check-out exige un solde nul ; un refus du serveur s'affiche en bandeau.
+  const handleQuickCheckOut = (room: Room) => onUpdateRoomStatus(room.id, 'not-ready');
 
   const occupancyRate = rooms.length > 0
     ? Math.round((occupiedRooms.length / rooms.length) * 100)
@@ -133,7 +108,7 @@ export default function ReceptionistDashboard({
           <h2 className="text-2xl font-black text-[#09153D] tracking-tight font-sans">Console Réception — Front Desk</h2>
           <p className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
             <CalendarDays className="w-3.5 h-3.5 text-orange-500" />
-            {currentHotel} · Dimanche 20 Juillet 2026
+            {currentHotel} · {new Date(`${today}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}
           </p>
         </div>
 
@@ -199,7 +174,7 @@ export default function ReceptionistDashboard({
       {/* MAIN SPLIT */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* ARRIVALS TODAY */}
+        {/* ARRIVALS today */}
         <div className="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm text-left">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -208,7 +183,7 @@ export default function ReceptionistDashboard({
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-900">Arrivées du Jour</h4>
-                <p className="text-[10px] text-slate-400">Clients attendus — 20 Juillet 2026</p>
+                <p className="text-[10px] text-slate-400">Clients attendus — {formatDate(today)}</p>
               </div>
             </div>
             <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1 rounded-full">
@@ -257,7 +232,7 @@ export default function ReceptionistDashboard({
           )}
         </div>
 
-        {/* DEPARTURES TODAY */}
+        {/* DEPARTURES today */}
         <div className="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm text-left">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -432,7 +407,7 @@ export default function ReceptionistDashboard({
             </thead>
             <tbody className="divide-y divide-slate-50">
               {occupiedRooms.slice(0, 10).map(room => {
-                const leavingToday = room.checkOutDate === TODAY;
+                const leavingToday = room.checkOutDate === today;
                 return (
                   <tr key={room.id} className={`hover:bg-slate-50/40 transition-colors ${leavingToday ? 'bg-amber-50/30' : ''}`}>
                     <td className="p-3 font-bold font-mono text-[#09153D]">{room.number}</td>
