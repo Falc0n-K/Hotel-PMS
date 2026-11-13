@@ -1,9 +1,4 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BedDouble, 
   Search, 
@@ -27,6 +22,7 @@ import {
   Utensils
 } from 'lucide-react';
 import { Room, RoomStatus, RBACRole } from '../types';
+import { useI18n } from '../lib/i18n';
 
 interface RoomInventoryProps {
   rooms: Room[];
@@ -34,9 +30,13 @@ interface RoomInventoryProps {
   currentRole: RBACRole;
   onUpdateRoomStatus: (roomId: string, newStatus: RoomStatus) => void;
   onUpdateRoomDetails: (roomId: string, updatedFields: Partial<Room>) => void;
-  onAddRoom: (newRoom: Room) => void;
-  onDeleteRoom: (roomId: string) => void;
+  onAddRoom: (newRoom: Room) => Promise<boolean>;
+  onDeleteRoom: (roomId: string) => Promise<boolean>;
+  // Recherche imposée de l'extérieur (palette de commandes) : nouvel objet = nouvelle recherche.
+  focusSearch?: { query: string };
 }
+
+const PAGE_SIZES = [25, 50, 100];
 
 export default function RoomInventory({
   rooms,
@@ -45,26 +45,37 @@ export default function RoomInventory({
   onUpdateRoomStatus,
   onUpdateRoomDetails,
   onAddRoom,
-  onDeleteRoom
+  onDeleteRoom,
+  focusSearch
 }: RoomInventoryProps) {
+  const { tr, lang } = useI18n();
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFloor, setSelectedFloor] = useState<string>('Tous');
   const [selectedCategory, setSelectedCategory] = useState<string>('Tous');
   const [selectedStatus, setSelectedStatus] = useState<string>('Tous');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
+  useEffect(() => {
+    if (focusSearch) setSearchQuery(focusSearch.query);
+  }, [focusSearch]);
+
+  // Toute modification des filtres ramène à la première page.
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedFloor, selectedCategory, selectedStatus, pageSize]);
 
   // Form states
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRoomNo, setNewRoomNo] = useState('');
   const [newRoomFloor, setNewRoomFloor] = useState<number>(1);
   const [newRoomCategory, setNewRoomCategory] = useState('Chambre Standard');
-  const [newRoomStatus, setNewRoomStatus] = useState<RoomStatus>('available');
   const [newRoomRate, setNewRoomRate] = useState<number>(75000);
   
   // Edit states
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [editedRate, setEditedRate] = useState<number>(0);
-  const [editedGuest, setEditedGuest] = useState('');
   const [editedStatus, setEditedStatus] = useState<RoomStatus>('available');
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -86,14 +97,14 @@ export default function RoomInventory({
   }, [rooms]);
 
   // Handle adding room
-  const handleAddNewRoomSubmit = (e: React.FormEvent) => {
+  const handleAddNewRoomSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoomNo.trim()) return;
 
     // Check pre-existence
     const exists = rooms.some(r => r.number === newRoomNo);
     if (exists) {
-      triggerToast(`Erreur : La chambre ${newRoomNo} existe déjà dans la base !`);
+      triggerToast(tr(`Erreur : La chambre ${newRoomNo} existe déjà dans la base !`, `Error: room ${newRoomNo} already exists!`));
       return;
     }
 
@@ -102,36 +113,26 @@ export default function RoomInventory({
       number: newRoomNo,
       floor: newRoomFloor,
       category: newRoomCategory,
-      status: newRoomStatus,
+      status: 'available',
       nightlyRate: newRoomRate,
       occupants: 2
     };
 
-    onAddRoom(createdRoom);
+    if (!(await onAddRoom(createdRoom))) return;
     setShowAddModal(false);
     setNewRoomNo('');
-    triggerToast(`Chambre ${newRoomNo} créée à l'établissement ${currentHotel} !`);
+    triggerToast(tr(`Chambre ${newRoomNo} créée à ${currentHotel}.`, `Room ${newRoomNo} created at ${currentHotel}.`));
   };
 
   // Trigger inline editing save
   const handleSaveInlineEdit = (roomId: string) => {
-    if (currentRole === 'Responsable Ménage' && editedStatus !== 'available' && editedStatus !== 'not-ready') {
-      triggerToast("Accès restreint : Le Responsable Ménage peut uniquement changer le statut Ménage ('Disponible' ou 'En Nettoyage').");
-      return;
-    }
-
-    const updates: Partial<Room> = {
-      nightlyRate: editedRate,
-      status: editedStatus,
-      guestName: editedGuest ? editedGuest : undefined
-    };
-
-    onUpdateRoomDetails(roomId, updates);
+    // Le tarif est porté par le type de chambre ; le statut suit les règles
+    // du serveur (occupé et réservé ne s'obtiennent que par une réservation).
+    onUpdateRoomDetails(roomId, { nightlyRate: editedRate, status: editedStatus });
     setEditingRoomId(null);
-    triggerToast("Chambre mise à jour avec succès.");
   };
 
-  const formatValue = (val: number) => `${val.toLocaleString('fr-FR')} FCFA`;
+  const formatValue = (val: number) => `${val.toLocaleString(lang === 'en' ? 'en-GB' : 'fr-FR')} FCFA`;
 
   // Filter actual rooms logic
   const filteredRooms = useMemo(() => {
@@ -147,6 +148,11 @@ export default function RoomInventory({
       return matchesSearch && matchesFloor && matchesCategory && matchesStatus;
     });
   }, [rooms, searchQuery, selectedFloor, selectedCategory, selectedStatus]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRooms.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pagedRooms = filteredRooms.slice(pageStart, pageStart + pageSize);
 
   // Static computed statistics for active room filters
   const inventoryStats = useMemo(() => {
@@ -177,24 +183,24 @@ export default function RoomInventory({
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-[#09153D] tracking-tight font-sans">Inventaire Général des Chambres</h2>
-          <p className="text-xs text-slate-400 font-medium">Revue des unités physiques, administration des disponibilités et des grilles tarifaires</p>
+          <h2 className="text-2xl font-black text-[#09153D] tracking-tight font-sans">{tr('Inventaire Général des Chambres', 'Room inventory')}</h2>
+          <p className="text-xs text-slate-400 font-medium">{tr('Revue des unités physiques, administration des disponibilités et des grilles tarifaires', 'Review physical rooms, manage availability and rates')}</p>
         </div>
 
         <div className="flex items-center gap-2.5">
           {/* Add Unit Button */}
-          {currentRole !== 'Directeur Financier' ? (
+          {currentRole === "Propriétaire d'Hôtel" ? (
             <button
               onClick={() => setShowAddModal(true)}
               className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-md shadow-orange-600/10"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Ajouter une Unité</span>
+              <span>{tr('Ajouter une Unité', 'Add a room')}</span>
             </button>
           ) : (
             <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-100/75 border border-slate-200/50 rounded-xl text-[10.5px] font-bold text-slate-500">
               <Lock className="w-3.5 h-3.5" />
-              <span>Inventaire bloqué (Dir. Financier)</span>
+              <span>{tr('Inventaire en lecture seule pour votre rôle', 'Inventory is read-only for your role')}</span>
             </div>
           )}
         </div>
@@ -204,53 +210,53 @@ export default function RoomInventory({
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4 w-full">
         {/* Total stats */}
         <div className="bg-white p-4.5 rounded-[20px] border border-slate-100 shadow-sm text-left">
-          <span className="text-[9px] font-extrabold text-[#09153D]/50 uppercase tracking-widest block">Capacité Totalisée</span>
+          <span className="text-[9px] font-extrabold text-[#09153D]/50 uppercase tracking-widest block">{tr('Capacité Totalisée', 'Total capacity')}</span>
           <span className="text-2xl font-black text-[#09153D] font-mono block mt-1">{inventoryStats.total}</span>
-          <span className="text-[9.5px] text-slate-400 font-medium">unités filtrées</span>
+          <span className="text-[9.5px] text-slate-400 font-medium">{tr('unités filtrées', 'filtered rooms')}</span>
         </div>
 
         {/* Available stats */}
         <div className="bg-white p-4.5 rounded-[20px] border border-slate-100 shadow-sm text-left">
-          <span className="text-[9px] font-extrabold text-emerald-650/80 uppercase tracking-widest block">Disponibles</span>
+          <span className="text-[9px] font-extrabold text-emerald-650/80 uppercase tracking-widest block">{tr('Disponibles', 'Available')}</span>
           <span className="text-2xl font-black text-emerald-500 font-mono block mt-1">{inventoryStats.available}</span>
-          <span className="text-[9.5px] text-slate-404 font-semibold text-emerald-600 block">Libres & Nettoyées</span>
+          <span className="text-[9.5px] text-slate-404 font-semibold text-emerald-600 block">{tr('Libres & Nettoyées', 'Vacant & clean')}</span>
         </div>
 
         {/* Occupied stats */}
         <div className="bg-white p-4.5 rounded-[20px] border border-slate-100 shadow-sm text-left">
-          <span className="text-[9px] font-extrabold text-blue-650/80 uppercase tracking-widest block">Occupées</span>
+          <span className="text-[9px] font-extrabold text-blue-650/80 uppercase tracking-widest block">{tr('Occupées', 'Occupied')}</span>
           <span className="text-2xl font-black text-blue-500 font-mono block mt-1">{inventoryStats.occupied}</span>
-          <span className="text-[9.5px] text-slate-400 font-medium">Arrivées validées</span>
+          <span className="text-[9.5px] text-slate-400 font-medium">{tr('Arrivées validées', 'Checked-in arrivals')}</span>
         </div>
 
         {/* Reserved stats */}
         <div className="bg-white p-4.5 rounded-[20px] border border-slate-100 shadow-sm text-left">
-          <span className="text-[9px] font-extrabold text-sky-650/80 uppercase tracking-widest block">Réservées</span>
+          <span className="text-[9px] font-extrabold text-sky-650/80 uppercase tracking-widest block">{tr('Réservées', 'Reserved')}</span>
           <span className="text-2xl font-black text-sky-500 font-mono block mt-1">{inventoryStats.reserved}</span>
-          <span className="text-[9.5px] text-slate-400 font-medium">Garanties en attente</span>
+          <span className="text-[9.5px] text-slate-400 font-medium">{tr('Garanties en attente', 'Guaranteed, pending')}</span>
         </div>
 
         {/* Dirty stats */}
         <div className="bg-white p-4.5 rounded-[20px] border border-slate-100 shadow-sm text-left">
-          <span className="text-[9px] font-extrabold text-orange-655/80 uppercase tracking-widest block">En Ménage</span>
+          <span className="text-[9px] font-extrabold text-orange-655/80 uppercase tracking-widest block">{tr('En Ménage', 'Housekeeping')}</span>
           <span className="text-2xl font-black text-orange-500 font-mono block mt-1">{inventoryStats.dirty}</span>
-          <span className="text-[9.5px] text-slate-404 font-bold text-orange-650">À inspecter d'urgence</span>
+          <span className="text-[9.5px] text-slate-404 font-bold text-orange-650">{tr("À inspecter d'urgence", 'To inspect urgently')}</span>
         </div>
 
         {/* Maintenance stat */}
         <div className="bg-white p-4.5 rounded-[20px] border border-red-100 shadow-sm text-left">
           <span className="text-[9px] font-extrabold text-red-600/80 uppercase tracking-widest block">Maintenance</span>
           <span className="text-2xl font-black text-red-600 font-mono block mt-1">{inventoryStats.maintenance}</span>
-          <span className="text-[9.5px] text-red-500 font-bold block">Stop Service actif</span>
+          <span className="text-[9.5px] text-red-500 font-bold block">{tr('Stop Service actif', 'Out of order')}</span>
         </div>
 
         {/* Average cost stat */}
         <div className="bg-white p-4.5 rounded-[20px] border border-slate-100 shadow-sm text-left">
-          <span className="text-[9px] font-extrabold text-[#09153D]/50 uppercase tracking-widest block">Tarif Moyen (ADR)</span>
+          <span className="text-[9px] font-extrabold text-[#09153D]/50 uppercase tracking-widest block">{tr('Tarif Moyen (ADR)', 'Average rate (ADR)')}</span>
           <span className="text-1.5xl font-black text-[#09153D] font-mono block mt-1.5 truncate">
             {formatValue(inventoryStats.avgRate)}
           </span>
-          <span className="text-[9.5px] text-slate-400 font-medium">par nuitée</span>
+          <span className="text-[9.5px] text-slate-400 font-medium">{tr('par nuitée', 'per night')}</span>
         </div>
       </div>
 
@@ -260,12 +266,12 @@ export default function RoomInventory({
           
           {/* Search bar Input */}
           <div className="md:col-span-2 lg:col-span-4 space-y-1.5">
-            <label className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest">Recherche libre :</label>
+            <label className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest">{tr('Recherche libre :', 'Search:')}</label>
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Ex : 204, Standard, Jean..."
+                placeholder={tr('Ex : 204, Standard, Jean...', 'E.g. 204, Standard, John...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-50/55 hover:bg-slate-50 border border-slate-200 text-xs text-slate-700 rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-orange-500"
@@ -275,7 +281,7 @@ export default function RoomInventory({
 
           {/* Floor selector */}
           <div className="lg:col-span-2 space-y-1.5">
-            <label className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest">Étage :</label>
+            <label className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest">{tr('Étage :', 'Floor:')}</label>
             <select
               value={selectedFloor}
               onChange={(e) => setSelectedFloor(e.target.value)}
@@ -283,7 +289,7 @@ export default function RoomInventory({
             >
               {distinctFloors.map(floor => (
                 <option key={floor} value={floor}>
-                  {floor === 'Tous' ? 'Tous les étages' : `Étage ${floor}`}
+                  {floor === 'Tous' ? tr('Tous les étages', 'All floors') : tr(`Étage ${floor}`, `Floor ${floor}`)}
                 </option>
               ))}
             </select>
@@ -291,7 +297,7 @@ export default function RoomInventory({
 
           {/* Category Selector */}
           <div className="md:col-span-2 lg:col-span-3 space-y-1.5">
-            <label className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest">Catégorie :</label>
+            <label className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest">{tr('Catégorie :', 'Category:')}</label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -299,7 +305,7 @@ export default function RoomInventory({
             >
               {distinctCategories.map(cat => (
                 <option key={cat} value={cat}>
-                  {cat === 'Tous' ? 'Toutes catégories' : cat}
+                  {cat === 'Tous' ? tr('Toutes catégories', 'All categories') : cat}
                 </option>
               ))}
             </select>
@@ -307,18 +313,18 @@ export default function RoomInventory({
 
           {/* Status selector */}
           <div className="md:col-span-1 lg:col-span-3 space-y-1.5">
-            <label className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest">Statut PMS :</label>
+            <label className="block text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest">{tr('Statut PMS :', 'PMS status:')}</label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="w-full bg-slate-50/55 hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
             >
-              <option value="Tous">Tous les statuts</option>
-              <option value="available">Disponible (Libre)</option>
-              <option value="occupied">Occupé (En séjour)</option>
-              <option value="reserved">Réservé (Confirmé)</option>
-              <option value="not-ready">En Nettoyage (Sale)</option>
-              <option value="maintenance">Maintenance (Stop Service)</option>
+              <option value="Tous">{tr('Tous les statuts', 'All statuses')}</option>
+              <option value="available">{tr('Disponible (Libre)', 'Available (vacant)')}</option>
+              <option value="occupied">{tr('Occupé (En séjour)', 'Occupied (in house)')}</option>
+              <option value="reserved">{tr('Réservé (Confirmé)', 'Reserved (confirmed)')}</option>
+              <option value="not-ready">{tr('En Nettoyage (Sale)', 'Being cleaned (dirty)')}</option>
+              <option value="maintenance">{tr('Maintenance (Stop Service)', 'Maintenance (out of order)')}</option>
             </select>
           </div>
 
@@ -329,12 +335,12 @@ export default function RoomInventory({
       <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm text-left">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h4 className="text-sm font-bold text-slate-900 tracking-tight">Registre d'Inventaire en direct</h4>
-            <p className="text-[11px] text-slate-450 font-medium">Bases physiques et contrôle des tarifs pour {currentHotel}</p>
+            <h4 className="text-sm font-bold text-slate-900 tracking-tight">{tr("Registre d'Inventaire en direct", 'Live inventory register')}</h4>
+            <p className="text-[11px] text-slate-450 font-medium">{tr(`Bases physiques et contrôle des tarifs pour ${currentHotel}`, `Physical rooms and rate control for ${currentHotel}`)}</p>
           </div>
           
           <span className="text-[10px] font-bold font-mono text-slate-400 bg-slate-50 border border-slate-100 px-3 py-1 rounded-full">
-            {filteredRooms.length} Unités affichées
+            {filteredRooms.length} {tr('Unités affichées', 'rooms shown')}
           </span>
         </div>
 
@@ -343,24 +349,24 @@ export default function RoomInventory({
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                <th className="p-4 w-28 text-left">CHAMBRE N°</th>
-                <th className="p-4 w-24 text-center">ÉTAGE</th>
-                <th className="p-4 text-left">CATÉGORIE / TYPE</th>
-                <th className="p-4 text-left">STATUT PMS</th>
-                <th className="p-4 text-left">CLIENT INITIAL CONSIGNÉ</th>
-                <th className="p-4 w-44 text-right">TARIF UNITAIRE</th>
-                <th className="p-4 w-32 text-center">ACTIONS</th>
+                <th className="p-4 w-28 text-left">{tr('CHAMBRE N°', 'ROOM NO.')}</th>
+                <th className="p-4 w-24 text-center">{tr('ÉTAGE', 'FLOOR')}</th>
+                <th className="p-4 text-left">{tr('CATÉGORIE / TYPE', 'CATEGORY / TYPE')}</th>
+                <th className="p-4 text-left">{tr('STATUT PMS', 'PMS STATUS')}</th>
+                <th className="p-4 text-left">{tr('CLIENT INITIAL CONSIGNÉ', 'REGISTERED GUEST')}</th>
+                <th className="p-4 w-44 text-right">{tr('TARIF UNITAIRE', 'UNIT RATE')}</th>
+                <th className="p-4 w-32 text-center">{tr('ACTIONS', 'ACTIONS')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {filteredRooms.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-slate-400 font-medium italic">
-                    Aucune chambre ne correspond à vos critères de recherche.
+                    {tr('Aucune chambre ne correspond à vos critères de recherche.', 'No room matches your search criteria.')}
                   </td>
                 </tr>
               ) : (
-                filteredRooms.map((room) => {
+                pagedRooms.map((room) => {
                   const isEditing = editingRoomId === room.id;
                   return (
                     <tr 
@@ -396,11 +402,12 @@ export default function RoomInventory({
                             onChange={(e) => setEditedStatus(e.target.value as RoomStatus)}
                             className="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-orange-500"
                           >
-                            <option value="available">Disponible</option>
-                            <option value="occupied">Occupé</option>
-                            <option value="reserved">Réservé</option>
-                            <option value="not-ready">Sale / En Ménage</option>
-                            <option value="maintenance">Maintenance (Stop Service)</option>
+                            <option value="available">{tr('Propre / disponible', 'Clean / available')}</option>
+                            {(room.status === 'occupied' || room.status === 'reserved') && (
+                              <option value={room.status} disabled>{room.status === 'occupied' ? tr('Occupé (via réservation)', 'Occupied (via reservation)') : tr('Réservé (via réservation)', 'Reserved (via reservation)')}</option>
+                            )}
+                            <option value="not-ready">{tr('Sale / En Ménage', 'Dirty / housekeeping')}</option>
+                            <option value="maintenance">{tr('Maintenance (Stop Service)', 'Maintenance (out of order)')}</option>
                           </select>
                         ) : (
                           <span className={`inline-flex items-center gap-1.5 text-[10px] font-extrabold px-3 py-1 rounded-full ${
@@ -417,35 +424,24 @@ export default function RoomInventory({
                               room.status === 'maintenance' ? 'bg-red-500' :
                               'bg-orange-500'
                             }`} />
-                            {room.status === 'available' ? 'DISPONIBLE' :
-                             room.status === 'occupied' ? 'OCCUPÉ' :
-                             room.status === 'reserved' ? 'RÉSERVÉ' :
-                             room.status === 'maintenance' ? '🔧 MAINTENANCE' :
-                             'EN NETTOYAGE'}
+                            {room.status === 'available' ? tr('DISPONIBLE', 'AVAILABLE') :
+                             room.status === 'occupied' ? tr('OCCUPÉ', 'OCCUPIED') :
+                             room.status === 'reserved' ? tr('RÉSERVÉ', 'RESERVED') :
+                             room.status === 'maintenance' ? tr('🔧 MAINTENANCE', '🔧 MAINTENANCE') :
+                             tr('EN NETTOYAGE', 'BEING CLEANED')}
                           </span>
                         )}
                       </td>
 
                       {/* Current Guest registered details */}
                       <td className="p-4 text-left">
-                        {isEditing ? (
-                          <div className="relative w-40">
-                            <User className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input
-                              type="text"
-                              value={editedGuest}
-                              onChange={(e) => setEditedGuest(e.target.value)}
-                              placeholder="Aucun client..."
-                              className="w-full bg-white border border-slate-200 text-xs text-slate-700 rounded pl-7 pr-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                            />
-                          </div>
-                        ) : room.guestName ? (
+                        {room.guestName ? (
                           <span className="font-extrabold text-slate-800 flex items-center gap-1">
                             <span className="text-slate-400 font-mono text-[9px] font-normal">👤</span>
                             {room.guestName}
                           </span>
                         ) : (
-                          <span className="text-slate-404 italic text-[11px]">Aucun client actuellement</span>
+                          <span className="text-slate-404 italic text-[11px]">{tr('Aucun client actuellement', 'No guest currently')}</span>
                         )}
                       </td>
 
@@ -474,14 +470,14 @@ export default function RoomInventory({
                               <button
                                 onClick={() => handleSaveInlineEdit(room.id)}
                                 className="bg-emerald-500 hover:bg-emerald-600 text-white p-1.5 rounded-lg transition-colors cursor-pointer"
-                                title="Sauvegarder"
+                                title={tr('Sauvegarder', 'Save')}
                               >
                                 <Check className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => setEditingRoomId(null)}
                                 className="bg-slate-100 hover:bg-slate-200 text-slate-605 p-1.5 rounded-lg transition-colors cursor-pointer"
-                                title="Annuler"
+                                title={tr('Annuler', 'Cancel')}
                               >
                                 ✕
                               </button>
@@ -493,11 +489,10 @@ export default function RoomInventory({
                                 onClick={() => {
                                   setEditingRoomId(room.id);
                                   setEditedRate(room.nightlyRate);
-                                  setEditedGuest(room.guestName || '');
                                   setEditedStatus(room.status);
                                 }}
                                 className="bg-slate-50 hover:bg-orange-50 border border-slate-200/60 text-slate-600 hover:text-orange-600 p-1.5 rounded-lg transition-all cursor-pointer"
-                                title="Modifier"
+                                title={tr('Modifier', 'Edit')}
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
@@ -507,10 +502,9 @@ export default function RoomInventory({
                                 <button
                                   onClick={() => {
                                     onUpdateRoomStatus(room.id, 'available');
-                                    triggerToast(`Chambre ${room.number} marquée comme propre.`);
                                   }}
                                   className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 p-1.5 rounded-lg border border-emerald-100/50 transition-colors cursor-pointer"
-                                  title="Approuver le ménage"
+                                  title={tr('Approuver le ménage', 'Approve housekeeping')}
                                 >
                                   <CheckSquare className="w-3.5 h-3.5" />
                                 </button>
@@ -522,10 +516,9 @@ export default function RoomInventory({
                                   <button
                                     onClick={() => {
                                       onUpdateRoomStatus(room.id, 'available');
-                                      triggerToast(`Chambre ${room.number} : maintenance levée, chambre disponible.`);
                                     }}
                                     className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 p-1.5 rounded-lg border border-emerald-100 transition-colors cursor-pointer"
-                                    title="Lever la maintenance"
+                                    title={tr('Lever la maintenance', 'End maintenance')}
                                   >
                                     <span className="text-[11px]">✓</span>
                                   </button>
@@ -533,10 +526,9 @@ export default function RoomInventory({
                                   <button
                                     onClick={() => {
                                       onUpdateRoomStatus(room.id, 'maintenance');
-                                      triggerToast(`Chambre ${room.number} mise en maintenance (Stop Service).`);
                                     }}
                                     className="bg-red-50 hover:bg-red-100 text-red-500 p-1.5 rounded-lg border border-red-100 transition-colors cursor-pointer"
-                                    title="Stop Service / Maintenance"
+                                    title={tr('Stop Service / Maintenance', 'Out of order / maintenance')}
                                   >
                                     <span className="text-[11px]">🔧</span>
                                   </button>
@@ -547,13 +539,12 @@ export default function RoomInventory({
                               {currentRole === "Propriétaire d'Hôtel" && (
                                 <button
                                   onClick={() => {
-                                    if (confirm(`Êtes-vous certain de vouloir supprimer la chambre ${room.number} de l'inventaire ?`)) {
-                                      onDeleteRoom(room.id);
-                                      triggerToast(`Chambre ${room.number} supprimée.`);
+                                    if (confirm(tr(`Êtes-vous certain de vouloir supprimer la chambre ${room.number} de l'inventaire ?`, `Are you sure you want to remove room ${room.number} from the inventory?`))) {
+                                      onDeleteRoom(room.id).then(ok => ok && triggerToast(tr(`Chambre ${room.number} retirée de l'inventaire.`, `Room ${room.number} removed from the inventory.`)));
                                     }
                                   }}
                                   className="bg-red-50 hover:bg-red-105 border border-red-100 text-red-500 hover:text-red-650 p-1.5 rounded-lg transition-all cursor-pointer"
-                                  title="Retirer"
+                                  title={tr('Retirer', 'Remove')}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -570,6 +561,42 @@ export default function RoomInventory({
           </table>
         </div>
 
+        {filteredRooms.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 text-[11px] text-slate-500">
+            <label className="flex items-center gap-2 font-semibold">
+              {tr('Par page', 'Per page')}
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="bg-slate-50 border border-slate-200 text-xs text-slate-800 px-2 py-1.5 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              >
+                {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+            <div className="flex items-center gap-3">
+              <span className="font-mono font-bold text-slate-600">
+                {tr(
+                  `${pageStart + 1}–${pageStart + pagedRooms.length} sur ${filteredRooms.length}`,
+                  `${pageStart + 1}–${pageStart + pagedRooms.length} of ${filteredRooms.length}`,
+                )}
+              </span>
+              <button
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {tr('Précédent', 'Previous')}
+              </button>
+              <button
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage >= pageCount}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {tr('Suivant', 'Next')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 5. ADD UNIT DRAWER MODAL OVERLAY */}
@@ -581,12 +608,13 @@ export default function RoomInventory({
               <div className="flex items-center gap-2.5">
                 <BedDouble className="w-5.5 h-5.5" />
                 <div>
-                  <h3 className="font-extrabold text-white text-md tracking-tight">Nouvelle Chambre / Unité</h3>
-                  <p className="text-[10px] text-orange-100 font-medium">{currentHotel} - Enregistrement PMS</p>
+                  <h3 className="font-extrabold text-white text-md tracking-tight">{tr('Nouvelle Chambre / Unité', 'New room')}</h3>
+                  <p className="text-[10px] text-orange-100 font-medium">{currentHotel} - {tr('Enregistrement PMS', 'PMS registration')}</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShowAddModal(false)}
+                aria-label={tr('Fermer', 'Close')}
                 className="text-white hover:text-orange-200 cursor-pointer text-sm font-bold bg-white/10 w-7 h-7 rounded-full flex items-center justify-center"
               >
                 ✕
@@ -600,11 +628,11 @@ export default function RoomInventory({
                 {/* Room number */}
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                    Numéro de Chambre :
+                    {tr('Numéro de Chambre :', 'Room number:')}
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: 115, 304..."
+                    placeholder={tr('Ex: 115, 304...', 'E.g. 115, 304...')}
                     value={newRoomNo}
                     onChange={(e) => setNewRoomNo(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500"
@@ -615,14 +643,14 @@ export default function RoomInventory({
                 {/* Floor */}
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                    Numéro d’Étage :
+                    {tr('Numéro d’Étage :', 'Floor number:')}
                   </label>
                   <input
                     type="number"
-                    min={1}
-                    max={5}
+                    min={0}
+                    max={200}
                     value={newRoomFloor}
-                    onChange={(e) => setNewRoomFloor(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setNewRoomFloor(parseInt(e.target.value) || 0)}
                     className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500"
                     required
                   />
@@ -632,35 +660,37 @@ export default function RoomInventory({
               {/* Category selector */}
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                  Type de Chambre / Catégorie :
+                  {tr('Type de Chambre / Catégorie :', 'Room type / category:')}
                 </label>
-                <select
+                <input
+                  list="room-categories"
                   value={newRoomCategory}
-                  onChange={(e) => setNewRoomCategory(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
-                >
-                  <option value="Chambre Standard">Chambre Standard</option>
-                  <option value="Chambre Supérieure">Chambre Supérieure</option>
-                  <option value="Chambre Deluxe Océan">Chambre Deluxe Océan</option>
-                  <option value="Suite Royale Swim-up">Suite Royale Swim-up</option>
-                  <option value="Bungalow Jardin">Bungalow Jardin</option>
-                  <option value="Bungalow Vue Saloum">Bungalow Vue Saloum</option>
-                  <option value="Bungalow Piloti Premium">Bungalow Piloti Premium</option>
-                  <option value="Suite Fleuve Casamance">Suite Fleuve Casamance</option>
-                  <option value="Chambre Confort Balcon">Chambre Confort Balcon</option>
-                </select>
+                  onChange={(e) => {
+                    setNewRoomCategory(e.target.value);
+                    const existing = rooms.find(r => r.category === e.target.value);
+                    if (existing) setNewRoomRate(existing.nightlyRate);
+                  }}
+                  placeholder={tr('Ex : Chambre Standard', 'E.g. Standard Room')}
+                  className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  required
+                  minLength={2}
+                />
+                <datalist id="room-categories">
+                  {distinctCategories.filter(c => c !== 'Tous').map(c => <option key={c} value={c} />)}
+                </datalist>
+                <p className="text-[10px] text-slate-400">{tr('Un nouveau nom crée un type de chambre ; le tarif s’applique à toutes les chambres du type.', 'A new name creates a room type; the rate applies to every room of that type.')}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 {/* Nightly price FCFA */}
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                    Tarif par nuitée (FCFA) :
+                    {tr('Tarif par nuitée (FCFA) :', 'Nightly rate (FCFA):')}
                   </label>
                   <input
                     type="number"
-                    min={1000}
-                    step={1000}
+                    min={0}
+                    step={500}
                     value={newRoomRate}
                     onChange={(e) => setNewRoomRate(parseInt(e.target.value) || 75000)}
                     className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-[#09153D] p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500"
@@ -668,21 +698,6 @@ export default function RoomInventory({
                   />
                 </div>
 
-                {/* Status initial */}
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                    Statut de Départ :
-                  </label>
-                  <select
-                    value={newRoomStatus}
-                    onChange={(e) => setNewRoomStatus(e.target.value as RoomStatus)}
-                    className="w-full bg-slate-50 border border-slate-200 text-xs font-bold text-slate-705 p-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
-                  >
-                    <option value="available">Disponible (Propre)</option>
-                    <option value="not-ready">Sale (En Nettoyage)</option>
-                    <option value="reserved">Réservée</option>
-                  </select>
-                </div>
               </div>
 
               {/* Action submit button footer */}
@@ -692,13 +707,13 @@ export default function RoomInventory({
                   onClick={() => setShowAddModal(false)}
                   className="px-4.5 py-3 hover:bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 rounded-xl transition-colors cursor-pointer"
                 >
-                  Annuler la saisie
+                  {tr('Annuler la saisie', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs px-5 py-3 rounded-xl transition-colors cursor-pointer shadow-md shadow-orange-600/10"
                 >
-                  Valider l'Ajout
+                  {tr("Valider l'Ajout", 'Add room')}
                 </button>
               </div>
 
