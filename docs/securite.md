@@ -83,6 +83,18 @@ l'établissement. Plus aucune collision sur 5 000 réservations parallèles.
 - **Front** : aucune clé secrète dans le bundle, CSP stricte (`script-src 'self'` +
   Turnstile), `frame-ancestors 'none'`, verrouillage de session.
 
+## Accès du support (ajouté après la revue)
+
+Le support de l'éditeur n'a aucun accès par défaut. Un membre de la table
+`platform_admins` (ajouté uniquement par le service_role) ne voit un établissement que
+pendant un accès ouvert par son propriétaire ou son directeur
+(`grant_support_access`, 1 à 168 heures, motif obligatoire). L'accès est en lecture
+seule : toutes les écritures passent par `has_property_role()`, que le support n'a
+jamais ; les deux écritures ouvertes à tout le personnel (signalement de panne, mise à
+jour de tâche de ménage) vérifient `is_property_staff()`. Chaque ouverture
+d'établissement par le support est inscrite au journal d'audit (`support_view`).
+Testé par `supabase/tests/60_support_devise.test.sql`.
+
 ## Risques résiduels et actions recommandées
 
 | Risque | Gravité | Action |

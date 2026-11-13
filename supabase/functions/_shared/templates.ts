@@ -2,7 +2,9 @@
 // notification_outbox.payload, rempli par la base.
 type Payload = Record<string, string | number | null>;
 
-const money = (v: unknown) => `${Number(v ?? 0).toLocaleString('fr-FR')} FCFA`;
+// Devises sans décimales ; « FCFA » pour les deux francs CFA.
+const symbol = (c: unknown) => (!c || c === 'XOF' || c === 'XAF' ? 'FCFA' : String(c));
+const money = (v: unknown, c?: unknown) => `${Number(v ?? 0).toLocaleString('fr-FR')} ${symbol(c)}`;
 
 export function render(template: string, p: Payload): { subject: string; text: string } {
   switch (template) {
@@ -13,7 +15,7 @@ export function render(template: string, p: Payload): { subject: string; text: s
           `Bonjour ${p.guest_name},\n\n` +
           `Votre réservation ${p.code} à ${p.property_name} est confirmée : ` +
           `arrivée le ${p.check_in} à partir de ${p.check_in_time}, départ le ${p.check_out}.\n` +
-          `Montant du séjour : ${money(p.total)}.\n\n` +
+          `Montant du séjour : ${money(p.total, p.currency)}.\n\n` +
           (p.property_phone ? `Pour toute question : ${p.property_phone}.\n\n` : '') +
           `À bientôt,\n${p.property_name}`,
       };
@@ -40,7 +42,7 @@ export function render(template: string, p: Payload): { subject: string; text: s
 export function short(template: string, p: Payload): string {
   switch (template) {
     case 'reservation_confirmed':
-      return `${p.property_name} : réservation ${p.code} confirmée du ${p.check_in} au ${p.check_out}. Total ${money(p.total)}.`;
+      return `${p.property_name} : réservation ${p.code} confirmée du ${p.check_in} au ${p.check_out}. Total ${money(p.total, p.currency)}.`;
     case 'reservation_cancelled':
       return `${p.property_name} : réservation ${p.code} annulée.`;
     case 'arrival_reminder':

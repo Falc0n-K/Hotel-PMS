@@ -5,6 +5,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selo
 
 ## [Unreleased]
 
+### Added
+- **Accès du support** : le propriétaire ou le directeur ouvre au support de l'éditeur
+  un accès en lecture seule de 1 heure à 7 jours, avec un motif, révocable à tout
+  moment (Paramètres → Notifications et sécurité). Le support ne peut rien modifier ;
+  chaque ouverture et chaque consultation sont inscrites au journal d'audit.
+- **Devise par établissement** parmi les devises sans décimales (XOF, XAF, GNF, KMF,
+  RWF, BIF, DJF, MGA), verrouillée après le premier encaissement. Affichage, factures,
+  messages, API, webhooks et paiement Stripe suivent la devise ; PayDunya reste limité
+  au XOF.
+
+### Changed
+- Recherche de disponibilités (site public, API) en une seule requête : débit
+  multiplié par 15 sur le banc de charge (≈ 5 500 req/s, 3,6 ms).
+- Annulation depuis le planning : les frais d'annulation sont annoncés avant de
+  confirmer.
+
 ## [1.0.0-alpha.1] - 2026-10-04
 
 Première version du PMS sur une vraie base de données : la maquette Google AI Studio

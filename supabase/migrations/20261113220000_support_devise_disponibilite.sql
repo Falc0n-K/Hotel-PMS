@@ -255,6 +255,52 @@ begin
 end;
 $$;
 
+-- Messages aux clients : montant dans la devise de l'établissement.
+create or replace function public.enqueue_reservation_notifications(p_reservation uuid, p_template text)
+returns integer language plpgsql security definer set search_path = ''
+as $$
+declare
+  r record;
+  v_count integer := 0;
+  v_payload jsonb;
+begin
+  select res.id, res.property_id, res.code, res.check_in, res.check_out, res.total_amount,
+         g.full_name, g.email, g.phone, p.name as property_name, p.notify_email, p.notify_sms, p.notify_whatsapp,
+         p.check_in_time, p.phone as property_phone, p.currency, rm.number as room_number
+    into r
+  from public.reservations res
+  join public.guests g on g.id = res.guest_id
+  join public.properties p on p.id = res.property_id
+  join public.rooms rm on rm.id = res.room_id
+  where res.id = p_reservation;
+  if r is null then return 0; end if;
+
+  v_payload := jsonb_build_object(
+    'guest_name', r.full_name, 'property_name', r.property_name, 'code', r.code,
+    'check_in', to_char(r.check_in, 'DD/MM/YYYY'), 'check_out', to_char(r.check_out, 'DD/MM/YYYY'),
+    'check_in_time', to_char(r.check_in_time, 'HH24:MI'), 'total', r.total_amount,
+    'room_number', r.room_number, 'property_phone', r.property_phone, 'currency', r.currency);
+
+  if r.notify_email and r.email is not null then
+    insert into public.notification_outbox (property_id, reservation_id, channel, recipient, template, payload)
+      values (r.property_id, r.id, 'email', r.email, p_template, v_payload);
+    v_count := v_count + 1;
+  end if;
+  if r.notify_sms and r.phone is not null then
+    insert into public.notification_outbox (property_id, reservation_id, channel, recipient, template, payload)
+      values (r.property_id, r.id, 'sms', r.phone, p_template, v_payload);
+    v_count := v_count + 1;
+  end if;
+  if r.notify_whatsapp and r.phone is not null then
+    insert into public.notification_outbox (property_id, reservation_id, channel, recipient, template, payload)
+      values (r.property_id, r.id, 'whatsapp', r.phone, p_template, v_payload);
+    v_count := v_count + 1;
+  end if;
+  return v_count;
+end;
+$$;
+
+
 -- ── Disponibilités en une seule requête ──────────────────────────────────────
 -- Les chambres libres de tous les types sont comptées d'un coup (au lieu d'une
 -- requête et d'un appel de fonction par chambre) ; seul le prix reste calculé

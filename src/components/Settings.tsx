@@ -1,10 +1,10 @@
 import React, { lazy, Suspense, useState } from 'react';
 import { Plus, Save, Trash2, Lock } from 'lucide-react';
 import type { Property } from '../lib/auth';
-import { run, type RatePlanRow, type RoomTypeRow } from '../lib/pmsData';
+import { rpc, run, type RatePlanRow, type RoomTypeRow } from '../lib/pmsData';
 import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
-import { formatDate, formatMoney } from '../lib/dates';
+import { formatDate, formatMoney, currencyLabel } from '../lib/dates';
 import type { Room } from '../types';
 import {
   Badge, Button, Card, Checkbox, Empty, ErrorNote, Field, Input, Loading, Modal, PageHeader, Select, Table, Tabs, useAction,
@@ -72,6 +72,17 @@ async function updateProperty(id: string, fields: Partial<Property>) {
 
 // ── Établissement ──────────────────────────────────────────────────────────
 
+const CURRENCIES = [
+  { code: 'XOF', fr: 'Franc CFA (UEMOA)', en: 'CFA franc (WAEMU)' },
+  { code: 'XAF', fr: 'Franc CFA (CEMAC)', en: 'CFA franc (CEMAC)' },
+  { code: 'GNF', fr: 'Franc guinéen', en: 'Guinean franc' },
+  { code: 'KMF', fr: 'Franc comorien', en: 'Comorian franc' },
+  { code: 'RWF', fr: 'Franc rwandais', en: 'Rwandan franc' },
+  { code: 'BIF', fr: 'Franc burundais', en: 'Burundian franc' },
+  { code: 'DJF', fr: 'Franc djiboutien', en: 'Djiboutian franc' },
+  { code: 'MGA', fr: 'Ariary malgache', en: 'Malagasy ariary' },
+];
+
 function PropertyForm({ property, onChanged }: { property: Property; onChanged: () => Promise<void> | void }) {
   const { tr } = useI18n();
   const [p, setP] = useState(property);
@@ -88,7 +99,7 @@ function PropertyForm({ property, onChanged }: { property: Property; onChanged: 
       await updateProperty(p.id, {
         name: p.name, legal_name: p.legal_name, address: p.address, city: p.city, phone: p.phone, email: p.email,
         ninea: p.ninea, rccm: p.rccm, timezone: p.timezone, check_in_time: p.check_in_time, check_out_time: p.check_out_time,
-        vat_rate_bp: p.vat_rate_bp, tourist_tax_per_night: p.tourist_tax_per_night, breakfast_price: p.breakfast_price,
+        currency: p.currency, vat_rate_bp: p.vat_rate_bp, tourist_tax_per_night: p.tourist_tax_per_night, breakfast_price: p.breakfast_price,
       });
       await onChanged();
       return true;
@@ -121,13 +132,18 @@ function PropertyForm({ property, onChanged }: { property: Property; onChanged: 
               ))}
             </Select>
           </Field>
+          <Field label={tr('Devise', 'Currency')} hint={tr('Devises sans décimales. Verrouillée après le premier encaissement ; PayDunya n’accepte que le XOF.', 'Zero-decimal currencies only. Locked after the first payment; PayDunya only accepts XOF.')}>
+            <Select value={p.currency} onChange={(e) => setP({ ...p, currency: e.target.value })}>
+              {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} · {tr(c.fr, c.en)}</option>)}
+            </Select>
+          </Field>
           <Field label={tr('TVA (%)', 'VAT (%)')} hint={tr('18 % au Sénégal, 10 % pour l’hébergement agréé selon le régime', '18% in Senegal, 10% for approved accommodation depending on the tax regime')}>
             <Input type="number" min={0} max={100} step={0.5} value={p.vat_rate_bp / 100} onChange={(e) => setP({ ...p, vat_rate_bp: Math.round(Number(e.target.value) * 100) })} />
           </Field>
-          <Field label={tr('Taxe de séjour (FCFA / adulte / nuit)', 'Tourist tax (FCFA / adult / night)')} hint={tr('Selon la délibération de la commune', 'As set by the municipal council')}>
+          <Field label={tr(`Taxe de séjour (${currencyLabel()} / adulte / nuit)`, `Tourist tax (${currencyLabel()} / adult / night)`)} hint={tr('Selon la délibération de la commune', 'As set by the municipal council')}>
             <Input type="number" min={0} value={p.tourist_tax_per_night} onChange={(e) => setP({ ...p, tourist_tax_per_night: Math.max(0, Math.trunc(Number(e.target.value))) })} />
           </Field>
-          <Field label={tr('Petit-déjeuner (FCFA / pers. / nuit)', 'Breakfast (FCFA / person / night)')}>
+          <Field label={tr(`Petit-déjeuner (${currencyLabel()} / pers. / nuit)`, `Breakfast (${currencyLabel()} / person / night)`)}>
             <Input type="number" min={0} value={p.breakfast_price} onChange={(e) => setP({ ...p, breakfast_price: Math.max(0, Math.trunc(Number(e.target.value))) })} />
           </Field>
         </div>
@@ -172,7 +188,7 @@ function RoomTypes({ property, roomTypes, onChanged }: { property: Property; roo
         {rows.length === 0 ? (
           <Empty>{tr('Aucun type de chambre.', 'No room types.')}</Empty>
         ) : (
-          <Table head={[tr('Nom', 'Name'), tr('Tarif de base (FCFA / nuit)', 'Base rate (FCFA / night)'), tr('Capacité', 'Capacity'), '']}>
+          <Table head={[tr('Nom', 'Name'), tr(`Tarif de base (${currencyLabel()} / nuit)`, `Base rate (${currencyLabel()} / night)`), tr('Capacité', 'Capacity'), '']}>
             {rows.map((t, i) => (
               <tr key={t.id}>
                 <td className="p-2"><Input value={t.name} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} /></td>
@@ -493,7 +509,7 @@ function RateModal({ roomTypes, onClose, onSubmit }: { roomTypes: RoomTypeRow[];
         <div className="grid grid-cols-2 gap-3">
           <Field label={tr('Du', 'From')}><Input type="date" required value={v.from} onChange={(e) => setV({ ...v, from: e.target.value })} /></Field>
           <Field label={tr('Au (inclus)', 'To (inclusive)')}><Input type="date" required min={v.from} value={v.to} onChange={(e) => setV({ ...v, to: e.target.value })} /></Field>
-          <Field label={tr('Prix par nuit (FCFA)', 'Price per night (FCFA)')}><Input type="number" min={0} disabled={v.closed} value={v.price} onChange={(e) => setV({ ...v, price: Math.trunc(Number(e.target.value)) })} /></Field>
+          <Field label={tr(`Prix par nuit (${currencyLabel()})`, `Price per night (${currencyLabel()})`)}><Input type="number" min={0} disabled={v.closed} value={v.price} onChange={(e) => setV({ ...v, price: Math.trunc(Number(e.target.value)) })} /></Field>
           <Field label={tr('Durée minimale (0 = aucune)', 'Minimum stay (0 = none)')}><Input type="number" min={0} max={60} value={v.minStay} onChange={(e) => setV({ ...v, minStay: Math.trunc(Number(e.target.value)) })} /></Field>
         </div>
         <Checkbox label={tr('Fermer à la vente sur cette période', 'Close to sale for this period')} checked={v.closed} onChange={(e) => setV({ ...v, closed: e.target.checked })} />
@@ -527,6 +543,7 @@ function Security({ property, aal2, onChanged }: { property: Property; aal2: boo
           <Checkbox label="WhatsApp" checked={property.notify_whatsapp} disabled={busy} onChange={(e) => toggle({ notify_whatsapp: e.target.checked })} />
         </div>
       </Card>
+      <SupportAccess property={property} />
       <Card title={tr('Double authentification obligatoire', 'Mandatory two-factor authentication')}>
         <p className="text-xs text-slate-500 mb-3">
           {tr(
@@ -576,5 +593,90 @@ function Security({ property, aal2, onChanged }: { property: Property; aal2: boo
       </Card>
       <ErrorNote message={error} />
     </div>
+  );
+}
+
+// ── Accès du support ──────────────────────────────────────────────────────────
+
+interface GrantRow {
+  id: string;
+  reason: string;
+  expires_at: string;
+  revoked_at: string | null;
+  created_at: string;
+}
+
+function SupportAccess({ property }: { property: Property }) {
+  const { tr, lang } = useI18n();
+  const [hours, setHours] = useState(4);
+  const [reason, setReason] = useState('');
+  const { busy, error, run: act } = useAction();
+  const grants = useQuery(
+    async () =>
+      (await run(
+        supabase.from('support_access_grants').select('id, reason, expires_at, revoked_at, created_at').eq('property_id', property.id)
+          .order('created_at', { ascending: false }).limit(10),
+      )) as GrantRow[],
+    [property.id],
+  );
+  const now = Date.now();
+  const when = (iso: string) => new Date(iso).toLocaleString(lang === 'en' ? 'en-GB' : 'fr-FR');
+  return (
+    <Card title={tr('Accès du support', 'Support access')}>
+      <p className="text-xs text-slate-500 mb-3">
+        {tr(
+          'Pour une demande d’assistance, ouvrez au support de l’éditeur un accès en lecture seule, limité dans le temps. Il ne peut rien modifier ; chaque consultation est inscrite au journal d’audit. Vous pouvez le révoquer à tout moment.',
+          'For a support request, give the vendor’s support team time-limited, read-only access. They cannot change anything; every visit is recorded in the audit log. You can revoke it at any time.',
+        )}
+      </p>
+      <form
+        className="grid md:grid-cols-[1fr_8rem_auto] gap-3 items-end"
+        onSubmit={(e) => {
+          e.preventDefault();
+          act(async () => {
+            await rpc('grant_support_access', { p_property: property.id, p_hours: hours, p_reason: reason });
+            setReason('');
+            await grants.reload();
+          });
+        }}
+      >
+        <Field label={tr('Motif de la demande', 'Reason for the request')}>
+          <Input required minLength={5} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={tr('Ex. facture mal imprimée, ticket 42', 'e.g. invoice printing issue, ticket 42')} />
+        </Field>
+        <Field label={tr('Durée', 'Duration')}>
+          <Select value={hours} onChange={(e) => setHours(Number(e.target.value))}>
+            {[1, 4, 24, 72, 168].map((h) => <option key={h} value={h}>{h < 24 ? `${h} h` : tr(`${h / 24} j`, `${h / 24} d`)}</option>)}
+          </Select>
+        </Field>
+        <Button type="submit" busy={busy}>{tr('Ouvrir l’accès', 'Grant access')}</Button>
+      </form>
+      {!!grants.data?.length && (
+        <div className="mt-4">
+          <Table head={[tr('Motif', 'Reason'), tr('Ouvert le', 'Granted'), tr('Jusqu’au', 'Until'), tr('État', 'Status'), '']}>
+            {grants.data.map((g) => {
+              const active = !g.revoked_at && Date.parse(g.expires_at) > now;
+              return (
+                <tr key={g.id}>
+                  <td className="p-3">{g.reason}</td>
+                  <td className="p-3 whitespace-nowrap">{when(g.created_at)}</td>
+                  <td className="p-3 whitespace-nowrap">{when(g.expires_at)}</td>
+                  <td className="p-3">
+                    {active ? <Badge tone="amber">{tr('Actif', 'Active')}</Badge> : <Badge>{g.revoked_at ? tr('Révoqué', 'Revoked') : tr('Expiré', 'Expired')}</Badge>}
+                  </td>
+                  <td className="p-3 text-right">
+                    {active && (
+                      <Button variant="danger" busy={busy} onClick={() => act(async () => { await rpc('revoke_support_access', { p_grant: g.id }); await grants.reload(); })}>
+                        {tr('Révoquer', 'Revoke')}
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </Table>
+        </div>
+      )}
+      <ErrorNote message={error ?? grants.error} />
+    </Card>
   );
 }

@@ -33,7 +33,7 @@ d'un facteur 3 à 5.
 
 | Scénario | Débit | Latence moyenne |
 |---|---|---|
-| Recherche de disponibilités (site, API) | ≈ 350 req/s | 57 ms |
+| Recherche de disponibilités (site, API) | ≈ 5 500 req/s (≈ 350 avant la réécriture) | 3,6 ms (57 ms avant) |
 | Chargement du planning réception (RLS active) | ≈ 300 req/s | 65 ms |
 | Réservations en ligne | ≈ 250 req/s | 79 ms |
 
@@ -44,7 +44,7 @@ en pointe.
 
 | Requête | Temps |
 |---|---|
-| Disponibilités sur 3 nuits (`availability_for`) | 14–16 ms |
+| Disponibilités sur 3 nuits (`availability_for`) | 7–8 ms (14–16 ms avant) |
 | Planning 90 jours + à venir | 1,5–2 ms |
 | Arrivées du jour | < 0,1 ms |
 | Recherche client par nom | 5–6 ms |
@@ -61,5 +61,5 @@ corrigée par la migration `20261004130013_revue_securite_codes.sql`.
 - Les Edge Functions (Deno) et le réseau ne sont pas mesurés ici, seulement la base.
   Pour un test de bout en bout, utiliser k6 contre un projet de préproduction, jamais la
   production (les réservations créées déclenchent e-mails et webhooks).
-- `availability_for` parcourt les types de chambre un à un : au-delà de 50 types par
-  établissement, la réécrire en une seule requête ensembliste.
+- `availability_for` compte désormais les chambres libres de tous les types en une
+  requête ; seul le prix reste calculé type par type.

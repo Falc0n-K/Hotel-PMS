@@ -38,6 +38,8 @@ export interface Property {
 export interface Membership {
   property: Property;
   role: AppRole;
+  // Accès support temporaire (lecture seule), ouvert par l'établissement.
+  support?: { expiresAt: string; reason: string };
 }
 
 export interface Profile {
@@ -97,11 +99,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId),
     ]);
     setProfile(prof ?? null);
-    setMemberships(
-      ((mems ?? []) as unknown as { role: AppRole; property: Property | null }[])
-        .filter((m): m is Membership => m.property !== null)
-        .sort((a, b) => a.property.name.localeCompare(b.property.name, 'fr')),
-    );
+    const own = ((mems ?? []) as unknown as { role: AppRole; property: Property | null }[])
+      .filter((m): m is Membership => m.property !== null);
+    // Membre du support : établissements qui lui ont ouvert un accès (vide sinon).
+    const { data: grants } = await supabase.rpc('support_properties');
+    const supportRows = (grants ?? []) as { property_id: string; expires_at: string; reason: string }[];
+    let support: Membership[] = [];
+    const ownIds = new Set(own.map((m) => m.property.id));
+    const missing = supportRows.filter((g) => !ownIds.has(g.property_id));
+    if (missing.length) {
+      const { data: props } = await supabase.from('properties').select('*').in('id', missing.map((g) => g.property_id));
+      support = ((props ?? []) as Property[]).map((property) => {
+        const g = missing.find((x) => x.property_id === property.id)!;
+        return { property, role: 'auditor' as AppRole, support: { expiresAt: g.expires_at, reason: g.reason } };
+      });
+    }
+    setMemberships([...own, ...support].sort((a, b) => a.property.name.localeCompare(b.property.name, 'fr')));
   }, []);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BedDouble, CalendarDays, CheckCircle2, Loader2, MapPin, Users, XCircle } from 'lucide-react';
 import { useI18n, type Lang } from '../lib/i18n';
-import { addDays, formatDate, formatMoney, nightsBetween, todayIn } from '../lib/dates';
+import { addDays, formatDate, formatMoney, nightsBetween, setMoneyCurrency, todayIn } from '../lib/dates';
 import { Button, ErrorNote, Field, Input, Textarea } from './ui';
 
 // Moteur de réservation public : /reserver/<adresse-de-l-hotel>.
@@ -68,6 +68,7 @@ interface PublicProperty {
   check_out_time: string;
   booking_hold_minutes: number;
   timezone: string;
+  currency?: string;
 }
 
 interface Offer {
@@ -112,6 +113,7 @@ export default function PublicBooking({ slug }: { slug: string }) {
   useEffect(() => {
     call<{ property: PublicProperty }>({ action: 'property', slug })
       .then(({ property: p }) => {
+        setMoneyCurrency(p.currency);
         setProperty(p);
         document.title = p.name;
         const today = todayIn(p.timezone);

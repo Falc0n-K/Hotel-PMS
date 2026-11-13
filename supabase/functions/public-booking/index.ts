@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
   const slug = typeof body.slug === 'string' ? body.slug.toLowerCase() : '';
   const { data: property } = await db
     .from('properties')
-    .select('id, name, city, address, phone, email, public_description, check_in_time, check_out_time, booking_hold_minutes, booking_provider, breakfast_price, timezone')
+    .select('id, name, city, address, phone, email, public_description, check_in_time, check_out_time, booking_hold_minutes, booking_provider, breakfast_price, timezone, currency')
     .eq('booking_slug', slug)
     .eq('booking_enabled', true)
     .maybeSingle();
@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
         linkId: link.id,
         amount: b.total,
         provider: property.booking_provider,
+        currency: property.currency,
         description: `${property.name} · réservation ${b.code}`,
         storeName: property.name,
         customerEmail: email,

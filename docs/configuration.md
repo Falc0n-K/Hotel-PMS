@@ -214,7 +214,8 @@ Authentication → Emails → SMTP Settings (sinon Supabase limite à quelques e
 - Migrations en attente, appliquées dans l'ordre par le workflow de déploiement au
   prochain merge dans `main` (ou à coller dans cet ordre dans le SQL Editor) :
   `20261004150000_separer_policies_ecriture.sql`, `20261004160000_exploitation_7_types.sql`,
-  `20261004160100_exploitation_7_politiques_groupes_import.sql`. Les correctifs de la revue
+  `20261004160100_exploitation_7_politiques_groupes_import.sql`,
+  `20261113220000_support_devise_disponibilite.sql`. Les correctifs de la revue
   de sécurité (`20261004130013`) sont déjà appliqués. Le front de cette version appelle
   les nouvelles fonctions : déployer front et migrations ensemble.
 - Données de recette : exécuter une fois `scripts/cleanup-e2e.sql` (compte de test désactivé,
@@ -223,7 +224,20 @@ Authentication → Emails → SMTP Settings (sinon Supabase limite à quelques e
   `public` ; la déplacer impose de la recréer (`drop extension pg_net; create extension pg_net
   with schema extensions;`) puis de recréer la tâche `pms-send-notifications`.
 
-### 3.6 Préproduction (recommandé avant le premier hôtel réel)
+### 3.6 Membres du support de l'éditeur
+
+Pour qu'une personne de l'éditeur puisse consulter un établissement qui lui ouvre un
+accès (Paramètres → Notifications et sécurité → Accès du support), l'ajouter une fois
+dans le SQL Editor, après qu'elle a créé son compte :
+
+```sql
+insert into public.platform_admins (user_id)
+select id from auth.users where email = 'support@votre-domaine.sn';
+```
+
+Elle ne voit rien tant qu'aucun établissement ne lui a ouvert d'accès.
+
+### 3.7 Préproduction (recommandé avant le premier hôtel réel)
 
 Créer un second projet Supabase « Hotel PMS Staging » dans la même région, puis :
 

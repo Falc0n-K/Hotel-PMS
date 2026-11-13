@@ -5,7 +5,7 @@ import type { AppRole } from '../lib/roles';
 import { PAYMENT_METHOD_LABELS, rpc, run, type PaymentMethod } from '../lib/pmsData';
 import { supabase } from '../lib/supabase';
 import { useQuery } from '../lib/query';
-import { addDays, formatDate, formatMoney } from '../lib/dates';
+import { addDays, formatDate, formatMoney, currencyLabel } from '../lib/dates';
 import { downloadCsv, toCsv } from '../lib/csv';
 import { Badge, Button, Card, Empty, ErrorNote, Field, Input, Loading, Modal, PageHeader, Stat, Table, Tabs, useAction } from './ui';
 import InvoicePrint, { type InvoiceDoc } from './reservations/InvoicePrint';
@@ -130,7 +130,7 @@ function CashTab({ property, role, userId, onChanged }: { property: Property; ro
               });
             }}
           >
-            <Field label={tr('Fonds de caisse (FCFA)', 'Opening float (FCFA)')}><Input type="number" min={0} value={float} onChange={(e) => setFloat(Math.max(0, Math.trunc(Number(e.target.value))))} /></Field>
+            <Field label={tr(`Fonds de caisse (${currencyLabel()})`, `Opening float (${currencyLabel()})`)}><Input type="number" min={0} value={float} onChange={(e) => setFloat(Math.max(0, Math.trunc(Number(e.target.value))))} /></Field>
             <Button type="submit" icon={Unlock} busy={busy}>{tr('Ouvrir ma caisse', 'Open my cash register')}</Button>
             <p className="text-[11px] text-slate-400 w-full">{tr('Les encaissements en espèces exigent une caisse ouverte à votre nom.', 'Cash payments require a cash register opened in your name.')}</p>
           </form>
@@ -207,7 +207,7 @@ function CloseModal({ expected, onClose, onSubmit }: { expected: number; onClose
             if (g !== undefined) setGap(g);
           }}
         >
-          <Field label={tr('Espèces comptées (FCFA)', 'Counted cash (FCFA)')}><Input type="number" min={0} value={counted} onChange={(e) => setCounted(Math.max(0, Math.trunc(Number(e.target.value))))} /></Field>
+          <Field label={tr(`Espèces comptées (${currencyLabel()})`, `Counted cash (${currencyLabel()})`)}><Input type="number" min={0} value={counted} onChange={(e) => setCounted(Math.max(0, Math.trunc(Number(e.target.value))))} /></Field>
           <Field label={tr('Commentaire (obligatoire en cas d’écart)', 'Comment (required if there is a variance)')}><Input value={note} onChange={(e) => setNote(e.target.value)} required={counted !== expected} /></Field>
           <ErrorNote message={error} />
           <div className="flex justify-end gap-2">

@@ -10,9 +10,9 @@ const isDate = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{
 const RESERVATION_FIELDS = 'code, status, check_in, check_out, adults, children, total_amount, source, created_at, room:rooms(number, room_type:room_types(id, name)), guest:guests(full_name)';
 
 // deno-lint-ignore no-explicit-any
-const present = (r: any) => ({
+const present = (r: any, currency: string) => ({
   code: r.code, status: r.status, check_in: r.check_in, check_out: r.check_out, adults: r.adults, children: r.children,
-  total_amount: r.total_amount, currency: 'XOF', source: r.source, created_at: r.created_at,
+  total_amount: r.total_amount, currency, source: r.source, created_at: r.created_at,
   room: r.room?.number ?? null, room_type: r.room?.room_type ?? null, guest_name: r.guest?.full_name ?? null,
 });
 
@@ -29,6 +29,8 @@ Deno.serve(async (req) => {
     return reply({ error: 'Limite de 120 requêtes par minute atteinte' }, 429);
   }
   const can = (scope: string) => auth.scopes.includes(scope);
+  const { data: prop } = await db.from('properties').select('currency').eq('id', auth.property_id).single();
+  const currency = (prop as { currency: string } | null)?.currency ?? 'XOF';
 
   const url = new URL(req.url);
   const path = url.pathname.replace(/^.*\/api/, '').replace(/\/+$/, '') || '/';
@@ -42,7 +44,7 @@ Deno.serve(async (req) => {
       p_adults: Number(q.get('adults') ?? 2), p_children: Number(q.get('children') ?? 0),
     });
     if (error) return reply({ error: error.message }, 400);
-    return reply({ currency: 'XOF', room_types: data });
+    return reply({ currency, room_types: data });
   }
 
   if (req.method === 'GET' && path === '/v1/reservations') {
@@ -53,14 +55,14 @@ Deno.serve(async (req) => {
     if (q.get('status')) query = query.eq('status', q.get('status')!);
     const { data, error } = await query;
     if (error) return reply({ error: error.message }, 400);
-    return reply({ reservations: (data ?? []).map(present) });
+    return reply({ reservations: (data ?? []).map((r) => present(r, currency)) });
   }
 
   const one = path.match(/^\/v1\/reservations\/([A-Z0-9-]{6,20})$/);
   if (req.method === 'GET' && one) {
     if (!can('reservations:read')) return reply({ error: 'Portée reservations:read requise' }, 403);
     const { data } = await db.from('reservations').select(RESERVATION_FIELDS).eq('property_id', auth.property_id).eq('code', one[1]).maybeSingle();
-    return data ? reply(present(data)) : reply({ error: 'Réservation introuvable' }, 404);
+    return data ? reply(present(data, currency)) : reply({ error: 'Réservation introuvable' }, 404);
   }
 
   if (req.method === 'POST' && path === '/v1/reservations') {
@@ -78,7 +80,7 @@ Deno.serve(async (req) => {
     });
     if (error) return reply({ error: error.message }, 409);
     const created = (data as { code: string; total: number }[])[0];
-    return reply({ code: created.code, status: 'confirmed', total_amount: created.total, currency: 'XOF' }, 201);
+    return reply({ code: created.code, status: 'confirmed', total_amount: created.total, currency }, 201);
   }
 
   return reply({ error: 'Route inconnue' }, 404);
