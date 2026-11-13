@@ -5,7 +5,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selo
 
 ## [Unreleased]
 
-## [1.0.0-alpha.1] - 2026-10-04
+## [1.0.0-alpha.1] - 2026-11-13
 
 Première version du PMS sur une vraie base de données : la maquette Google AI Studio
 (v4.2.0-orange) est remplacée. Suite de l'audit du 4 octobre 2026.
