@@ -41,7 +41,7 @@ test.describe('Guichet Réservations', () => {
     const checkIn = addDays(TODAY, 10);
     const checkOut = addDays(TODAY, 12);
     await form.getByLabel('Nom complet').fill('Ibrahima Diallo');
-    await form.getByLabel('Téléphone').fill('+221 77 444 44 44');
+    await form.getByRole('textbox', { name: 'Téléphone' }).fill('+221 77 444 44 44');
     await form.getByLabel('Chambre', { exact: true }).selectOption({ label: '201 · Suite Océan' });
     await form.getByLabel('Arrivée').fill(checkIn);
     await form.getByLabel('Départ').fill(checkOut);

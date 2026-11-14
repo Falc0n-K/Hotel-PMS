@@ -25,14 +25,14 @@ test.describe('Langue de l’interface', () => {
   test('passer en anglais dans « Mon compte » traduit le menu', async ({ page, pageErrors }) => {
     await openApp(page);
     await goTo(page, 'Mon compte');
-    await expect(page.getByRole('heading', { name: 'Mon compte' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mon compte' }).last()).toBeVisible();
 
     await page.getByLabel('Langue', { exact: true }).selectOption('en');
 
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
     await expect(nav.getByRole('button', { name: 'Reservations', exact: true })).toBeVisible();
     await expect(nav.getByRole('button', { name: 'Dashboard', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'My account' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My account' }).last()).toBeVisible();
     await expect(nav.getByRole('button', { name: 'Réservations', exact: true })).toHaveCount(0);
 
     // Le choix est mémorisé.
