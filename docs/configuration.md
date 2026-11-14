@@ -215,7 +215,7 @@ Authentication → Emails → SMTP Settings (sinon Supabase limite à quelques e
   prochain merge dans `main` (ou à coller dans cet ordre dans le SQL Editor) :
   `20261004150000_separer_policies_ecriture.sql`, `20261004160000_exploitation_7_types.sql`,
   `20261004160100_exploitation_7_politiques_groupes_import.sql`,
-  `20261113220000_support_devise_disponibilite.sql`. Les correctifs de la revue
+  `20261113220000_support_devise_disponibilite.sql`, `20261114000000_langue_clients_confidentialite.sql`. Les correctifs de la revue
   de sécurité (`20261004130013`) sont déjà appliqués. Le front de cette version appelle
   les nouvelles fonctions : déployer front et migrations ensemble.
 - Données de recette : exécuter une fois `scripts/cleanup-e2e.sql` (compte de test désactivé,

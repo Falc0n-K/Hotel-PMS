@@ -61,7 +61,7 @@ Content-Type: application/json
   "check_out": "2026-12-23",
   "adults": 2,
   "children": 0,
-  "guest": { "name": "Awa Ndiaye", "email": "awa@exemple.sn", "phone": "+221770000000" },
+  "guest": { "name": "Awa Ndiaye", "email": "awa@exemple.sn", "phone": "+221770000000", "language": "fr" },
   "notes": "Arrivée tardive"
 }
 ```
@@ -72,7 +72,8 @@ Réponse `201` :
 { "code": "HF-2612-0042", "status": "confirmed", "total_amount": 126000, "currency": "XOF" }
 ```
 
-La chambre est attribuée automatiquement. Deux demandes simultanées pour la dernière
+`guest.language` (`fr` par défaut, ou `en`) fixe la langue des messages envoyés au client
+(confirmation, rappel). La chambre est attribuée automatiquement. Deux demandes simultanées pour la dernière
 chambre ne peuvent pas aboutir toutes les deux : la seconde reçoit `409`
 (« Plus de disponibilité »). Les réservations API sont confirmées d'emblée, le
 règlement se fait entre le partenaire et l'hôtel.

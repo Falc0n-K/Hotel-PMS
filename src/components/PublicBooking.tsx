@@ -36,6 +36,7 @@ const TEXT = {
     en: 'I agree that the hotel processes this data to manage my stay (Senegalese data protection law 2008-12). It is never sold or shared.',
   },
   pay: { fr: 'Réserver et payer', en: 'Book and pay' },
+  privacy: { fr: 'Politique de confidentialité', en: 'Privacy policy' },
   back: { fr: 'Retour', en: 'Back' },
   total: { fr: 'Total du séjour', en: 'Stay total' },
   hold: {
@@ -64,6 +65,7 @@ interface PublicProperty {
   phone: string | null;
   email: string | null;
   public_description: string | null;
+  privacy_url?: string | null;
   check_in_time: string;
   check_out_time: string;
   booking_hold_minutes: number;
@@ -226,6 +228,8 @@ export default function PublicBooking({ slug }: { slug: string }) {
                 adults={adults}
                 children={children}
                 holdMinutes={property.booking_hold_minutes}
+                lang={lang}
+                privacyUrl={property.privacy_url ?? null}
                 t={t}
                 onBack={() => setChosen(null)}
               />
@@ -255,7 +259,7 @@ function Notice({ ok, title, children }: { ok?: boolean; title: string; children
 }
 
 function GuestForm({
-  slug, offer, checkIn, checkOut, adults, children, holdMinutes, t, onBack,
+  slug, offer, checkIn, checkOut, adults, children, holdMinutes, lang, privacyUrl, t, onBack,
 }: {
   slug: string;
   offer: Offer;
@@ -264,6 +268,8 @@ function GuestForm({
   adults: number;
   children: number;
   holdMinutes: number;
+  lang: Lang;
+  privacyUrl: string | null;
   t: (k: keyof typeof TEXT) => string;
   onBack: () => void;
 }) {
@@ -288,7 +294,7 @@ function GuestForm({
     try {
       const out = await call<{ payment_url: string }>({
         action: 'book', slug, room_type_id: offer.room_type_id, check_in: checkIn, check_out: checkOut, adults, children,
-        name, email, phone: phone || undefined, notes: notes || undefined, captcha: captcha.token,
+        name, email, phone: phone || undefined, notes: notes || undefined, captcha: captcha.token, language: lang,
       });
       window.location.assign(out.payment_url);
     } catch (err) {
@@ -319,7 +325,15 @@ function GuestForm({
       <Field label={t('notes')}><Textarea rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       <label className="flex gap-2 text-[11px] text-slate-600 cursor-pointer">
         <input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} className="accent-orange-600 w-4 h-4 shrink-0 mt-0.5" />
-        <span>{t('consent')}</span>
+        <span>
+          {t('consent')}
+          {privacyUrl && (
+            <>
+              {' '}
+              <a href={privacyUrl} target="_blank" rel="noreferrer" className="font-bold text-orange-600 underline">{t('privacy')}</a>
+            </>
+          )}
+        </span>
       </label>
       <div ref={captcha.ref} />
       <p className="text-[11px] text-slate-500">{t('hold')} ({holdMinutes} min)</p>

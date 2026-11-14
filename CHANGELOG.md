@@ -15,6 +15,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selo
   messages, API, webhooks et paiement Stripe suivent la devise ; PayDunya reste limité
   au XOF.
 
+- **Messages aux clients en français ou en anglais** : la langue est celle de la page
+  de réservation au moment de réserver, du champ `guest.language` de l'API, ou se règle
+  sur la fiche client. Confirmation, annulation et rappel J-1, par e-mail, SMS et WhatsApp.
+- **Lien vers la politique de confidentialité** sur la page de réservation publique, à
+  côté du consentement (Paramètres → Distribution).
+
 ### Changed
 - Recherche de disponibilités (site public, API) en une seule requête : débit
   multiplié par 15 sur le banc de charge (≈ 5 500 req/s, 3,6 ms).

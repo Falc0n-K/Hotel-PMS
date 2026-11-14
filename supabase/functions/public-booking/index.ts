@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
   const slug = typeof body.slug === 'string' ? body.slug.toLowerCase() : '';
   const { data: property } = await db
     .from('properties')
-    .select('id, name, city, address, phone, email, public_description, check_in_time, check_out_time, booking_hold_minutes, booking_provider, breakfast_price, timezone, currency')
+    .select('id, name, city, address, phone, email, public_description, check_in_time, check_out_time, booking_hold_minutes, booking_provider, breakfast_price, timezone, currency, privacy_url')
     .eq('booking_slug', slug)
     .eq('booking_enabled', true)
     .maybeSingle();
@@ -92,6 +92,12 @@ Deno.serve(async (req) => {
     });
     if (error) return reply({ error: error.message }, 409);
     const b = (booked as { reservation_id: string; code: string; total: number; hold_expires_at: string }[])[0];
+    // Langue de la page au moment de réserver : celle des messages envoyés au client.
+    // (L'option n'envoie rien ; la confirmation part au paiement, dans cette langue.)
+    if (body.language === 'en') {
+      const { data: res } = await db.from('reservations').select('guest_id').eq('id', b.reservation_id).single();
+      if (res) await db.from('guests').update({ language: 'en' }).eq('id', res.guest_id);
+    }
 
     const { data: link, error: linkError } = await db
       .from('payment_links')

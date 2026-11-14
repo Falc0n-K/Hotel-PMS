@@ -47,6 +47,7 @@ interface GuestFull {
   going_to: string | null;
   vip: boolean;
   marketing_consent: boolean;
+  language: 'fr' | 'en';
   notes: string | null;
 }
 
@@ -542,7 +543,7 @@ export function GuestModal({ guest, onClose, onSaved }: { guest: GuestFull; onCl
     const editable: (keyof GuestFull)[] = [
       'full_name', 'email', 'phone', 'nationality', 'id_document_type', 'id_document_number', 'id_document_expiry',
       'birth_date', 'birth_place', 'address', 'profession', 'country_of_residence', 'coming_from', 'going_to',
-      'vip', 'marketing_consent', 'notes',
+      'vip', 'marketing_consent', 'language', 'notes',
     ];
     const fields = Object.fromEntries(editable.map((k) => [k, g[k]]));
     const ok = await act(() => run(supabase.from('guests').update(fields).eq('id', g.id).select('id').single()));
@@ -560,6 +561,12 @@ export function GuestModal({ guest, onClose, onSaved }: { guest: GuestFull; onCl
           <Field label={tr('Nationalité', 'Nationality')}><Input {...text('nationality')} /></Field>
           <Field label={tr('Profession', 'Occupation')}><Input {...text('profession')} /></Field>
           <Field label={tr('Pays de résidence', 'Country of residence')}><Input {...text('country_of_residence')} /></Field>
+          <Field label={tr('Langue des messages', 'Message language')}>
+            <Select value={g.language ?? 'fr'} onChange={(e) => set('language', e.target.value as GuestFull['language'])}>
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+            </Select>
+          </Field>
           <Field label={tr('Adresse', 'Address')}><Input {...text('address')} /></Field>
           <Field label={tr('Type de pièce', 'ID document type')}>
             <Select value={g.id_document_type ?? ''} onChange={(e) => set('id_document_type', e.target.value || null)}>

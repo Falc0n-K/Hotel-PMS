@@ -79,7 +79,16 @@ Deno.serve(async (req) => {
       p_notes: typeof b.notes === 'string' ? `[API] ${b.notes.slice(0, 480)}` : '[API]', p_source: 'api', p_status: 'confirmed',
     });
     if (error) return reply({ error: error.message }, 409);
-    const created = (data as { code: string; total: number }[])[0];
+    const created = (data as { reservation_id: string; code: string; total: number }[])[0];
+    // Langue du client (messages) : « en » sur demande, français sinon.
+    if (b.guest.language === 'en') {
+      const { data: res } = await db.from('reservations').select('guest_id').eq('id', created.reservation_id).single();
+      if (res) await db.from('guests').update({ language: 'en' }).eq('id', res.guest_id);
+      const { data: pending } = await db.from('notification_outbox').select('id, payload').eq('reservation_id', created.reservation_id).eq('status', 'pending');
+      for (const n of (pending ?? []) as { id: string; payload: Record<string, unknown> }[]) {
+        await db.from('notification_outbox').update({ payload: { ...n.payload, language: 'en' } }).eq('id', n.id);
+      }
+    }
     return reply({ code: created.code, status: 'confirmed', total_amount: created.total, currency }, 201);
   }
 
