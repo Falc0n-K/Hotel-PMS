@@ -591,3 +591,8 @@ export async function openApp(page: Page) {
 export async function goTo(page: Page, label: string) {
   await page.getByRole('navigation', { name: /Navigation principale|Main navigation/ }).getByRole('button', { name: label, exact: true }).click();
 }
+
+// Titre de l'écran affiché (hors bandeau d'en-tête, qui répète le libellé du menu).
+export function screenHeading(page: Page, name: string) {
+  return page.locator('main > div').getByRole('heading', { name, exact: true });
+}

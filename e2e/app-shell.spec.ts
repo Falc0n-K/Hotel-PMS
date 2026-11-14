@@ -1,4 +1,4 @@
-import { test, expect, openApp, goTo, PROPERTY_NAME, USER } from './support/mockSupabase';
+import { test, expect, openApp, goTo, screenHeading, PROPERTY_NAME, USER } from './support/mockSupabase';
 
 test.describe('Ossature de l’application', () => {
   test('un propriétaire connecté voit son établissement et tout le menu', async ({ page, pms, pageErrors }) => {
@@ -37,7 +37,7 @@ test.describe('Rôle réception', () => {
     await expect(nav.getByRole('button', { name: 'Paramètres & Tarifs', exact: true })).toHaveCount(0);
     await expect(nav.getByRole('button', { name: 'Équipe & Accès', exact: true })).toHaveCount(0);
     await goTo(page, 'Réservations');
-    await expect(page.getByRole('heading', { name: 'Réservations' })).toBeVisible();
+    await expect(screenHeading(page, 'Réservations')).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, openApp, goTo, addDays, TODAY, PROPERTY_ID } from './support/mockSupabase';
+import { test, expect, openApp, goTo, screenHeading, addDays, TODAY, PROPERTY_ID } from './support/mockSupabase';
 
 // Montants affichés par formatMoney : séparateur de milliers fr-FR (espace fine).
 const money = (n: number) => new RegExp(`(?<!\\d)${n.toLocaleString('fr-FR').replace(/\s/g, '\\s')}\\sFCFA`);
@@ -7,7 +7,7 @@ const money = (n: number) => new RegExp(`(?<!\\d)${n.toLocaleString('fr-FR').rep
 async function openBookings(page: Page) {
   await openApp(page);
   await goTo(page, 'Réservations');
-  await expect(page.getByRole('heading', { name: 'Réservations' })).toBeVisible();
+  await expect(screenHeading(page, 'Réservations')).toBeVisible();
 }
 
 const row = (page: Page, code: string) => page.getByRole('row').filter({ hasText: code });
