@@ -22,10 +22,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selo
   côté du consentement (Paramètres → Distribution).
 
 ### Changed
+- **Tests navigateur** (Playwright, 12 parcours) sur une API Supabase simulée, en CI :
+  connexion et rôles, réservations, annulation avec frais, check-in et encaissement,
+  recherche globale, langue, import CSV, page de réservation publique.
 - Recherche de disponibilités (site public, API) en une seule requête : débit
   multiplié par 15 sur le banc de charge (≈ 5 500 req/s, 3,6 ms).
 - Annulation depuis le planning : les frais d'annulation sont annoncés avant de
   confirmer.
+
+### Fixed
+- Les rechargements de données (après une modification des paramètres, au retour sur
+  l'onglet) ne démontent plus l'écran affiché : le rapport d'import restait invisible et
+  les Paramètres revenaient sur le premier onglet.
 
 ## [1.0.0-alpha.1] - 2026-10-04
 

@@ -54,11 +54,9 @@ test.describe('Import de données', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  // Bogue constaté : après l'import, Settings appelle onChanged → refreshMemberships,
-  // qui recrée l'objet établissement ; usePropertyData repasse alors en chargement,
-  // l'écran Paramètres est démonté puis remonté sur l'onglet « Établissement » et
-  // le rapport d'import (lignes en échec) disparaît aussitôt affiché.
-  test.fixme('le rapport d’import reste affiché après l’import', async ({ page }) => {
+  // Non-régression : après l'import, le rechargement des données ne doit plus
+  // démonter l'écran Paramètres (le rapport des lignes en échec restait invisible).
+  test('le rapport d’import reste affiché après l’import', async ({ page }) => {
     await loadReservationsCsv(page);
     await page.getByRole('button', { name: 'Importer 2 ligne(s)' }).click();
     await expect(page.getByRole('heading', { name: 'Rapport d’import' })).toBeVisible();
