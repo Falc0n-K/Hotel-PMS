@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "test:db": "bash scripts/test-db.sh",
     "test:load": "bash scripts/load-test.sh",
+    "test:e2e": "playwright test",
     "version:bump": "node scripts/bump-version.mjs"
   },
   "dependencies": {
