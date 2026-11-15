@@ -38,7 +38,7 @@ const Settings = lazy(() => import('./components/Settings'));
 const AuditLog = lazy(() => import('./components/AuditLog'));
 const Account = lazy(() => import('./components/Account'));
 
-const APP_VERSION = '0.6.0';
+const APP_VERSION = __APP_VERSION__;
 const APP_ENV = import.meta.env.VITE_APP_ENV;
 
 function FullPageLoader() {
@@ -452,10 +452,11 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
         userName={userName}
         userEmail={userEmail}
         open={menuOpen}
+        onOpen={() => setMenuOpen(true)}
         onClose={closeMenu}
       />
 
-      <main className={`flex-grow min-w-0 lg:pl-72 min-h-screen flex flex-col ${tabItems.length ? 'max-lg:pb-[calc(4.5rem+env(safe-area-inset-bottom))]' : ''}`}>
+      <main className={`flex-grow min-w-0 lg:pl-24 xl:pl-72 min-h-screen flex flex-col ${tabItems.length ? 'max-lg:pb-[calc(4.5rem+env(safe-area-inset-bottom))]' : ''}`}>
         <Header
           title={consoleLabel}
           userName={userName}

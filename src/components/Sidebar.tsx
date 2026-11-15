@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, ChevronRight, Lock, LogOut, Monitor, ShieldCheck, X } from 'lucide-react';
+import { Building2, ChevronRight, Lock, LogOut, Menu, Monitor, ShieldCheck, X } from 'lucide-react';
 import type { NavItem } from '../lib/nav';
 import { useI18n } from '../lib/i18n';
 
@@ -17,6 +17,7 @@ interface SidebarProps {
   userEmail: string;
   // Petit écran : le menu est un tiroir ouvert depuis l'en-tête.
   open: boolean;
+  onOpen: () => void;
   onClose: () => void;
 }
 
@@ -24,12 +25,15 @@ const LOGO_URL = 'https://lh3.googleusercontent.com/d/1P7FzKFgoqw2lC_WL9iiFy35LH
 
 export default function Sidebar({
   items, roleLabel, activeConsole, onConsoleSelect, onLockSession, onSignOut,
-  properties, currentPropertyId, onPropertyChange, userName, userEmail, open, onClose,
+  properties, currentPropertyId, onPropertyChange, userName, userEmail, open, onOpen, onClose,
 }: SidebarProps) {
   const { t, tr } = useI18n();
   const [logoFailed, setLogoFailed] = useState(false);
   const initials = userName.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
   const closeRef = useRef<HTMLButtonElement>(null);
+  // Entre 1024 et 1280 px (tablette en paysage, petit portable), le menu fermé
+  // est un rail d'icônes libellées ; ouvert, il reprend sa largeur par-dessus la page.
+  const railHide = open ? '' : 'lg:max-xl:hidden';
 
   // Tiroir ouvert : Échap le ferme, le focus va sur le bouton de fermeture.
   useEffect(() => {
@@ -44,18 +48,30 @@ export default function Sidebar({
 
   return (
     <>
-    {open && <div className="fixed inset-0 bg-slate-900/40 z-30 lg:hidden" onClick={onClose} aria-hidden="true" />}
+    {open && <div className="fixed inset-0 bg-slate-900/40 z-30 xl:hidden" onClick={onClose} aria-hidden="true" />}
     <aside
       id="main-menu"
-      className={`w-72 max-w-[85vw] bg-white border-r border-slate-100 flex flex-col h-[100dvh] fixed top-0 left-0 z-40 shrink-0 transition-transform duration-200 lg:z-20 lg:translate-x-0 ${
-        open ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+      className={`max-w-[85vw] bg-white border-r border-slate-100 flex flex-col h-[100dvh] fixed top-0 left-0 z-40 shrink-0 transition-transform duration-200 lg:translate-x-0 ${
+        open ? 'w-72 translate-x-0 shadow-2xl xl:shadow-none' : 'w-72 lg:max-xl:w-24 -translate-x-full lg:z-20'
       }`}
     >
-      <div className="p-6 max-lg:p-4 border-b border-slate-50 flex flex-col gap-3.5 relative">
+      {!open && (
+        <button
+          onClick={onOpen}
+          className="hidden lg:max-xl:flex flex-col items-center justify-center gap-1 h-20 border-b border-slate-50 text-slate-600 hover:bg-slate-50 text-[10px] font-semibold cursor-pointer"
+          aria-label={tr('Ouvrir le menu', 'Open menu')}
+          aria-expanded={false}
+          aria-controls="main-menu"
+        >
+          <Menu className="w-5 h-5" />
+          {tr('Menu', 'Menu')}
+        </button>
+      )}
+      <div className={`p-6 max-lg:p-4 border-b border-slate-50 flex flex-col gap-3.5 relative ${railHide}`}>
         <button
           ref={closeRef}
           onClick={onClose}
-          className="lg:hidden absolute top-3 right-3 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 cursor-pointer"
+          className="xl:hidden absolute top-3 right-3 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 cursor-pointer"
           aria-label={tr('Fermer le menu', 'Close menu')}
         >
           <X className="w-5 h-5" />
@@ -94,7 +110,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <nav className="px-4 py-3 flex-grow overflow-y-auto space-y-0.5" aria-label={tr('Navigation principale', 'Main navigation')}>
+      <nav className={`px-4 py-3 flex-grow overflow-y-auto space-y-0.5 ${open ? '' : 'lg:max-xl:px-2'}`} aria-label={tr('Navigation principale', 'Main navigation')}>
         {items.map((item) => {
           const Icon = item.icon;
           const active = activeConsole === item.id;
@@ -108,14 +124,14 @@ export default function Sidebar({
               aria-current={active ? 'page' : undefined}
               className={`w-full flex items-center justify-between px-3 py-2.5 max-lg:py-3 max-lg:text-sm rounded-xl text-xs font-semibold transition-colors cursor-pointer group ${
                 active ? 'bg-orange-600 text-white shadow-md shadow-orange-600/10' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
+              } ${open ? '' : 'lg:max-xl:justify-center lg:max-xl:px-1 lg:max-xl:py-2 lg:max-xl:min-h-14'}`}
             >
-              <span className="flex items-center gap-3">
-                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
+              <span className={`flex items-center gap-3 ${open ? '' : 'lg:max-xl:flex-col lg:max-xl:gap-1 lg:max-xl:text-[10px] lg:max-xl:leading-tight lg:max-xl:text-center'}`}>
+                <Icon className={`w-4 h-4 shrink-0 ${open ? '' : 'lg:max-xl:w-5 lg:max-xl:h-5'} ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
                 {t(item.label)}
               </span>
               {active ? (
-                <ChevronRight className="w-3.5 h-3.5 text-orange-200" />
+                <ChevronRight className={`w-3.5 h-3.5 text-orange-200 ${railHide}`} />
               ) : (
                 !item.mobile && (
                   <span className="lg:hidden" title={tr('Prévu pour un écran large', 'Designed for a large screen')}>
@@ -128,23 +144,23 @@ export default function Sidebar({
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-50 bg-slate-50/60 flex flex-col gap-3">
-        <div className="flex items-center gap-3">
+      <div className={`p-4 border-t border-slate-50 bg-slate-50/60 flex flex-col gap-3 ${open ? '' : 'lg:max-xl:p-2'}`}>
+        <div className={`flex items-center gap-3 ${railHide}`}>
           <div className="w-9 h-9 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center font-bold text-xs text-orange-700 shrink-0">{initials}</div>
-          <div className="min-w-0 flex-1">
+          <div className={`min-w-0 flex-1 ${railHide}`}>
             <p className="text-xs font-bold text-slate-800 truncate">{userName}</p>
             <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={onLockSession} className="flex items-center justify-center gap-1.5 py-2 bg-white hover:bg-slate-100 text-slate-600 rounded-xl text-[11px] font-semibold border border-slate-200 cursor-pointer">
-            <Lock className="w-3.5 h-3.5" /> {t('shell.lock')}
+        <div className={`grid grid-cols-2 gap-2 ${open ? '' : 'lg:max-xl:grid-cols-1'}`}>
+          <button onClick={onLockSession} aria-label={t('shell.lock')} className="min-h-10 flex items-center justify-center gap-1.5 py-2 bg-white hover:bg-slate-100 text-slate-600 rounded-xl text-[11px] font-semibold border border-slate-200 cursor-pointer">
+            <Lock className="w-3.5 h-3.5" /> <span className={railHide}>{t('shell.lock')}</span>
           </button>
-          <button onClick={onSignOut} className="flex items-center justify-center gap-1.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-[11px] font-semibold border border-red-100/50 cursor-pointer">
-            <LogOut className="w-3.5 h-3.5" /> {t('shell.signout')}
+          <button onClick={onSignOut} aria-label={t('shell.signout')} className="min-h-10 flex items-center justify-center gap-1.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-[11px] font-semibold border border-red-100/50 cursor-pointer">
+            <LogOut className="w-3.5 h-3.5" /> <span className={railHide}>{t('shell.signout')}</span>
           </button>
         </div>
-        <p className="text-[9px] text-slate-400 text-center font-mono" title="Version">v{__APP_VERSION__}</p>
+        <p className={`text-[9px] text-slate-400 text-center font-mono ${railHide}`} title="Version">v{__APP_VERSION__}</p>
       </div>
     </aside>
     </>

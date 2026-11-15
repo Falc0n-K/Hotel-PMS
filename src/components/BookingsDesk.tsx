@@ -16,6 +16,9 @@ import GroupModal, { GroupPanel } from './reservations/GroupModal';
 import { useQuery } from '../lib/query';
 import { useI18n } from '../lib/i18n';
 
+// Colonnes secondaires masquées sous 1280 px (tablette) : la fiche les affiche.
+const TABLET_HIDDEN = 'max-xl:hidden';
+
 interface Props {
   rooms: Room[];
   reservations: ReservationRow[];
@@ -177,7 +180,9 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
       {filtered.length === 0 ? (
         <Empty>{tr('Aucune réservation pour ce filtre.', 'No reservations for this filter.')}</Empty>
       ) : (
-        <Table head={[tr('Référence', 'Reference'), tr('Client', 'Guest'), tr('Chambre', 'Room'), tr('Séjour', 'Stay'), tr('Provenance', 'Source'), tr('Statut', 'Status'), tr('Montant', 'Amount'), tr('Solde', 'Balance')]}>
+        <Table head={[tr('Référence', 'Reference'), tr('Client', 'Guest'), tr('Chambre', 'Room'), tr('Séjour', 'Stay'), tr('Provenance', 'Source'), tr('Statut', 'Status'), tr('Montant', 'Amount'), tr('Solde', 'Balance')]}
+          headClassNames={[undefined, undefined, undefined, undefined, TABLET_HIDDEN, undefined, TABLET_HIDDEN]}
+        >
           {filtered.map((r) => {
             const balance = balanceOf(r);
             const deposit = depositOf(r, ratePlans);
@@ -187,7 +192,7 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
                   {r.code}
                   {r.invoices[0] && <span className="block text-[9px] text-emerald-600">{tr('Facture', 'Invoice')} {r.invoices[r.invoices.length - 1].display_number}</span>}
                 </td>
-                <td className="p-3">
+                <td className="p-3 min-w-36">
                   <span className="font-bold text-slate-800">{r.guest?.full_name ?? tr('Client', 'Guest')}</span>
                   {r.guest?.vip && <Star className="inline w-3 h-3 ml-1 text-violet-500" aria-label="VIP" />}
                   <span className="block text-[10px] text-slate-400">{r.guest?.phone}</span>
@@ -215,10 +220,10 @@ export default function BookingsDesk({ rooms, reservations, ratePlans, property,
                   {formatDate(r.check_in)} → {formatDate(r.check_out)}
                   <span className="block text-[10px] text-slate-400">{tr(`${nightsBetween(r.check_in, r.check_out)} nuit(s) · ${r.adults + r.children} pers.`, `${nightsBetween(r.check_in, r.check_out)} night(s) · ${r.adults + r.children} guests`)}</span>
                 </td>
-                <td className="p-3">{SOURCE_LABELS[r.source]}</td>
+                <td className={`p-3 ${TABLET_HIDDEN}`}>{SOURCE_LABELS[r.source]}</td>
                 <td className="p-3"><Badge tone={STATUS_TONES[r.status]}>{STATUS_LABELS[r.status]}</Badge></td>
-                <td className="p-3 font-mono text-right">{formatMoney(r.total_amount)}</td>
-                <td className={`p-3 font-mono text-right font-bold ${balance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatMoney(balance)}</td>
+                <td className={`p-3 font-mono text-right whitespace-nowrap ${TABLET_HIDDEN}`}>{formatMoney(r.total_amount)}</td>
+                <td className={`p-3 font-mono text-right font-bold whitespace-nowrap ${balance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatMoney(balance)}</td>
               </tr>
             );
           })}
