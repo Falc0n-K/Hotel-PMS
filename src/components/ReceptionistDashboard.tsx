@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useMemo, useState } from 'react';
 import {
   UserCheck,
@@ -24,9 +19,12 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { Room, RoomStatus, RBACRole } from '../types';
+import { formatDate } from '../lib/dates';
+import { useI18n } from '../lib/i18n';
 
 interface ReceptionistDashboardProps {
   rooms: Room[];
+  today: string;
   currentHotel: string;
   currentRole: RBACRole;
   onUpdateRoomStatus: (roomId: string, newStatus: RoomStatus) => void;
@@ -34,22 +32,17 @@ interface ReceptionistDashboardProps {
   onNavigate: (console: string) => void;
 }
 
-const TODAY = '2026-07-20';
-
-function formatDate(d: string) {
-  if (!d) return '';
-  const [y, m, day] = d.split('-');
-  return `${day}/${m}/${y}`;
-}
 
 export default function ReceptionistDashboard({
   rooms,
+  today,
   currentHotel,
   currentRole,
   onUpdateRoomStatus,
   onAddNotification,
   onNavigate
 }: ReceptionistDashboardProps) {
+  const { lang, tr } = useI18n();
   const [toast, setToast] = useState<string | null>(null);
 
   const triggerToast = (msg: string) => {
@@ -59,14 +52,14 @@ export default function ReceptionistDashboard({
 
   // Compute today's arrivals: reserved rooms with checkInDate = today
   const todayArrivals = useMemo(() =>
-    rooms.filter(r => r.status === 'reserved' && r.checkInDate === TODAY),
-    [rooms]
+    rooms.filter(r => r.status === 'reserved' && (r.checkInDate ?? '') <= today),
+    [rooms, today]
   );
 
   // Compute today's departures: occupied rooms with checkOutDate = today
   const todayDepartures = useMemo(() =>
-    rooms.filter(r => r.status === 'occupied' && r.checkOutDate === TODAY),
-    [rooms]
+    rooms.filter(r => r.status === 'occupied' && (r.checkOutDate ?? '9999') <= today),
+    [rooms, today]
   );
 
   // Rooms needing attention
@@ -90,27 +83,11 @@ export default function ReceptionistDashboard({
     [rooms]
   );
 
-  // Quick check-in from reserved
-  const handleQuickCheckIn = (room: Room) => {
-    onUpdateRoomStatus(room.id, 'occupied');
-    onAddNotification(
-      'Check-In Rapide',
-      `${room.guestName ?? 'Client'} a été enregistré en chambre ${room.number}.`,
-      'réservation'
-    );
-    triggerToast(`✓ Check-In : ${room.guestName ?? 'Client'} — Chambre ${room.number}`);
-  };
+  // Le check-in passe par le serveur (App) qui affiche le résultat ou le refus.
+  const handleQuickCheckIn = (room: Room) => onUpdateRoomStatus(room.id, 'occupied');
 
-  // Quick check-out from occupied
-  const handleQuickCheckOut = (room: Room) => {
-    onUpdateRoomStatus(room.id, 'not-ready');
-    onAddNotification(
-      'Check-Out Rapide',
-      `Chambre ${room.number} libérée. Transmise au service ménage.`,
-      'info'
-    );
-    triggerToast(`✓ Check-Out : Chambre ${room.number} → Ménage`);
-  };
+  // Le check-out exige un solde nul ; un refus du serveur s'affiche en bandeau.
+  const handleQuickCheckOut = (room: Room) => onUpdateRoomStatus(room.id, 'not-ready');
 
   const occupancyRate = rooms.length > 0
     ? Math.round((occupiedRooms.length / rooms.length) * 100)
@@ -130,10 +107,10 @@ export default function ReceptionistDashboard({
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-[#09153D] tracking-tight font-sans">Console Réception — Front Desk</h2>
+          <h2 className="text-2xl font-black text-[#09153D] tracking-tight font-sans">{tr('Console Réception — Front Desk', 'Front desk console')}</h2>
           <p className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
             <CalendarDays className="w-3.5 h-3.5 text-orange-500" />
-            {currentHotel} · Dimanche 20 Juillet 2026
+            {currentHotel} · {new Date(`${today}T12:00:00Z`).toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}
           </p>
         </div>
 
@@ -143,14 +120,14 @@ export default function ReceptionistDashboard({
             className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 shadow-md shadow-orange-600/10"
           >
             <CalendarDays className="w-4 h-4" />
-            Guichet Réservations
+            {tr('Guichet Réservations', 'Reservations desk')}
           </button>
           <button
             onClick={() => onNavigate('guests-crm')}
             className="border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
           >
             <User className="w-4 h-4" />
-            CRM Clients
+            {tr('CRM Clients', 'Guest CRM')}
           </button>
         </div>
       </div>
@@ -159,39 +136,39 @@ export default function ReceptionistDashboard({
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
 
         <div className="bg-white p-4 rounded-[20px] border border-slate-100 shadow-sm text-left col-span-1">
-          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">Taux Occupation</span>
+          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">{tr('Taux Occupation', 'Occupancy rate')}</span>
           <span className="text-2xl font-black text-[#09153D] font-mono block mt-1">{occupancyRate}%</span>
-          <span className="text-[9.5px] text-slate-400">{occupiedRooms.length} / {rooms.length} chambres</span>
+          <span className="text-[9.5px] text-slate-400">{occupiedRooms.length} / {rooms.length} {tr('chambres', 'rooms')}</span>
         </div>
 
         <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-[20px] shadow-sm text-left col-span-1">
-          <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest block">Arrivées Aujourd'hui</span>
+          <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest block">{tr("Arrivées Aujourd'hui", 'Arrivals today')}</span>
           <span className="text-2xl font-black text-emerald-700 font-mono block mt-1">{todayArrivals.length}</span>
-          <span className="text-[9.5px] text-emerald-600 font-semibold">à accueillir</span>
+          <span className="text-[9.5px] text-emerald-600 font-semibold">{tr('à accueillir', 'to welcome')}</span>
         </div>
 
         <div className="bg-slate-800 border border-slate-700 p-4 rounded-[20px] shadow-sm text-left col-span-1">
-          <span className="text-[9px] font-extrabold text-slate-300 uppercase tracking-widest block">Départs Aujourd'hui</span>
+          <span className="text-[9px] font-extrabold text-slate-300 uppercase tracking-widest block">{tr("Départs Aujourd'hui", 'Departures today')}</span>
           <span className="text-2xl font-black text-white font-mono block mt-1">{todayDepartures.length}</span>
-          <span className="text-[9.5px] text-slate-400 font-semibold">à libérer</span>
+          <span className="text-[9.5px] text-slate-400 font-semibold">{tr('à libérer', 'to check out')}</span>
         </div>
 
         <div className="bg-white p-4 rounded-[20px] border border-slate-100 shadow-sm text-left col-span-1">
-          <span className="text-[9px] font-extrabold text-sky-600 uppercase tracking-widest block">Chambres Libres</span>
+          <span className="text-[9px] font-extrabold text-sky-600 uppercase tracking-widest block">{tr('Chambres Libres', 'Available rooms')}</span>
           <span className="text-2xl font-black text-sky-600 font-mono block mt-1">{availableRooms.length}</span>
-          <span className="text-[9.5px] text-slate-400">walk-in possible</span>
+          <span className="text-[9.5px] text-slate-400">{tr('walk-in possible', 'walk-ins possible')}</span>
         </div>
 
         <div className="bg-orange-50 border border-orange-100 p-4 rounded-[20px] shadow-sm text-left col-span-1">
-          <span className="text-[9px] font-extrabold text-orange-700 uppercase tracking-widest block">En Ménage</span>
+          <span className="text-[9px] font-extrabold text-orange-700 uppercase tracking-widest block">{tr('En Ménage', 'In housekeeping')}</span>
           <span className="text-2xl font-black text-orange-600 font-mono block mt-1">{dirtyRooms.length}</span>
-          <span className="text-[9.5px] text-orange-700 font-semibold">à inspecter</span>
+          <span className="text-[9.5px] text-orange-700 font-semibold">{tr('à inspecter', 'to inspect')}</span>
         </div>
 
         <div className="bg-red-50 border border-red-100 p-4 rounded-[20px] shadow-sm text-left col-span-1">
-          <span className="text-[9px] font-extrabold text-red-700 uppercase tracking-widest block">Maintenance</span>
+          <span className="text-[9px] font-extrabold text-red-700 uppercase tracking-widest block">{tr('Maintenance', 'Maintenance')}</span>
           <span className="text-2xl font-black text-red-600 font-mono block mt-1">{maintenanceRooms.length}</span>
-          <span className="text-[9.5px] text-red-600 font-semibold">hors service</span>
+          <span className="text-[9.5px] text-red-600 font-semibold">{tr('hors service', 'out of order')}</span>
         </div>
 
       </div>
@@ -199,7 +176,7 @@ export default function ReceptionistDashboard({
       {/* MAIN SPLIT */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* ARRIVALS TODAY */}
+        {/* ARRIVALS today */}
         <div className="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm text-left">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -207,8 +184,8 @@ export default function ReceptionistDashboard({
                 <UserCheck className="w-4 h-4 text-emerald-600" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-slate-900">Arrivées du Jour</h4>
-                <p className="text-[10px] text-slate-400">Clients attendus — 20 Juillet 2026</p>
+                <h4 className="text-sm font-bold text-slate-900">{tr('Arrivées du Jour', "Today's arrivals")}</h4>
+                <p className="text-[10px] text-slate-400">{tr('Clients attendus', 'Expected guests')} — {formatDate(today)}</p>
               </div>
             </div>
             <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1 rounded-full">
@@ -219,7 +196,7 @@ export default function ReceptionistDashboard({
           {todayArrivals.length === 0 ? (
             <div className="py-10 text-center">
               <CheckCircle2 className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-400 italic">Aucune arrivée prévue aujourd'hui.</p>
+              <p className="text-xs text-slate-400 italic">{tr("Aucune arrivée prévue aujourd'hui.", 'No arrivals scheduled today.')}</p>
             </div>
           ) : (
             <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
@@ -233,7 +210,7 @@ export default function ReceptionistDashboard({
                       <span className="font-extrabold text-slate-800 text-xs block">{room.guestName ?? '—'}</span>
                       <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
                         <span>{room.category}</span>
-                        {room.occupants && <span>· {room.occupants} pers.</span>}
+                        {room.occupants && <span>· {room.occupants} {tr('pers.', 'guests')}</span>}
                       </div>
                     </div>
                   </div>
@@ -257,7 +234,7 @@ export default function ReceptionistDashboard({
           )}
         </div>
 
-        {/* DEPARTURES TODAY */}
+        {/* DEPARTURES today */}
         <div className="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm text-left">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -265,8 +242,8 @@ export default function ReceptionistDashboard({
                 <LogOut className="w-4 h-4 text-slate-600" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-slate-900">Départs du Jour</h4>
-                <p className="text-[10px] text-slate-400">Libérations prévues ce soir</p>
+                <h4 className="text-sm font-bold text-slate-900">{tr('Départs du Jour', "Today's departures")}</h4>
+                <p className="text-[10px] text-slate-400">{tr('Libérations prévues ce soir', 'Rooms to be vacated tonight')}</p>
               </div>
             </div>
             <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full">
@@ -277,7 +254,7 @@ export default function ReceptionistDashboard({
           {todayDepartures.length === 0 ? (
             <div className="py-10 text-center">
               <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-400 italic">Aucun départ enregistré aujourd'hui.</p>
+              <p className="text-xs text-slate-400 italic">{tr("Aucun départ enregistré aujourd'hui.", 'No departures recorded today.')}</p>
             </div>
           ) : (
             <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
@@ -324,22 +301,22 @@ export default function ReceptionistDashboard({
               <RefreshCw className="w-4 h-4 text-orange-500" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-slate-900">Chambres en Ménage</h4>
-              <p className="text-[10px] text-slate-400">En attente d'inspection housekeeping</p>
+              <h4 className="text-sm font-bold text-slate-900">{tr('Chambres en Ménage', 'Rooms in housekeeping')}</h4>
+              <p className="text-[10px] text-slate-400">{tr("En attente d'inspection housekeeping", 'Awaiting housekeeping inspection')}</p>
             </div>
           </div>
 
           {dirtyRooms.length === 0 ? (
             <div className="py-8 text-center">
               <CheckCircle2 className="w-7 h-7 text-emerald-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-400 italic">Toutes les chambres sont propres.</p>
+              <p className="text-xs text-slate-400 italic">{tr('Toutes les chambres sont propres.', 'All rooms are clean.')}</p>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
               {dirtyRooms.map(room => (
                 <div key={room.id} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-50 border border-orange-100 rounded-xl text-[10px] font-bold text-orange-700">
                   <BedDouble className="w-3 h-3" />
-                  Ch. {room.number}
+                  {tr('Ch.', 'Rm')} {room.number}
                   <span className="text-orange-400 font-normal truncate max-w-[80px]">· {room.category.split(' ').slice(-1)[0]}</span>
                 </div>
               ))}
@@ -355,22 +332,22 @@ export default function ReceptionistDashboard({
                 <Wrench className="w-4 h-4 text-red-500" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-slate-900">Hors Service — Maintenance</h4>
-                <p className="text-[10px] text-slate-400">Chambres indisponibles (stop service)</p>
+                <h4 className="text-sm font-bold text-slate-900">{tr('Hors Service — Maintenance', 'Out of order — Maintenance')}</h4>
+                <p className="text-[10px] text-slate-400">{tr('Chambres indisponibles (stop service)', 'Unavailable rooms (out of service)')}</p>
               </div>
             </div>
             <button
               onClick={() => onNavigate('rooms-inventory')}
               className="text-[10px] text-orange-600 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
             >
-              Gérer <ArrowRight className="w-3 h-3" />
+              {tr('Gérer', 'Manage')} <ArrowRight className="w-3 h-3" />
             </button>
           </div>
 
           {maintenanceRooms.length === 0 ? (
             <div className="py-8 text-center">
               <CheckCircle2 className="w-7 h-7 text-emerald-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-400 italic">Aucune chambre hors service.</p>
+              <p className="text-xs text-slate-400 italic">{tr('Aucune chambre hors service.', 'No rooms out of order.')}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -406,15 +383,15 @@ export default function ReceptionistDashboard({
               <BedDouble className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-slate-900">Clients en Séjour</h4>
-              <p className="text-[10px] text-slate-400">Aperçu rapide des chambres occupées — {currentHotel}</p>
+              <h4 className="text-sm font-bold text-slate-900">{tr('Clients en Séjour', 'In-house guests')}</h4>
+              <p className="text-[10px] text-slate-400">{tr('Aperçu rapide des chambres occupées', 'Quick view of occupied rooms')} — {currentHotel}</p>
             </div>
           </div>
           <button
             onClick={() => onNavigate('rooms-inventory')}
             className="text-[10px] text-orange-600 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
           >
-            Voir tout <ArrowRight className="w-3 h-3" />
+            {tr('Voir tout', 'View all')} <ArrowRight className="w-3 h-3" />
           </button>
         </div>
 
@@ -422,17 +399,17 @@ export default function ReceptionistDashboard({
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
-                <th className="p-3 text-left">Ch. N°</th>
-                <th className="p-3 text-left">Client</th>
-                <th className="p-3 text-left hidden md:table-cell">Catégorie</th>
+                <th className="p-3 text-left">{tr('Ch. N°', 'Room #')}</th>
+                <th className="p-3 text-left">{tr('Client', 'Guest')}</th>
+                <th className="p-3 text-left hidden md:table-cell">{tr('Catégorie', 'Category')}</th>
                 <th className="p-3 text-left hidden sm:table-cell">Check-In</th>
                 <th className="p-3 text-left">Check-Out</th>
-                <th className="p-3 text-center">Statut</th>
+                <th className="p-3 text-center">{tr('Statut', 'Status')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {occupiedRooms.slice(0, 10).map(room => {
-                const leavingToday = room.checkOutDate === TODAY;
+                const leavingToday = room.checkOutDate === today;
                 return (
                   <tr key={room.id} className={`hover:bg-slate-50/40 transition-colors ${leavingToday ? 'bg-amber-50/30' : ''}`}>
                     <td className="p-3 font-bold font-mono text-[#09153D]">{room.number}</td>
@@ -440,7 +417,7 @@ export default function ReceptionistDashboard({
                       <span className="font-semibold text-slate-800 flex items-center gap-1">
                         {room.guestName ?? '—'}
                         {room.occupants && room.occupants > 1 && (
-                          <span className="text-[9px] text-slate-400 font-mono">·{room.occupants}pers</span>
+                          <span className="text-[9px] text-slate-400 font-mono">·{room.occupants}{tr('pers', 'pax')}</span>
                         )}
                       </span>
                     </td>
@@ -454,11 +431,11 @@ export default function ReceptionistDashboard({
                     <td className="p-3 text-center">
                       {leavingToday ? (
                         <span className="text-[9px] font-extrabold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                          DÉPART
+                          {tr('DÉPART', 'DEPARTURE')}
                         </span>
                       ) : (
                         <span className="text-[9px] font-extrabold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">
-                          EN SÉJOUR
+                          {tr('EN SÉJOUR', 'IN HOUSE')}
                         </span>
                       )}
                     </td>
@@ -468,7 +445,10 @@ export default function ReceptionistDashboard({
               {occupiedRooms.length > 10 && (
                 <tr>
                   <td colSpan={6} className="p-3 text-center text-[10px] text-slate-400 italic">
-                    + {occupiedRooms.length - 10} autres chambres occupées. Voir l'inventaire complet.
+                    {tr(
+                      `+ ${occupiedRooms.length - 10} autres chambres occupées. Voir l'inventaire complet.`,
+                      `+ ${occupiedRooms.length - 10} more occupied rooms. See the full inventory.`,
+                    )}
                   </td>
                 </tr>
               )}
