@@ -25,7 +25,7 @@ jobs:
       HAS_RESEND: ${{ secrets.RESEND_API_KEY != '' }}
       HAS_WEBHOOK: ${{ secrets.RELEASE_WEBHOOK_URL != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
