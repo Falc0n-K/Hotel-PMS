@@ -6,36 +6,28 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selo
 ## [Unreleased]
 
 ### Added
-- **Accès du support** : le propriétaire ou le directeur ouvre au support de l'éditeur
-  un accès en lecture seule de 1 heure à 7 jours, avec un motif, révocable à tout
-  moment (Paramètres → Notifications et sécurité). Le support ne peut rien modifier ;
-  chaque ouverture et chaque consultation sont inscrites au journal d'audit.
-- **Devise par établissement** parmi les devises sans décimales (XOF, XAF, GNF, KMF,
-  RWF, BIF, DJF, MGA), verrouillée après le premier encaissement. Affichage, factures,
-  messages, API, webhooks et paiement Stripe suivent la devise ; PayDunya reste limité
-  au XOF.
-
-- **Messages aux clients en français ou en anglais** : la langue est celle de la page
-  de réservation au moment de réserver, du champ `guest.language` de l'API, ou se règle
-  sur la fiche client. Confirmation, annulation et rappel J-1, par e-mail, SMS et WhatsApp.
-- **Lien vers la politique de confidentialité** sur la page de réservation publique, à
-  côté du consentement (Paramètres → Distribution).
-
-### Changed
-- **Tests navigateur** (Playwright, 12 parcours) sur une API Supabase simulée, en CI :
-  connexion et rôles, réservations, annulation avec frais, check-in et encaissement,
-  recherche globale, langue, import CSV, page de réservation publique.
-- Recherche de disponibilités (site public, API) en une seule requête : débit
-  multiplié par 15 sur le banc de charge (≈ 5 500 req/s, 3,6 ms).
-- Annulation depuis le planning : les frais d'annulation sont annoncés avant de
-  confirmer.
+- **Back-office sur téléphone** : sous 1024 px, le menu latéral devient un tiroir
+  (bouton dans l'en-tête, fermeture par Échap ou en touchant à côté). La gouvernante,
+  les femmes et valets de chambre et la maintenance ont en plus une barre d'onglets en
+  bas d'écran (Accueil, Chambres, Ménage, Maintenance, Menu) ; la maintenance arrive
+  directement sur ses interventions. L'écran Chambres affiche une fiche par chambre
+  avec les actions « Ménage terminé » et « Lever la maintenance ». Les écrans prévus
+  pour un écran large (planning, finance, paramètres…) restent accessibles et sont
+  signalés dans le menu. Tests navigateur sur téléphone en CI.
+- **Réception sur tablette** : en paysage (1024 à 1280 px), le menu devient un rail
+  d'icônes libellées qui laisse la place aux écrans et s'ouvre en menu complet d'un
+  geste ; en portrait, menu en tiroir. Sur écran tactile, boutons et champs d'au moins
+  44 px, champs en 16 px (pas de zoom automatique de l'iPad), boutons Check-in /
+  Check-out agrandis. La liste des réservations masque Provenance et Montant sous
+  1280 px (visibles dans la fiche). Le planning indique de toucher un séjour pour le
+  modifier ou déloger, le glisser-déposer ne fonctionnant pas au doigt. Tests
+  navigateur sur tablette (portrait et paysage).
 
 ### Fixed
-- Les rechargements de données (après une modification des paramètres, au retour sur
-  l'onglet) ne démontent plus l'écran affiché : le rapport d'import restait invisible et
-  les Paramètres revenaient sur le premier onglet.
+- Le bouton « CRM Clients » de la console réception ne menait nulle part.
+- Le pied de page affichait la version 0.6.0 au lieu de la version réelle.
 
-## [1.0.0-alpha.1] - 2026-10-04
+## [1.0.0-alpha.1] - 2026-11-15
 
 Première version du PMS sur une vraie base de données : la maquette Google AI Studio
 (v4.2.0-orange) est remplacée. Suite de l'audit du 4 octobre 2026.
@@ -65,9 +57,18 @@ Première version du PMS sur une vraie base de données : la maquette Google AI 
 - **Paiement en ligne** : PayDunya (Wave, Orange Money) et Stripe, liens de paiement,
   écran de rapprochement des paiements en ligne.
 - **Distribution** : page de réservation publique `/reserver/<adresse>` (FR/EN,
-  captcha Turnstile), API partenaires à clés et portées, webhooks signés,
-  synchronisation iCal (Airbnb, Booking.com…).
-- **Messages** : confirmation, annulation et rappel J-1 par e-mail, SMS, WhatsApp.
+  captcha Turnstile, lien vers la politique de confidentialité), API partenaires à clés
+  et portées, webhooks signés, synchronisation iCal (Airbnb, Booking.com…). Recherche de
+  disponibilités en une seule requête (≈ 5 500 req/s sur le banc de charge).
+- **Messages** : confirmation, annulation et rappel J-1 par e-mail, SMS, WhatsApp, en
+  français ou en anglais selon la langue du client (page de réservation, API ou fiche
+  client).
+- **Devise par établissement** parmi les devises sans décimales (XOF, XAF, GNF, KMF,
+  RWF, BIF, DJF, MGA), verrouillée après le premier encaissement ; PayDunya reste limité
+  au XOF.
+- **Accès du support** : le propriétaire ou le directeur ouvre au support de l'éditeur
+  un accès en lecture seule de 1 heure à 7 jours, révocable ; chaque consultation est
+  inscrite au journal d'audit.
 - **Pilotage** : tableau de bord orienté action, statistiques (TO, PMC/ADR, RevPAR),
   exports CSV journalisés, journal comptable SYSCOHADA, journal d'audit.
 - **Reprise de données** : import CSV des chambres, clients et réservations d'un autre
@@ -77,7 +78,8 @@ Première version du PMS sur une vraie base de données : la maquette Google AI 
   d'écraser celle d'un collègue).
 - **Interface bilingue** français / anglais, application installable (PWA), copie
   hors ligne en lecture seule.
-- **Exploitation** : CI (typage, build, tests SQL, tests Deno, audit, secrets),
+- **Exploitation** : CI (typage, build, tests SQL, tests Deno, tests navigateur
+  Playwright sur API simulée, audit, secrets),
   déploiement Supabase sur approbation, Sentry, tests de charge (`npm run test:load`),
   releases automatiques avec envoi du lien, version affichée dans l'application.
 - **Documentation** : configuration, API partenaires, revue de sécurité, tests de

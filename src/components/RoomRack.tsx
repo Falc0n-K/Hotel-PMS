@@ -119,16 +119,26 @@ export default function RoomRack({ rooms, reservations, ratePlans, property, rol
   };
 
   const open = reservations.find((r) => r.id === openId);
+  // Écran tactile (tablette) : le glisser-déposer HTML ne fonctionne pas au doigt,
+  // le déplacement passe par la fiche (« Modifier / déloger »).
+  const coarsePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
   const columns = `minmax(110px, 140px) repeat(${span}, minmax(44px, 1fr))`;
 
   return (
     <div className="fade-in-up">
       <PageHeader
         title={tr('Planning des chambres', 'Room rack')}
-        subtitle={tr(
-          'Cliquez sur une case libre pour réserver, glissez un séjour pour le déplacer ou déloger le client.',
-          'Click a free cell to book, drag a stay to move it or rehouse the guest.',
-        )}
+        subtitle={
+          coarsePointer
+            ? tr(
+                'Touchez une case libre pour réserver, ou un séjour pour l’ouvrir et le modifier ou déloger le client.',
+                'Tap a free cell to book, or a stay to open it and change it or rehouse the guest.',
+              )
+            : tr(
+                'Cliquez sur une case libre pour réserver, glissez un séjour pour le déplacer ou déloger le client.',
+                'Click a free cell to book, drag a stay to move it or rehouse the guest.',
+              )
+        }
         actions={
           <>
             <Button variant="secondary" icon={ChevronLeft} onClick={() => setStart(addDays(start, -7))} aria-label={tr('Semaine précédente', 'Previous week')} />
