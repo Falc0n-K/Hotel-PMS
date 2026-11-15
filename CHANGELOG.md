@@ -5,7 +5,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selo
 
 ## [Unreleased]
 
-## [1.0.0-alpha.1] - 2026-11-13
+## [1.0.0-alpha.1] - 2026-11-15
 
 Première version du PMS sur une vraie base de données : la maquette Google AI Studio
 (v4.2.0-orange) est remplacée. Suite de l'audit du 4 octobre 2026.
@@ -35,9 +35,18 @@ Première version du PMS sur une vraie base de données : la maquette Google AI 
 - **Paiement en ligne** : PayDunya (Wave, Orange Money) et Stripe, liens de paiement,
   écran de rapprochement des paiements en ligne.
 - **Distribution** : page de réservation publique `/reserver/<adresse>` (FR/EN,
-  captcha Turnstile), API partenaires à clés et portées, webhooks signés,
-  synchronisation iCal (Airbnb, Booking.com…).
-- **Messages** : confirmation, annulation et rappel J-1 par e-mail, SMS, WhatsApp.
+  captcha Turnstile, lien vers la politique de confidentialité), API partenaires à clés
+  et portées, webhooks signés, synchronisation iCal (Airbnb, Booking.com…). Recherche de
+  disponibilités en une seule requête (≈ 5 500 req/s sur le banc de charge).
+- **Messages** : confirmation, annulation et rappel J-1 par e-mail, SMS, WhatsApp, en
+  français ou en anglais selon la langue du client (page de réservation, API ou fiche
+  client).
+- **Devise par établissement** parmi les devises sans décimales (XOF, XAF, GNF, KMF,
+  RWF, BIF, DJF, MGA), verrouillée après le premier encaissement ; PayDunya reste limité
+  au XOF.
+- **Accès du support** : le propriétaire ou le directeur ouvre au support de l'éditeur
+  un accès en lecture seule de 1 heure à 7 jours, révocable ; chaque consultation est
+  inscrite au journal d'audit.
 - **Pilotage** : tableau de bord orienté action, statistiques (TO, PMC/ADR, RevPAR),
   exports CSV journalisés, journal comptable SYSCOHADA, journal d'audit.
 - **Reprise de données** : import CSV des chambres, clients et réservations d'un autre
@@ -47,7 +56,8 @@ Première version du PMS sur une vraie base de données : la maquette Google AI 
   d'écraser celle d'un collègue).
 - **Interface bilingue** français / anglais, application installable (PWA), copie
   hors ligne en lecture seule.
-- **Exploitation** : CI (typage, build, tests SQL, tests Deno, audit, secrets),
+- **Exploitation** : CI (typage, build, tests SQL, tests Deno, tests navigateur
+  Playwright sur API simulée, audit, secrets),
   déploiement Supabase sur approbation, Sentry, tests de charge (`npm run test:load`),
   releases automatiques avec envoi du lien, version affichée dans l'application.
 - **Documentation** : configuration, API partenaires, revue de sécurité, tests de

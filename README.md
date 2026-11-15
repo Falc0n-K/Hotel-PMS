@@ -67,6 +67,7 @@ sur un Postgres local :
 ```bash
 DATABASE_URL=postgres://postgres@localhost:5432/postgres npm run test:db
 DATABASE_URL=postgres://postgres@localhost:5432/postgres npm run test:load   # concurrence et charge (pgbench)
+npm run test:e2e                                                          # tests navigateur (Playwright, API simulée)
 ```
 
 Les Edge Functions (`supabase/functions/`) se vérifient avec Deno :

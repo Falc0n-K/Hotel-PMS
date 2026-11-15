@@ -17,3 +17,14 @@ Deno.test('confirmation complète', () => {
 Deno.test('SMS court', () => {
   assertStringIncludes(short('arrival_reminder', payload), 'demain');
 });
+
+Deno.test('message en anglais pour un client anglophone', () => {
+  const { subject, text } = render('reservation_confirmed', { ...payload, language: 'en' });
+  assertStringIncludes(subject, 'Booking confirmation');
+  assertStringIncludes(text, 'Dear Awa Ndiaye');
+  assertStringIncludes(short('arrival_reminder', { ...payload, language: 'en' }), 'tomorrow');
+});
+
+Deno.test('français par défaut', () => {
+  assertStringIncludes(render('reservation_cancelled', payload).text, 'est annulée');
+});

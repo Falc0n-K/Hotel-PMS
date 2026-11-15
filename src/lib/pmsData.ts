@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, errorMessage } from './supabase';
 import { addDays, todayIn } from './dates';
 import { bilingual, tr } from './i18n';
@@ -412,8 +412,15 @@ export function usePropertyData(property: Property | null, withFinance: boolean)
     }
   }, [property, today, withFinance]);
 
+  // L'écran de chargement ne s'affiche qu'au changement d'établissement : un
+  // simple rechargement (paramètres modifiés, retour sur l'onglet) garde l'écran
+  // en place, sans démonter le formulaire ou le rapport affiché.
+  const loadedFor = useRef<string | null>(null);
   useEffect(() => {
-    setLoading(true);
+    if (loadedFor.current !== property.id) {
+      loadedFor.current = property.id;
+      setLoading(true);
+    }
     reload();
     const onFocus = () => reload();
     window.addEventListener('focus', onFocus);

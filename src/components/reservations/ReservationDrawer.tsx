@@ -12,7 +12,7 @@ import {
 } from '../../lib/pmsData';
 import { supabase } from '../../lib/supabase';
 import { useQuery } from '../../lib/query';
-import { formatDate, formatMoney, nightsBetween } from '../../lib/dates';
+import { formatDate, formatMoney, nightsBetween, currencyLabel } from '../../lib/dates';
 import {
   Badge, Button, Card, Checkbox, ErrorNote, Field, Input, Loading, Modal, Select, Textarea, useAction, type Tone,
 } from '../ui';
@@ -47,6 +47,7 @@ interface GuestFull {
   going_to: string | null;
   vip: boolean;
   marketing_consent: boolean;
+  language: 'fr' | 'en';
   notes: string | null;
 }
 
@@ -431,7 +432,7 @@ function ChargeModal({ onClose, onSubmit, canDiscount }: { onClose: () => void; 
           <Field label={tr('Quantité', 'Quantity')}>
             <Input type="number" step="0.5" value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} />
           </Field>
-          <Field label={tr('Prix unitaire TTC (FCFA)', 'Unit price incl. tax (FCFA)')}>
+          <Field label={tr(`Prix unitaire TTC (${currencyLabel()})`, `Unit price incl. tax (${currencyLabel()})`)}>
             <Input type="number" step="1" min={canDiscount ? undefined : 0} value={unitPrice} onChange={(e) => setUnitPrice(Math.trunc(Number(e.target.value)))} />
           </Field>
         </div>
@@ -460,7 +461,7 @@ export function PaymentModal({ balance, canRefund, onClose, onSubmit }: { balanc
   return (
     <Modal title={tr('Encaissement', 'Payment')} subtitle={tr(`Solde dû : ${formatMoney(balance)}`, `Balance due: ${formatMoney(balance)}`)} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
-        <Field label={tr('Montant (FCFA)', 'Amount (FCFA)')} hint={canRefund ? tr('Un montant négatif enregistre un remboursement.', 'A negative amount records a refund.') : undefined}>
+        <Field label={tr(`Montant (${currencyLabel()})`, `Amount (${currencyLabel()})`)} hint={canRefund ? tr('Un montant négatif enregistre un remboursement.', 'A negative amount records a refund.') : undefined}>
           <Input type="number" step={1} min={canRefund ? undefined : 1} value={amount} onChange={(e) => setAmount(Math.trunc(Number(e.target.value)))} required />
         </Field>
         <Field label={tr('Moyen de paiement', 'Payment method')} hint={method === 'cash' ? tr('Les espèces exigent une caisse ouverte (Caisse & Finance).', 'Cash requires an open cash register (Cashier & finance).') : undefined}>
@@ -507,7 +508,7 @@ function LinkModal({ balance, onClose, onSubmit }: { balance: number; onClose: (
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-3">
-          <Field label={tr('Montant (FCFA)', 'Amount (FCFA)')}>
+          <Field label={tr(`Montant (${currencyLabel()})`, `Amount (${currencyLabel()})`)}>
             <Input type="number" min={1} max={balance} value={amount} onChange={(e) => setAmount(Math.trunc(Number(e.target.value)))} />
           </Field>
           <Field label={tr('Moyen', 'Method')}>
@@ -542,7 +543,7 @@ export function GuestModal({ guest, onClose, onSaved }: { guest: GuestFull; onCl
     const editable: (keyof GuestFull)[] = [
       'full_name', 'email', 'phone', 'nationality', 'id_document_type', 'id_document_number', 'id_document_expiry',
       'birth_date', 'birth_place', 'address', 'profession', 'country_of_residence', 'coming_from', 'going_to',
-      'vip', 'marketing_consent', 'notes',
+      'vip', 'marketing_consent', 'language', 'notes',
     ];
     const fields = Object.fromEntries(editable.map((k) => [k, g[k]]));
     const ok = await act(() => run(supabase.from('guests').update(fields).eq('id', g.id).select('id').single()));
@@ -560,6 +561,12 @@ export function GuestModal({ guest, onClose, onSaved }: { guest: GuestFull; onCl
           <Field label={tr('Nationalité', 'Nationality')}><Input {...text('nationality')} /></Field>
           <Field label={tr('Profession', 'Occupation')}><Input {...text('profession')} /></Field>
           <Field label={tr('Pays de résidence', 'Country of residence')}><Input {...text('country_of_residence')} /></Field>
+          <Field label={tr('Langue des messages', 'Message language')}>
+            <Select value={g.language ?? 'fr'} onChange={(e) => set('language', e.target.value as GuestFull['language'])}>
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+            </Select>
+          </Field>
           <Field label={tr('Adresse', 'Address')}><Input {...text('address')} /></Field>
           <Field label={tr('Type de pièce', 'ID document type')}>
             <Select value={g.id_document_type ?? ''} onChange={(e) => set('id_document_type', e.target.value || null)}>

@@ -32,11 +32,11 @@ Deno.serve(async (req) => {
   const db = serviceClient();
   const { data: ctx, error: ctxError } = await db
     .from('reservations')
-    .select('code, guest:guests(full_name, email), property:properties(name)')
+    .select('code, guest:guests(full_name, email), property:properties(name, currency)')
     .eq('id', reservation_id)
     .single();
   if (ctxError || !ctx) return json({ error: 'Réservation introuvable' }, 404);
-  const c = ctx as unknown as { code: string; guest: { full_name: string; email: string | null } | null; property: { name: string } };
+  const c = ctx as unknown as { code: string; guest: { full_name: string; email: string | null } | null; property: { name: string; currency: string } };
 
   const appUrl = Deno.env.get('APP_URL') ?? 'https://hotel-pms-mu.vercel.app';
   const description = `${c.property.name} · réservation ${c.code}`;
@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
       linkId: linkId as string,
       amount: amount!,
       provider,
+      currency: c.property.currency,
       description,
       storeName: c.property.name,
       customerEmail: c.guest?.email,

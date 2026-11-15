@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "test:db": "bash scripts/test-db.sh",
     "test:load": "bash scripts/load-test.sh",
+    "test:e2e": "playwright test",
     "version:bump": "node scripts/bump-version.mjs"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "react-dom": "^19.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",

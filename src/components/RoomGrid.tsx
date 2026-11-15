@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { currencyLabel } from '../lib/dates';
 import { Sparkles, Bed, Info, User, Check, X, Phone, Calendar, LogIn, LogOut, RefreshCw } from 'lucide-react';
 import { Room, RoomStatus } from '../types';
 import { useI18n } from '../lib/i18n';
@@ -158,7 +159,7 @@ export default function RoomGrid({ rooms, onUpdateRoomStatus, searchQuery }: Roo
               {/* Price details */}
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-400 font-medium">{tr('Tarif journalier :', 'Nightly rate:')}</span>
-                <span className="font-extrabold text-slate-900 font-mono">{selectedRoom.nightlyRate.toLocaleString(locale)} {tr('FCFA/nuit', 'FCFA/night')}</span>
+                <span className="font-extrabold text-slate-900 font-mono">{selectedRoom.nightlyRate.toLocaleString(locale)} {tr(`${currencyLabel()}/nuit`, `${currencyLabel()}/night`)}</span>
               </div>
 
               {/* Guest metadata if Occupied / Reserved */}

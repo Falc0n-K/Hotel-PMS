@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { currencyLabel } from '../lib/dates';
 import { 
   BedDouble, 
   Search, 
@@ -132,7 +133,7 @@ export default function RoomInventory({
     setEditingRoomId(null);
   };
 
-  const formatValue = (val: number) => `${val.toLocaleString(lang === 'en' ? 'en-GB' : 'fr-FR')} FCFA`;
+  const formatValue = (val: number) => `${val.toLocaleString(lang === 'en' ? 'en-GB' : 'fr-FR')} ${currencyLabel()}`;
 
   // Filter actual rooms logic
   const filteredRooms = useMemo(() => {
@@ -449,7 +450,7 @@ export default function RoomInventory({
                       <td className="p-4 text-right font-black font-mono text-[#09153D]">
                         {isEditing ? (
                           <div className="flex items-center justify-end gap-1">
-                            <span className="text-[10px] text-slate-400">FCFA</span>
+                            <span className="text-[10px] text-slate-400">{currencyLabel()}</span>
                             <input
                               type="number"
                               value={editedRate}
@@ -685,7 +686,7 @@ export default function RoomInventory({
                 {/* Nightly price FCFA */}
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                    {tr('Tarif par nuitée (FCFA) :', 'Nightly rate (FCFA):')}
+                    {tr(`Tarif par nuitée (${currencyLabel()}) :`, `Nightly rate (${currencyLabel()}):`)}
                   </label>
                   <input
                     type="number"

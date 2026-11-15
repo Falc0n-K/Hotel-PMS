@@ -4,6 +4,7 @@ export interface CheckoutInput {
   linkId: string;
   amount: number;
   provider: 'stripe' | 'paydunya';
+  currency?: string; // ISO, sans décimales (XOF par défaut)
   description: string;
   storeName: string;
   customerEmail?: string | null;
@@ -17,11 +18,15 @@ export function providerConfigured(provider: 'stripe' | 'paydunya'): boolean {
 
 // Crée la page de paiement chez le prestataire ; renvoie son URL et sa référence.
 export async function createCheckout(c: CheckoutInput): Promise<{ url: string; ref: string }> {
+  const currency = (c.currency ?? 'XOF').toUpperCase();
+  if (c.provider === 'paydunya' && currency !== 'XOF') {
+    throw new Error('PayDunya n’accepte que le franc CFA (XOF) : utilisez Stripe pour cette devise');
+  }
   if (c.provider === 'stripe') {
     const form = new URLSearchParams({
       mode: 'payment',
       'line_items[0][quantity]': '1',
-      'line_items[0][price_data][currency]': 'xof', // devise sans décimales chez Stripe
+      'line_items[0][price_data][currency]': currency.toLowerCase(), // devises sans décimales chez Stripe
       'line_items[0][price_data][unit_amount]': String(c.amount),
       'line_items[0][price_data][product_data][name]': c.description,
       client_reference_id: c.linkId,

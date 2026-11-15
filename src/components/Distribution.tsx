@@ -62,6 +62,7 @@ function OnlineBooking({ property, onChanged }: { property: Property; onChanged:
     booking_hold_minutes: property.booking_hold_minutes,
     booking_provider: property.booking_provider,
     public_description: property.public_description ?? '',
+    privacy_url: property.privacy_url ?? '',
   });
   const { tr } = useI18n();
   const [saved, setSaved] = useState(false);
@@ -75,7 +76,7 @@ function OnlineBooking({ property, onChanged }: { property: Property; onChanged:
       await run(
         supabase
           .from('properties')
-          .update({ ...p, booking_slug: p.booking_slug || null, public_description: p.public_description.trim() || null })
+          .update({ ...p, booking_slug: p.booking_slug || null, public_description: p.public_description.trim() || null, privacy_url: p.privacy_url.trim() || null })
           .eq('id', property.id)
           .select('id')
           .single(),
@@ -117,6 +118,12 @@ function OnlineBooking({ property, onChanged }: { property: Property; onChanged:
         </div>
         <Field label={tr('Présentation affichée aux clients', 'Description shown to guests')}>
           <Textarea rows={3} maxLength={1000} value={p.public_description} onChange={(e) => setP({ ...p, public_description: e.target.value })} />
+        </Field>
+        <Field
+          label={tr('Politique de confidentialité (lien)', 'Privacy policy (link)')}
+          hint={tr('Affichée à côté du consentement sur la page de réservation. Modèle : docs/conformite/politique-de-confidentialite.md', 'Shown next to the consent box on the booking page. Template: docs/conformite/politique-de-confidentialite.md')}
+        >
+          <Input type="url" pattern="https://.+" placeholder="https://" value={p.privacy_url} onChange={(e) => setP({ ...p, privacy_url: e.target.value })} />
         </Field>
         {property.booking_enabled && property.booking_slug && (
           <div className="flex flex-wrap items-center gap-2 text-xs">

@@ -38,7 +38,9 @@ instruction est contraire à la loi.
 Les personnes autorisées à accéder aux données chez le Sous-traitant sont soumises à une
 obligation de confidentialité. Le Sous-traitant n'accède aux données d'un établissement
 qu'à la demande de celui-ci (support) ou pour la sécurité du service, et chaque accès est
-tracé.
+tracé. Dans le logiciel, l'accès du support est ouvert par le Responsable de traitement
+lui-même, pour une durée limitée (au plus 7 jours), en lecture seule et révocable à
+tout moment ; chaque consultation est inscrite au journal d'audit.
 
 ## Article 5 — Sécurité
 

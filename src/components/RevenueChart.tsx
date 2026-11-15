@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { currencyLabel } from '../lib/dates';
 import { Calendar } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 
@@ -74,7 +75,7 @@ export default function RevenueChart({ data }: { data: RevenuePoint[] }) {
   const areaPath = linePath ? `${linePath} L ${pts[pts.length - 1].x} ${height - paddingY} L ${pts[0].x} ${height - paddingY} Z` : '';
 
   const formatCurrency = (val: number) => {
-    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(val)} FCFA`;
+    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(val)} ${currencyLabel()}`;
   };
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {

@@ -4,7 +4,7 @@ import { RoomStatus, PMSNotification } from './types';
 import { useAuth, type Membership } from './lib/auth';
 import { usePropertyData, balanceOf, clearSnapshots } from './lib/pmsData';
 import { APP_ROLE_LABELS, canManageReservations, canSeeFinance, uiRoleFor } from './lib/roles';
-import { addDays } from './lib/dates';
+import { addDays, formatMoney, setMoneyCurrency } from './lib/dates';
 import Sidebar from './components/Sidebar';
 import { navFor } from './lib/nav';
 import { useI18n } from './lib/i18n';
@@ -19,6 +19,7 @@ import RoomGrid from './components/RoomGrid';
 import DashboardOperations from './components/DashboardOperations';
 import CommandPalette from './components/CommandPalette';
 import ShortcutsHelp from './components/ShortcutsHelp';
+import { supabase } from './lib/supabase';
 
 // Écrans chargés à la demande : le bundle initial ne contient que le socle.
 const ReceptionistDashboard = lazy(() => import('./components/ReceptionistDashboard'));
@@ -92,6 +93,12 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
   const membership = memberships.find((m) => m.property.id === propertyId) ?? memberships[0];
   const property = membership.property;
   const appRole = membership.role;
+  setMoneyCurrency(property.currency);
+
+  // Support : chaque ouverture d'un établissement est inscrite au journal d'audit.
+  useEffect(() => {
+    if (membership.support) supabase.rpc('log_support_view', { p_property: membership.property.id }).then(() => undefined);
+  }, [membership.property.id, membership.support]);
   const currentRole = uiRoleFor(appRole);
   const financeVisible = canSeeFinance(appRole);
 
@@ -231,8 +238,18 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
         return;
       }
       if (room.status === 'reserved' && room.reservationId && next === 'available') {
-        if (!confirm(tr(`Annuler la réservation de ${room.guestName} (chambre ${room.number}) ?`, `Cancel the reservation of ${room.guestName} (room ${room.number})?`))) return;
-        runAction(() => actions.cancel(room.reservationId!));
+        const reservationId = room.reservationId;
+        // Les frais d'annulation éventuels sont annoncés avant de confirmer.
+        void (async () => {
+          const { data: fee } = await supabase.rpc('penalty_amount', { p_reservation: reservationId, p_kind: 'cancellation' });
+          const r = reservations.find((x) => x.id === reservationId);
+          const due = r?.status === 'confirmed' ? Number(fee ?? 0) : 0;
+          const feeText = due > 0
+            ? tr(` Des frais d’annulation de ${formatMoney(due)} seront ajoutés au folio (exonération possible depuis la fiche réservation).`, ` A cancellation fee of ${formatMoney(due)} will be added to the folio (it can be waived from the reservation drawer).`)
+            : tr(' Aucun frais d’annulation.', ' No cancellation fee.');
+          if (!confirm(tr(`Annuler la réservation de ${room.guestName} (chambre ${room.number}) ?`, `Cancel the reservation of ${room.guestName} (room ${room.number})?`) + feeText)) return;
+          runAction(() => actions.cancel(reservationId));
+        })();
         return;
       }
       if (next === 'reserved') {
@@ -247,7 +264,7 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
       }
       runAction(() => actions.setHousekeeping(room.id, next === 'not-ready' ? 'dirty' : 'clean'));
     },
-    [rooms, actions, runAction, handleAddNotification, tr],
+    [rooms, reservations, actions, runAction, handleAddNotification, tr],
   );
 
   // ── Indicateurs du tableau de bord, tous dérivés des réservations ──────
@@ -449,6 +466,14 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
           {actionError && (
             <Banner tone="red" onClose={() => setActionError(null)}>
               {actionError}
+            </Banner>
+          )}
+          {membership.support && (
+            <Banner tone="amber">
+              {tr(
+                `Accès support en lecture seule jusqu’à ${new Date(membership.support.expiresAt).toLocaleString('fr-FR')} — motif : ${membership.support.reason}`,
+                `Read-only support access until ${new Date(membership.support.expiresAt).toLocaleString('en-GB')} — reason: ${membership.support.reason}`,
+              )}
             </Banner>
           )}
           {APP_ENV && APP_ENV !== 'production' && (

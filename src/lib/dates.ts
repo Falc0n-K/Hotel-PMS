@@ -23,7 +23,18 @@ export function formatDate(isoDate: string | undefined): string {
   return `${d}/${m}/${y}`;
 }
 
-export function formatMoney(amount: number, currency = 'XOF'): string {
-  const value = Math.round(amount).toLocaleString('fr-FR');
-  return currency === 'XOF' ? `${value} FCFA` : `${value} ${currency}`;
+// Devise de l'établissement affiché (fixée par l'application à chaque changement
+// d'établissement) : toutes les devises gérées sont sans décimales.
+let moneyCurrency = 'XOF';
+export function setMoneyCurrency(currency: string | null | undefined) {
+  moneyCurrency = currency || 'XOF';
+}
+
+// Symbole affiché : « FCFA » pour les deux francs CFA, le code ISO sinon.
+export function currencyLabel(currency = moneyCurrency): string {
+  return currency === 'XOF' || currency === 'XAF' ? 'FCFA' : currency;
+}
+
+export function formatMoney(amount: number, currency = moneyCurrency): string {
+  return `${Math.round(amount).toLocaleString('fr-FR')} ${currencyLabel(currency)}`;
 }
