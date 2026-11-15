@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Building2, ChevronRight, Lock, LogOut, ShieldCheck } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Building2, ChevronRight, Lock, LogOut, Monitor, ShieldCheck, X } from 'lucide-react';
 import type { NavItem } from '../lib/nav';
 import { useI18n } from '../lib/i18n';
 
@@ -15,21 +15,51 @@ interface SidebarProps {
   onPropertyChange: (propertyId: string) => void;
   userName: string;
   userEmail: string;
+  // Petit écran : le menu est un tiroir ouvert depuis l'en-tête.
+  open: boolean;
+  onClose: () => void;
 }
 
 const LOGO_URL = 'https://lh3.googleusercontent.com/d/1P7FzKFgoqw2lC_WL9iiFy35LH3DCgzlj';
 
 export default function Sidebar({
   items, roleLabel, activeConsole, onConsoleSelect, onLockSession, onSignOut,
-  properties, currentPropertyId, onPropertyChange, userName, userEmail,
+  properties, currentPropertyId, onPropertyChange, userName, userEmail, open, onClose,
 }: SidebarProps) {
   const { t, tr } = useI18n();
   const [logoFailed, setLogoFailed] = useState(false);
   const initials = userName.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Tiroir ouvert : Échap le ferme, le focus va sur le bouton de fermeture.
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
 
   return (
-    <aside className="w-72 bg-white border-r border-slate-100 flex flex-col h-screen fixed top-0 left-0 z-20 shrink-0">
-      <div className="p-6 border-b border-slate-50 flex flex-col gap-3.5">
+    <>
+    {open && <div className="fixed inset-0 bg-slate-900/40 z-30 lg:hidden" onClick={onClose} aria-hidden="true" />}
+    <aside
+      id="main-menu"
+      className={`w-72 max-w-[85vw] bg-white border-r border-slate-100 flex flex-col h-[100dvh] fixed top-0 left-0 z-40 shrink-0 transition-transform duration-200 lg:z-20 lg:translate-x-0 ${
+        open ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+      }`}
+    >
+      <div className="p-6 max-lg:p-4 border-b border-slate-50 flex flex-col gap-3.5 relative">
+        <button
+          ref={closeRef}
+          onClick={onClose}
+          className="lg:hidden absolute top-3 right-3 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 cursor-pointer"
+          aria-label={tr('Fermer le menu', 'Close menu')}
+        >
+          <X className="w-5 h-5" />
+        </button>
         <div className="flex items-center justify-center py-1 w-full select-none">
           {logoFailed ? (
             <div className="bg-orange-600 font-extrabold text-white text-md px-5 py-2.5 rounded-xl shadow-md shadow-orange-500/10">SÉNÉGAL HÔTELS</div>
@@ -71,9 +101,12 @@ export default function Sidebar({
           return (
             <button
               key={item.id}
-              onClick={() => onConsoleSelect(item.id)}
+              onClick={() => {
+                onConsoleSelect(item.id);
+                onClose();
+              }}
               aria-current={active ? 'page' : undefined}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer group ${
+              className={`w-full flex items-center justify-between px-3 py-2.5 max-lg:py-3 max-lg:text-sm rounded-xl text-xs font-semibold transition-colors cursor-pointer group ${
                 active ? 'bg-orange-600 text-white shadow-md shadow-orange-600/10' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
@@ -81,7 +114,15 @@ export default function Sidebar({
                 <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
                 {t(item.label)}
               </span>
-              {active && <ChevronRight className="w-3.5 h-3.5 text-orange-200" />}
+              {active ? (
+                <ChevronRight className="w-3.5 h-3.5 text-orange-200" />
+              ) : (
+                !item.mobile && (
+                  <span className="lg:hidden" title={tr('Prévu pour un écran large', 'Designed for a large screen')}>
+                    <Monitor className="w-3.5 h-3.5 text-slate-300" aria-hidden="true" />
+                  </span>
+                )
+              )}
             </button>
           );
         })}
@@ -106,5 +147,6 @@ export default function Sidebar({
         <p className="text-[9px] text-slate-400 text-center font-mono" title="Version">v{__APP_VERSION__}</p>
       </div>
     </aside>
+    </>
   );
 }

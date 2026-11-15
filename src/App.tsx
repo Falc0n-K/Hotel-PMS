@@ -1,12 +1,12 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, AlertTriangle, Shield, X, FlaskConical, Search, Keyboard } from 'lucide-react';
+import { Loader2, AlertTriangle, Shield, X, FlaskConical, Search, Keyboard, Menu } from 'lucide-react';
 import { RoomStatus, PMSNotification } from './types';
 import { useAuth, type Membership } from './lib/auth';
 import { usePropertyData, balanceOf, clearSnapshots } from './lib/pmsData';
 import { APP_ROLE_LABELS, canManageReservations, canSeeFinance, uiRoleFor } from './lib/roles';
 import { addDays, formatMoney, setMoneyCurrency } from './lib/dates';
 import Sidebar from './components/Sidebar';
-import { navFor } from './lib/nav';
+import { isFieldRole, navFor } from './lib/nav';
 import { useI18n } from './lib/i18n';
 import Header from './components/Header';
 import LoginScreen, { MfaChallengeScreen, NewPasswordScreen } from './components/LoginScreen';
@@ -114,8 +114,13 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
   const { rooms, reservations, today, actions } = data;
 
   const navItems = useMemo(() => navFor(appRole), [appRole]);
+  // Barre d'onglets du bas (petit écran, rôles de terrain) : écrans prévus pour le téléphone.
+  const tabItems = useMemo(
+    () => (isFieldRole(appRole) ? navItems.filter((n) => n.mobile && n.id !== 'account').slice(0, 4) : []),
+    [navItems, appRole],
+  );
   const [activeConsole, setActiveConsole] = useState<string>(() =>
-    ['front_desk', 'reservation_manager'].includes(appRole) ? 'reception-desk' : appRole === 'housekeeper' ? 'housekeeping' : 'dashboard',
+    ['front_desk', 'reservation_manager'].includes(appRole) ? 'reception-desk' : appRole === 'housekeeper' ? 'housekeeping' : appRole === 'maintenance' ? 'maintenance' : 'dashboard',
   );
   useEffect(() => {
     if (!navItems.some((n) => n.id === activeConsole)) setActiveConsole(navItems[0].id);
@@ -127,6 +132,8 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
   const [roomFocus, setRoomFocus] = useState<{ query: string } | undefined>(undefined);
   const [bookingFocus, setBookingFocus] = useState<{ id: string; nonce: number } | undefined>(undefined);
   const consoleRef = useRef<HTMLDivElement>(null);
@@ -336,7 +343,7 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
               {financeVisible ? (
                 <RevenueChart data={revenueTrend} />
               ) : (
-                <div className="bg-slate-100/50 p-6 rounded-2xl border border-dashed border-slate-200 flex-1 flex flex-col items-center justify-center text-center py-12 min-h-[260px]">
+                <div className="max-lg:hidden bg-slate-100/50 p-6 rounded-2xl border border-dashed border-slate-200 flex-1 flex flex-col items-center justify-center text-center py-12 min-h-[260px]">
                   <Shield className="w-10 h-10 text-slate-400 mb-3" />
                   <h5 className="font-bold text-slate-700">{tr('Données financières non accessibles', 'Financial data not accessible')}</h5>
                   <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
@@ -444,9 +451,11 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
         }}
         userName={userName}
         userEmail={userEmail}
+        open={menuOpen}
+        onClose={closeMenu}
       />
 
-      <main className="flex-grow pl-72 min-h-screen flex flex-col">
+      <main className={`flex-grow min-w-0 lg:pl-72 min-h-screen flex flex-col ${tabItems.length ? 'max-lg:pb-[calc(4.5rem+env(safe-area-inset-bottom))]' : ''}`}>
         <Header
           title={consoleLabel}
           userName={userName}
@@ -455,9 +464,11 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
           notifications={notifications}
           onMarkNotificationRead={(id) => setNotifications((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)))}
           onClearNotification={(id) => setNotifications((p) => p.filter((n) => n.id !== id))}
+          menuOpen={menuOpen}
+          onOpenMenu={() => setMenuOpen(true)}
         />
 
-        <div className="p-8 flex-grow flex flex-col max-w-[1600px] w-full mx-auto">
+        <div className="p-3 sm:p-6 lg:p-8 flex-grow flex flex-col max-w-[1600px] w-full mx-auto">
           {data.error && (
             <Banner tone="red" onClose={data.reload} closeLabel={tr('Réessayer', 'Retry')}>
               {tr('Impossible de charger les données :', 'Unable to load data:')} {data.error}
@@ -514,7 +525,7 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
           )}
         </div>
 
-        <footer className="h-14 border-t border-slate-100 flex items-center justify-between px-8 text-[11px] text-slate-400 bg-white/50">
+        <footer className="h-14 border-t border-slate-100 flex items-center justify-between px-8 text-[11px] text-slate-400 bg-white/50 max-lg:hidden">
           <span>Senegal Hotels PMS © {today.slice(0, 4)}</span>
           <span className="flex items-center gap-3">
             <button onClick={() => setPaletteOpen(true)} className="flex items-center gap-1.5 font-semibold hover:text-slate-700 cursor-pointer" aria-label={tr('Recherche globale', 'Global search')}>
@@ -530,6 +541,40 @@ function Workspace({ memberships }: { memberships: Membership[] }) {
           </span>
         </footer>
       </main>
+
+      {tabItems.length > 0 && (
+        <nav
+          className="lg:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]"
+          aria-label={tr('Navigation rapide', 'Quick navigation')}
+        >
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${tabItems.length + 1}, minmax(0, 1fr))` }}>
+            {tabItems.map((item) => {
+              const Icon = item.icon;
+              const active = activeConsole === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveConsole(item.id)}
+                  aria-current={active ? 'page' : undefined}
+                  className={`h-16 flex flex-col items-center justify-center gap-1 text-[11px] font-semibold cursor-pointer ${active ? 'text-orange-600' : 'text-slate-500'}`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="truncate max-w-full px-1">{item.id === 'dashboard' ? tr('Accueil', 'Home') : t(item.label)}</span>
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setMenuOpen(true)}
+              className="h-16 flex flex-col items-center justify-center gap-1 text-[11px] font-semibold text-slate-500 cursor-pointer"
+              aria-controls="main-menu"
+              aria-expanded={menuOpen}
+            >
+              <Menu className="w-5 h-5" />
+              {tr('Menu', 'Menu')}
+            </button>
+          </div>
+        </nav>
+      )}
 
       {paletteOpen && !isSessionLocked && (
         <CommandPalette

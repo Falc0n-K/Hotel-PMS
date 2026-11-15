@@ -5,6 +5,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selo
 
 ## [Unreleased]
 
+### Added
+- **Back-office sur téléphone** : sous 1024 px, le menu latéral devient un tiroir
+  (bouton dans l'en-tête, fermeture par Échap ou en touchant à côté). La gouvernante,
+  les femmes et valets de chambre et la maintenance ont en plus une barre d'onglets en
+  bas d'écran (Accueil, Chambres, Ménage, Maintenance, Menu) ; la maintenance arrive
+  directement sur ses interventions. L'écran Chambres affiche une fiche par chambre
+  avec les actions « Ménage terminé » et « Lever la maintenance ». Les écrans prévus
+  pour un écran large (planning, finance, paramètres…) restent accessibles et sont
+  signalés dans le menu. Tests navigateur sur téléphone en CI.
+
 ## [1.0.0-alpha.1] - 2026-11-15
 
 Première version du PMS sur une vraie base de données : la maquette Google AI Studio
