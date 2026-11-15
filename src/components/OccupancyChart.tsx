@@ -1,83 +1,49 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import { useState } from 'react';
+import { CalendarRange } from 'lucide-react';
+import { useI18n } from '../lib/i18n';
 
-import { useState, useMemo } from 'react';
-import { CalendarRange, ChevronDown } from 'lucide-react';
-import { occupancyTrendData } from '../data';
-import { Room } from '../types';
-
-interface OccupancyChartProps {
-  rooms?: Room[];
+export interface OccupancyPoint {
+  day: string;
+  occupied: number;
+  available: number;
 }
 
-export default function OccupancyChart({ rooms }: OccupancyChartProps) {
+interface OccupancyChartProps {
+  data: OccupancyPoint[];
+  totalCapacity: number;
+}
+
+// Nuitées occupées par jour, calculées depuis les réservations.
+export default function OccupancyChart({ data, totalCapacity: capacity }: OccupancyChartProps) {
+  const { tr } = useI18n();
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
-  const [timeframe, setTimeframe] = useState('7 Derniers Jours');
-  const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
-
-  const totalCapacity = rooms ? rooms.length || 120 : 120;
-
-  const data = useMemo(() => {
-    if (!rooms || rooms.length === 0) return occupancyTrendData;
-    const occupied = rooms.filter(r => r.status === 'occupied').length;
-    const available = rooms.filter(r => r.status === 'available').length;
-    const todayLabel = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
-    return [
-      ...occupancyTrendData.slice(0, 6),
-      { day: todayLabel, occupied, available }
-    ];
-  }, [rooms]);
+  const totalCapacity = Math.max(capacity, 1);
 
   return (
     <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex-1 flex flex-col min-w-[320px] md:min-w-[400px]">
       {/* Header section */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h4 className="text-sm font-bold text-slate-900 tracking-tight">Tendance d'Occupation</h4>
-          <p className="text-[11px] text-slate-400 font-medium">Indicateurs journaliers du flux de clients</p>
+          <h4 className="text-sm font-bold text-slate-900 tracking-tight">{tr("Tendance d'Occupation", 'Occupancy trend')}</h4>
+          <p className="text-[11px] text-slate-400 font-medium">{tr('Indicateurs journaliers du flux de clients', 'Daily guest flow indicators')}</p>
         </div>
 
-        {/* Dropdown filters */}
-        <div className="relative">
-          <button
-            onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 text-[11px] font-bold text-slate-600 rounded-lg cursor-pointer transition-colors"
-          >
-            <span>{timeframe}</span>
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-          
-          {showTimeframeDropdown && (
-            <div className="absolute right-0 mt-1.5 w-36 bg-white border border-slate-100 rounded-lg shadow-lg py-1.5 z-30">
-              {['Aujourd\'hui', '7 Derniers Jours', 'Ce Mois', 'Mois Dernier'].map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => {
-                    setTimeframe(opt);
-                    setShowTimeframeDropdown(false);
-                  }}
-                  className="w-full text-left px-3 py-1.5 text-[11px] text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer"
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <span className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-600 rounded-lg">
+          <CalendarRange className="w-3.5 h-3.5" />
+          {tr('7 derniers jours', 'Last 7 days')}
+        </span>
       </div>
 
       {/* Interactive Legend block */}
       <div className="flex items-center gap-4 mb-6">
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Légende :</label>
+        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{tr('Légende :', 'Legend:')}</label>
         <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
           <span className="w-3 h-3 rounded bg-orange-500 inline-block"></span>
-          <span>Occupé</span>
+          <span>{tr('Occupé', 'Occupied')}</span>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
           <span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 inline-block"></span>
-          <span>Disponible</span>
+          <span>{tr('Disponible', 'Available')}</span>
         </div>
       </div>
 
@@ -127,10 +93,10 @@ export default function OccupancyChart({ rooms }: OccupancyChartProps) {
                 <div className="absolute bottom-16 bg-[#09153D] text-white p-2.5 rounded-xl text-center shadow-lg border border-slate-700/60 z-10 w-32 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
                   <p className="text-[10px] font-bold text-orange-400">{item.day}</p>
                   <p className="text-xs font-bold font-mono mt-0.5">
-                    {item.occupied} Occ. ({Math.round(occupiedPercent)}%)
+                    {item.occupied} {tr('Occ.', 'Occ.')} ({Math.round(occupiedPercent)}%)
                   </p>
                   <p className="text-[9px] text-slate-300 font-medium mt-0.5">
-                    {item.available} Libres ({Math.round(availablePercent)}%)
+                    {item.available} {tr('Libres', 'Free')} ({Math.round(availablePercent)}%)
                   </p>
                 </div>
               )}

@@ -1,0 +1,3 @@
+-- 50 clients se disputent les 3 chambres « Course » sur les mêmes dates (moteur public).
+set role service_role;
+select load.try_book_type('race_type', (select id from public.room_types where name = 'Course'), current_date + 300, current_date + 303);

@@ -1,0 +1,43 @@
+name: Déploiement Supabase
+
+# Applique les migrations et déploie les Edge Functions sur le projet de
+# production après chaque merge dans main. L'environnement GitHub
+# « production » impose une approbation manuelle (voir docs/configuration.md).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-supabase
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrations et fonctions
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Liaison au projet
+        run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Migrations en attente (aperçu)
+        run: supabase db push --dry-run --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Application des migrations
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Déploiement des Edge Functions
+        run: supabase functions deploy --project-ref "$PROJECT_REF"

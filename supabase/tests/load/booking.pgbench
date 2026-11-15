@@ -1,0 +1,6 @@
+-- Réservations en ligne à des dates et types aléatoires, en parallèle.
+\set d random(1, 360)
+\set n random(1, 5)
+\set t random(1, 10)
+set role service_role;
+select load.try_book_type('booking', (select id from public.room_types where name = 'Type ' || :t), current_date + :d, current_date + :d + :n);

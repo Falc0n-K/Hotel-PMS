@@ -1,0 +1,100 @@
+name: Release
+
+# À chaque arrivée sur main (merge d'une release/* ou d'un hotfix/*) : si la version de
+# package.json n'a pas encore de tag, crée le tag vX.Y.Z et la release GitHub avec les
+# notes du CHANGELOG, puis envoie le lien (e-mail et/ou messagerie d'équipe).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag, release et envoi du lien
+    runs-on: ubuntu-latest
+    env:
+      # Les secrets ne sont pas lisibles dans un « if » : on en déduit des drapeaux.
+      HAS_RESEND: ${{ secrets.RESEND_API_KEY != '' }}
+      HAS_WEBHOOK: ${{ secrets.RELEASE_WEBHOOK_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Version à publier
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::v$VERSION est déjà publiée : rien à faire (monter la version pour une nouvelle release)."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+          case "$VERSION" in *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;; esac
+
+      - name: Notes de version (CHANGELOG)
+        if: steps.version.outputs.exists == 'false'
+        run: node scripts/changelog-section.mjs "${{ steps.version.outputs.version }}" > release-notes.md
+
+      - name: Tag et release GitHub
+        if: steps.version.outputs.exists == 'false'
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          FLAGS=""
+          [ "$PRERELEASE" = "true" ] && FLAGS="--prerelease"
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file release-notes.md $FLAGS
+          echo "url=$(gh release view "v$VERSION" --json url -q .url)" >> "$GITHUB_OUTPUT"
+
+      # Envoi du lien : chaque canal est facultatif et s'active quand ses réglages existent.
+      - name: Envoi du lien par e-mail (Resend)
+        if: steps.version.outputs.exists == 'false' && env.HAS_RESEND == 'true' && vars.RELEASE_NOTIFY_TO != ''
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          TO: ${{ vars.RELEASE_NOTIFY_TO }}
+          FROM: ${{ vars.RELEASE_MAIL_FROM || 'Hotel PMS <onboarding@resend.dev>' }}
+          APP_URL: ${{ vars.APP_URL || 'https://hotel-pms-mu.vercel.app' }}
+          VERSION: ${{ steps.version.outputs.version }}
+          URL: ${{ steps.release.outputs.url }}
+        run: |
+          jq -n --arg from "$FROM" --arg to "$TO" --arg v "$VERSION" --arg url "$URL" --arg app "$APP_URL" \
+                --rawfile notes release-notes.md '{
+            from: $from,
+            to: ($to | split(",") | map(gsub("^ +| +$"; ""))),
+            subject: ("Hotel PMS v" + $v + " publiée"),
+            text: ("La version " + $v + " est en production.\n\nNotes de version : " + $url + "\nApplication : " + $app + "\n\n" + $notes)
+          }' > mail.json
+          curl -sS --fail-with-body -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" -H 'Content-Type: application/json' \
+            --data @mail.json
+
+      - name: Envoi du lien sur la messagerie d'équipe (Slack, Google Chat, Teams, Discord)
+        if: steps.version.outputs.exists == 'false' && env.HAS_WEBHOOK == 'true'
+        env:
+          WEBHOOK_URL: ${{ secrets.RELEASE_WEBHOOK_URL }}
+          APP_URL: ${{ vars.APP_URL || 'https://hotel-pms-mu.vercel.app' }}
+          VERSION: ${{ steps.version.outputs.version }}
+          URL: ${{ steps.release.outputs.url }}
+        run: |
+          MSG="Hotel PMS v$VERSION est en production. Notes : $URL · Application : $APP_URL"
+          jq -n --arg m "$MSG" '{text: $m, content: $m}' > hook.json
+          curl -sS --fail-with-body -X POST "$WEBHOOK_URL" -H 'Content-Type: application/json' --data @hook.json
+
+      - name: Résumé
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          echo "### Release v${{ steps.version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.release.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

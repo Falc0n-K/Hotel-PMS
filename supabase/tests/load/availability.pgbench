@@ -1,0 +1,5 @@
+-- Recherche de disponibilités à des dates aléatoires (site public, API).
+\set d random(1, 330)
+\set n random(1, 7)
+set role service_role;
+select count(*) from public.availability_for((select property_id from load.ctx), current_date + :d, current_date + :d + :n, 2::smallint, 0::smallint);
