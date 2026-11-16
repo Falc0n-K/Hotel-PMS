@@ -170,6 +170,29 @@ export default function RoomInventory({
     return { total, occupied, available, reserved, dirty, maintenance, avgRate };
   }, [filteredRooms]);
 
+  const statusBadge = (room: Room) => (
+    <span className={`inline-flex items-center gap-1.5 text-[10px] font-extrabold px-3 py-1 rounded-full ${
+      room.status === 'available' ? 'bg-emerald-50 text-emerald-600' :
+      room.status === 'occupied' ? 'bg-blue-50 text-blue-600' :
+      room.status === 'reserved' ? 'bg-sky-50 text-sky-600' :
+      room.status === 'maintenance' ? 'bg-red-50 text-red-600' :
+      'bg-orange-50 text-orange-600'
+    }`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${
+        room.status === 'available' ? 'bg-emerald-500' :
+        room.status === 'occupied' ? 'bg-blue-500' :
+        room.status === 'reserved' ? 'bg-sky-500' :
+        room.status === 'maintenance' ? 'bg-red-500' :
+        'bg-orange-500'
+      }`} />
+      {room.status === 'available' ? tr('DISPONIBLE', 'AVAILABLE') :
+       room.status === 'occupied' ? tr('OCCUPÉ', 'OCCUPIED') :
+       room.status === 'reserved' ? tr('RÉSERVÉ', 'RESERVED') :
+       room.status === 'maintenance' ? tr('🔧 MAINTENANCE', '🔧 MAINTENANCE') :
+       tr('EN NETTOYAGE', 'BEING CLEANED')}
+    </span>
+  );
+
   return (
     <div className="space-y-6 fade-in-up">
       
@@ -345,8 +368,41 @@ export default function RoomInventory({
           </span>
         </div>
 
+        {/* Téléphone : une carte par chambre, actions de terrain libellées */}
+        <ul className="md:hidden divide-y divide-slate-100 border border-slate-100 rounded-2xl" aria-label={tr('Chambres', 'Rooms')}>
+          {filteredRooms.length === 0 && (
+            <li className="p-8 text-center text-slate-400 text-xs italic">{tr('Aucune chambre ne correspond à vos critères de recherche.', 'No room matches your search criteria.')}</li>
+          )}
+          {pagedRooms.map((room) => (
+            <li key={room.id} className="p-3 flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center font-bold text-[#09153D] font-mono shrink-0">{room.number}</div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-800 truncate">{room.category}</p>
+                  <p className="text-[11px] text-slate-400">
+                    {tr(`Étage ${room.floor}`, `Floor ${room.floor}`)}
+                    {room.guestName ? ` · ${room.guestName}` : ''}
+                  </p>
+                </div>
+                <div className="shrink-0">{statusBadge(room)}</div>
+              </div>
+              {(room.status === 'not-ready' || (currentRole !== 'Responsable Ménage' && currentRole !== 'Directeur Financier' && room.status === 'maintenance')) && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => onUpdateRoomStatus(room.id, 'available')}
+                    className="min-h-11 px-4 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    {room.status === 'not-ready' ? tr('Ménage terminé', 'Cleaning done') : tr('Lever la maintenance', 'End maintenance')}
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+
         {/* Responsive inventory table */}
-        <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+        <div className="max-md:hidden overflow-x-auto border border-slate-100 rounded-2xl">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
@@ -411,26 +467,7 @@ export default function RoomInventory({
                             <option value="maintenance">{tr('Maintenance (Stop Service)', 'Maintenance (out of order)')}</option>
                           </select>
                         ) : (
-                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-extrabold px-3 py-1 rounded-full ${
-                            room.status === 'available' ? 'bg-emerald-50 text-emerald-600' :
-                            room.status === 'occupied' ? 'bg-blue-50 text-blue-600' :
-                            room.status === 'reserved' ? 'bg-sky-50 text-sky-600' :
-                            room.status === 'maintenance' ? 'bg-red-50 text-red-600' :
-                            'bg-orange-50 text-orange-600'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${
-                              room.status === 'available' ? 'bg-emerald-500' :
-                              room.status === 'occupied' ? 'bg-blue-500' :
-                              room.status === 'reserved' ? 'bg-sky-500' :
-                              room.status === 'maintenance' ? 'bg-red-500' :
-                              'bg-orange-500'
-                            }`} />
-                            {room.status === 'available' ? tr('DISPONIBLE', 'AVAILABLE') :
-                             room.status === 'occupied' ? tr('OCCUPÉ', 'OCCUPIED') :
-                             room.status === 'reserved' ? tr('RÉSERVÉ', 'RESERVED') :
-                             room.status === 'maintenance' ? tr('🔧 MAINTENANCE', '🔧 MAINTENANCE') :
-                             tr('EN NETTOYAGE', 'BEING CLEANED')}
-                          </span>
+                          statusBadge(room)
                         )}
                       </td>
 

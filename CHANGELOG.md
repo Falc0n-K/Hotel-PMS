@@ -5,6 +5,30 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selo
 
 ## [Unreleased]
 
+## [1.0.0-alpha.2] - 2026-11-16
+
+### Added
+- **Back-office sur téléphone** : sous 1024 px, le menu latéral devient un tiroir
+  (bouton dans l'en-tête, fermeture par Échap ou en touchant à côté). La gouvernante,
+  les femmes et valets de chambre et la maintenance ont en plus une barre d'onglets en
+  bas d'écran (Accueil, Chambres, Ménage, Maintenance, Menu) ; la maintenance arrive
+  directement sur ses interventions. L'écran Chambres affiche une fiche par chambre
+  avec les actions « Ménage terminé » et « Lever la maintenance ». Les écrans prévus
+  pour un écran large (planning, finance, paramètres…) restent accessibles et sont
+  signalés dans le menu. Tests navigateur sur téléphone en CI.
+- **Réception sur tablette** : en paysage (1024 à 1280 px), le menu devient un rail
+  d'icônes libellées qui laisse la place aux écrans et s'ouvre en menu complet d'un
+  geste ; en portrait, menu en tiroir. Sur écran tactile, boutons et champs d'au moins
+  44 px, champs en 16 px (pas de zoom automatique de l'iPad), boutons Check-in /
+  Check-out agrandis. La liste des réservations masque Provenance et Montant sous
+  1280 px (visibles dans la fiche). Le planning indique de toucher un séjour pour le
+  modifier ou déloger, le glisser-déposer ne fonctionnant pas au doigt. Tests
+  navigateur sur tablette (portrait et paysage).
+
+### Fixed
+- Le bouton « CRM Clients » de la console réception ne menait nulle part.
+- Le pied de page affichait la version 0.6.0 au lieu de la version réelle.
+
 ## [1.0.0-alpha.1] - 2026-11-15
 
 Première version du PMS sur une vraie base de données : la maquette Google AI Studio

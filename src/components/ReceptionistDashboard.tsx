@@ -123,7 +123,7 @@ export default function ReceptionistDashboard({
             {tr('Guichet Réservations', 'Reservations desk')}
           </button>
           <button
-            onClick={() => onNavigate('guests-crm')}
+            onClick={() => onNavigate('guests')}
             className="border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
           >
             <User className="w-4 h-4" />
@@ -199,7 +199,7 @@ export default function ReceptionistDashboard({
               <p className="text-xs text-slate-400 italic">{tr("Aucune arrivée prévue aujourd'hui.", 'No arrivals scheduled today.')}</p>
             </div>
           ) : (
-            <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-72 md:max-h-96 overflow-y-auto pr-1">
               {todayArrivals.map(room => (
                 <div key={room.id} className="flex items-center justify-between p-3 bg-slate-50/70 rounded-xl border border-slate-100 hover:border-emerald-200 transition-colors">
                   <div className="flex items-center gap-2.5">
@@ -222,7 +222,7 @@ export default function ReceptionistDashboard({
                     )}
                     <button
                       onClick={() => handleQuickCheckIn(room)}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl pointer-coarse:min-h-11 pointer-coarse:px-4 pointer-coarse:text-xs transition-colors cursor-pointer flex items-center gap-1 shrink-0"
                     >
                       <UserCheck className="w-3 h-3" />
                       Check-In
@@ -257,7 +257,7 @@ export default function ReceptionistDashboard({
               <p className="text-xs text-slate-400 italic">{tr("Aucun départ enregistré aujourd'hui.", 'No departures recorded today.')}</p>
             </div>
           ) : (
-            <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-72 md:max-h-96 overflow-y-auto pr-1">
               {todayDepartures.map(room => (
                 <div key={room.id} className="flex items-center justify-between p-3 bg-slate-50/70 rounded-xl border border-slate-100 hover:border-slate-300 transition-colors">
                   <div className="flex items-center gap-2.5">
@@ -278,7 +278,7 @@ export default function ReceptionistDashboard({
                   </div>
                   <button
                     onClick={() => handleQuickCheckOut(room)}
-                    className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+                    className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl pointer-coarse:min-h-11 pointer-coarse:px-4 pointer-coarse:text-xs transition-colors cursor-pointer flex items-center gap-1 shrink-0"
                   >
                     <LogOut className="w-3 h-3" />
                     Check-Out
@@ -338,7 +338,7 @@ export default function ReceptionistDashboard({
             </div>
             <button
               onClick={() => onNavigate('rooms-inventory')}
-              className="text-[10px] text-orange-600 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+              className="text-[10px] text-orange-600 font-bold hover:underline flex items-center gap-0.5 cursor-pointer pointer-coarse:min-h-11 pointer-coarse:px-2 pointer-coarse:text-xs"
             >
               {tr('Gérer', 'Manage')} <ArrowRight className="w-3 h-3" />
             </button>
@@ -389,7 +389,7 @@ export default function ReceptionistDashboard({
           </div>
           <button
             onClick={() => onNavigate('rooms-inventory')}
-            className="text-[10px] text-orange-600 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+            className="text-[10px] text-orange-600 font-bold hover:underline flex items-center gap-0.5 cursor-pointer pointer-coarse:min-h-11 pointer-coarse:px-2 pointer-coarse:text-xs"
           >
             {tr('Voir tout', 'View all')} <ArrowRight className="w-3 h-3" />
           </button>

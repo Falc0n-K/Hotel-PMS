@@ -48,7 +48,7 @@ export function Button({
     <button
       {...props}
       disabled={props.disabled || busy}
-      className={`inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3.5 py-2.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3.5 py-2.5 pointer-coarse:min-h-11 pointer-coarse:px-4 rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant]} ${className}`}
     >
       {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : Icon ? <Icon className="w-3.5 h-3.5" /> : null}
       {children}
@@ -60,7 +60,7 @@ export function Button({
 const widthOf = (className?: string) => (/(^|\s)(\w+:)?w-/.test(className ?? '') ? '' : 'w-full');
 
 const fieldClass =
-  'bg-slate-50 border border-slate-200 text-xs text-slate-800 p-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 disabled:opacity-60';
+  'bg-slate-50 border border-slate-200 text-xs text-slate-800 p-2.5 rounded-xl pointer-coarse:min-h-11 pointer-coarse:text-base focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 disabled:opacity-60';
 
 export function Field({ label, hint, children, className = '' }: { label: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
@@ -89,7 +89,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
 export function Checkbox({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
     <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
-      <input type="checkbox" {...props} className="accent-orange-600 w-4 h-4" />
+      <input type="checkbox" {...props} className="accent-orange-600 w-4 h-4 pointer-coarse:w-5 pointer-coarse:h-5" />
       {label}
     </label>
   );
@@ -161,14 +161,16 @@ export function Badge({ tone = 'slate', children }: { tone?: Tone; children: Rea
   return <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-md ${BADGE_TONES[tone]}`}>{children}</span>;
 }
 
-export function Table({ head, children }: { head: React.ReactNode[]; children: React.ReactNode }) {
+// headClassNames : classes propres à chaque colonne d'en-tête (ex. masquer une
+// colonne secondaire sur tablette ; la cellule correspondante porte la même classe).
+export function Table({ head, headClassNames, children }: { head: React.ReactNode[]; headClassNames?: (string | undefined)[]; children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto border border-slate-100 rounded-2xl">
       <table className="w-full text-xs">
         <thead>
           <tr className="bg-slate-50/70 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
             {head.map((h, i) => (
-              <th key={i} className="p-3 text-left whitespace-nowrap">{h}</th>
+              <th key={i} className={`p-3 text-left whitespace-nowrap ${headClassNames?.[i] ?? ''}`}>{h}</th>
             ))}
           </tr>
         </thead>
