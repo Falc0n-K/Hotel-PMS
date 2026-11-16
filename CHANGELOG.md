@@ -5,6 +5,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), versions selo
 
 ## [Unreleased]
 
+## [1.0.0-alpha.2] - 2026-11-16
+
 ### Added
 - **Back-office sur téléphone** : sous 1024 px, le menu latéral devient un tiroir
   (bouton dans l'en-tête, fermeture par Échap ou en touchant à côté). La gouvernante,
